@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { type CampoCitado, type Ficha as TFicha, leerFicha } from './api.ts';
+import { type CampoCitado, type DecisionEquipo, type Ficha as TFicha, type NotaEquipo, leerEquipoFicha, leerFicha } from './api.ts';
+import { BotonesDecision, Notas } from './Decision.tsx';
 import { SeccionGanadores } from './Ganadores.tsx';
 import { SeccionPlazo } from './Plazo.tsx';
 import { SeccionPuntuacion } from './Puntuacion.tsx';
@@ -48,9 +49,12 @@ function Campo({ nombre, campo, formato }: { nombre: string; campo: CampoCitado;
 export function Ficha({ id }: { id: string }) {
   const [ficha, setFicha] = useState<TFicha | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [decision, setDecision] = useState<DecisionEquipo | null>(null);
+  const [notas, setNotas] = useState<NotaEquipo[]>([]);
 
   useEffect(() => {
     leerFicha(id).then(setFicha, (e: Error) => setError(e.message));
+    leerEquipoFicha(id).then((e) => { setDecision(e.decision); setNotas(e.notas); }, () => { /* sin acceso al equipo: se ve la ficha sin decisión ni notas */ });
   }, [id]);
 
   const a = ficha?.analisis?.campos;
@@ -77,6 +81,7 @@ export function Ficha({ id }: { id: string }) {
                 </a>
               ))}
             </nav>
+            <BotonesDecision id={ficha.id} decision={decision} alCambiar={setDecision} />
           </header>
 
           {!ficha.enJuego && (
@@ -147,6 +152,8 @@ export function Ficha({ id }: { id: string }) {
               </dl>
             </section>
           )}
+          <div className="mt-6" />
+          <Notas id={ficha.id} notas={notas} alCambiar={setNotas} />
           {ficha.analisis && (
             <footer className="mt-4 space-y-1 text-xs text-stone-500">
               <p>Leído: {ficha.analisis.documentos.map((d) => d.titulo).join(' · ') || '—'}</p>

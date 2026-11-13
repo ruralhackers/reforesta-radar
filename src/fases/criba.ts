@@ -40,7 +40,7 @@ export async function cribarConLlm(
   const pendientes = pendientesDeFase(ctx.db, FASE_CRIBA, publicadasDesde);
   await enParalelo(pendientes, EN_PARALELO, async ({ convocatoria: c, condicion }) => {
     try {
-      const { sistema, mensaje } = promptCriba(perfil, c, condicion, textosSinDescarga(c, fuentes));
+      const { sistema, mensaje } = promptCriba(perfil, c, condicion, textosSinDescarga(c, fuentes), ctx.ejemplos);
       const peticion = { tarea: 'criba' as const, modelo, sistema, mensaje, esquema: ESQUEMA_CRIBA, maxTokens: 4000 };
       const clave = claveCache(peticion);
       const r = desdeCache(ctx.db, clave) ?? (await llamar(ctx, registro, peticion));

@@ -12,6 +12,7 @@ import { type ConfigPuntuacion, leerConfigPuntuacion, type ProveedorProbabilidad
 import { construirRanking, seccionParecidas } from '../ranking.ts';
 import { infoParecidas } from '../parecidas.ts';
 import { activarParecida, altaParecidaManual, leerParecidasConAportes, NIF_ENTIDAD_VALIDO, quitarParecidaManual } from '../db/ganadores.ts';
+import { anadirNota, borrarNota, decidir, deshacerDecision, ErrorDecision, leerDecision, leerDecisiones, leerNotas, MOTIVOS_DESCARTE, nosInteresa } from '../db/decisiones.ts';
 import { config } from '../config.ts';
 import { fuentePorNombre } from '../sources/index.ts';
 import type { Fuente } from '../sources/source.ts';
@@ -111,6 +112,47 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
     }
   });
   api.route('/perfil', privadaPerfil);
+
+  // --- Decisiones del equipo y notas ---
+  // LECTURAS en un solo sitio (`equipo`, montado en /api/equipo): son lo que Task 9 esconderá cuando haya TEAM_PASSWORD
+  // (`equipo.use('*', ...)`). ESCRITURAS en `privadaDecisiones` (/api/decisiones), el sub-router para su middleware.
+  // Lo descartado por el equipo ya no sale en /api/semana (ni en la lista paralela de parecidas); ver NO_DESCARTADA_POR_EQUIPO en db/repo.ts.
+  const equipo = new Hono();
+  /** Motivos de descarte de un clic (el último, "Otro", exige texto libre). */
+  equipo.get('/motivos', (c) => c.json({ motivos: MOTIVOS_DESCARTE }));
+  /** Todas las decisiones: [{ convocatoriaId, decision, motivo, detalle, decididaEn }], las más recientes primero. */
+  equipo.get('/decisiones', (c) => c.json({ decisiones: leerDecisiones(db) }));
+  /** "Nos interesa" por plazo (cierre más próximo primero, plazo desconocido al final) con los días que faltan (negativo = cerrada). */
+  equipo.get('/nos-interesa', (c) => c.json({ hasta: diaLocal(reloj.now()), convocatorias: nosInteresa(db, diaLocal(reloj.now())) }));
+  /** Decisión (o null) y notas de una convocatoria. */
+  equipo.get('/convocatorias/:id', (c) => {
+    const id = c.req.param('id');
+    if (!leerConvocatoria(db, id)) return c.json({ error: 'No existe' }, 404);
+    return c.json({ decision: leerDecision(db, id), notas: leerNotas(db, id) });
+  });
+  api.route('/equipo', equipo);
+
+  const privadaDecisiones = new Hono();
+  const respuestaDecision = (c: { json: (o: object, s?: 400 | 404) => Response }, e: unknown) => {
+    if (e instanceof ErrorDecision) return c.json({ error: e.message }, e.estado);
+    throw e;
+  };
+  /** Cuerpo: { decision: 'nos_interesa' } | { decision: 'descartada', motivo, detalle? }. Cambia la decisión si ya había una. */
+  privadaDecisiones.put('/:id', async (c) => {
+    const cuerpo = await c.req.json().catch(() => undefined);
+    if (cuerpo === undefined) return c.json({ error: 'El cuerpo no es JSON válido' }, 400);
+    try { return c.json(decidir(db, c.req.param('id'), cuerpo, reloj.now())); } catch (e) { return respuestaDecision(c, e); }
+  });
+  /** Deshace la decisión. */
+  privadaDecisiones.delete('/:id', (c) => (deshacerDecision(db, c.req.param('id')) ? c.json({ deshecha: true }) : c.json({ error: 'No había decisión' }, 404)));
+  /** Cuerpo: { texto, autor? }. */
+  privadaDecisiones.post('/:id/notas', async (c) => {
+    const cuerpo = await c.req.json().catch(() => undefined);
+    if (cuerpo === undefined) return c.json({ error: 'El cuerpo no es JSON válido' }, 400);
+    try { return c.json(anadirNota(db, c.req.param('id'), cuerpo, reloj.now()), 201); } catch (e) { return respuestaDecision(c, e); }
+  });
+  privadaDecisiones.delete('/:id/notas/:notaId', (c) => (borrarNota(db, c.req.param('id'), Number(c.req.param('notaId'))) ? c.json({ borrada: true }) : c.json({ error: 'No existe esa nota' }, 404)));
+  api.route('/decisiones', privadaDecisiones);
 
   /**
    * Descartadas con su motivo (reglas y fases). Por defecto, los últimos 7 días.

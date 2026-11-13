@@ -239,6 +239,25 @@ const MIGRACIONES: string[] = [
   -- sobre todo las búsquedas con 0 resultados, no vale. Se vuelven a hacer.
   DELETE FROM consultas_concesiones WHERE clave LIKE 'serie:%';
   `,
+  `
+  -- Decisiones del equipo y notas: tablas propias. Ninguna pasada del radar las toca (ni las reglas ni las fases).
+  CREATE TABLE decisiones (
+    convocatoria_id TEXT PRIMARY KEY REFERENCES convocatorias (id),
+    decision TEXT NOT NULL CHECK (decision IN ('nos_interesa', 'descartada')),
+    motivo TEXT,                         -- solo al descartar (uno de los motivos de un clic, o 'Otro')
+    detalle TEXT,                        -- texto libre (obligatorio con 'Otro')
+    decidida_en TEXT NOT NULL
+  );
+  CREATE INDEX decisiones_por_fecha ON decisiones (decidida_en);
+  CREATE TABLE notas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    convocatoria_id TEXT NOT NULL REFERENCES convocatorias (id),
+    texto TEXT NOT NULL,
+    autor TEXT,
+    creada_en TEXT NOT NULL
+  );
+  CREATE INDEX notas_por_convocatoria ON notas (convocatoria_id, creada_en);
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

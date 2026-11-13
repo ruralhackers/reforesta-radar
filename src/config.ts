@@ -27,6 +27,10 @@ export const config = {
     desdeAnio: Number(process.env.RADAR_DESDE_ANIO_PARECIDAS ?? 2022),
     diasEdicion: Number(process.env.RADAR_DIAS_EDICION_PARECIDAS ?? 400),
   },
+  /** Aprendizaje ligero: cuántas de las últimas decisiones del equipo se pasan como ejemplos a la criba y el análisis de lo nuevo. */
+  decisiones: {
+    maxEjemplos: Number(process.env.RADAR_EJEMPLOS_DECISIONES ?? 20),
+  },
   llm: {
     modeloCriba: process.env.RADAR_MODELO_CRIBA || CONFIG_LLM_POR_DEFECTO.modeloCriba,
     modeloAnalisis: process.env.RADAR_MODELO_ANALISIS || CONFIG_LLM_POR_DEFECTO.modeloAnalisis,

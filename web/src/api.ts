@@ -225,3 +225,39 @@ export async function guardarPerfil(p: Pick<PerfilWeb, 'lineas' | 'ambito' | 'im
   if (!res.ok) throw new Error(datos.error ?? `Error ${res.status}`);
   return datos;
 }
+
+// --- Decisiones del equipo y notas (lecturas /api/equipo/*, escrituras /api/decisiones/*) ---
+export interface DecisionEquipo {
+  convocatoriaId: string;
+  decision: 'nos_interesa' | 'descartada';
+  motivo: string | null;
+  detalle: string | null;
+  decididaEn: string;
+}
+export interface NotaEquipo { id: number; texto: string; autor: string | null; creadaEn: string }
+export interface NosInteresa {
+  id: string;
+  titulo: string;
+  organo: string;
+  url: string;
+  fechaCierre: string | null;
+  /** Negativo = cerrada; null = plazo desconocido. */
+  diasHastaCierre: number | null;
+}
+
+async function pedir<T>(ruta: string, metodo = 'GET', cuerpo?: object): Promise<T> {
+  const res = await fetch(ruta, { method: metodo, ...(cuerpo ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) } : {}) });
+  const datos = await res.json().catch(() => ({})) as T & { error?: string };
+  if (!res.ok) throw new Error(datos.error ?? `Error ${res.status}`);
+  return datos;
+}
+
+export const leerMotivos = async () => (await pedir<{ motivos: string[] }>('/api/equipo/motivos')).motivos;
+export const leerDecisiones = async () => (await pedir<{ decisiones: DecisionEquipo[] }>('/api/equipo/decisiones')).decisiones;
+export const leerNosInteresa = async () => (await pedir<{ convocatorias: NosInteresa[] }>('/api/equipo/nos-interesa')).convocatorias;
+export const leerEquipoFicha = (id: string) => pedir<{ decision: DecisionEquipo | null; notas: NotaEquipo[] }>(`/api/equipo/convocatorias/${encodeURIComponent(id)}`);
+export const decidirConvocatoria = (id: string, cuerpo: { decision: 'nos_interesa' } | { decision: 'descartada'; motivo: string; detalle?: string }) =>
+  pedir<DecisionEquipo>(`/api/decisiones/${encodeURIComponent(id)}`, 'PUT', cuerpo);
+export const deshacerDecision = (id: string) => pedir<object>(`/api/decisiones/${encodeURIComponent(id)}`, 'DELETE');
+export const anadirNota = (id: string, texto: string, autor: string) => pedir<NotaEquipo>(`/api/decisiones/${encodeURIComponent(id)}/notas`, 'POST', { texto, autor: autor || undefined });
+export const borrarNota = (id: string, notaId: number) => pedir<object>(`/api/decisiones/${encodeURIComponent(id)}/notas/${notaId}`, 'DELETE');

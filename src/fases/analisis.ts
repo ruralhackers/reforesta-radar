@@ -35,7 +35,7 @@ export async function analizarConLlm(
         registro.errores.push(`Análisis ${c.id} aplazado, documentos no disponibles ahora: ${lectura.erroresTransitorios.join(' · ')}`);
         return;
       }
-      const { sistema, mensaje } = promptAnalisis(perfil, c, lectura.textos, textoGanadoresParaPrompt(ctx.db, c, perfil));
+      const { sistema, mensaje } = promptAnalisis(perfil, c, lectura.textos, textoGanadoresParaPrompt(ctx.db, c, perfil), ctx.ejemplos);
       const peticion = { tarea: 'analisis' as const, modelo, sistema, mensaje, esquema, maxTokens: 16000 };
       const clave = claveCache(peticion);
       let r = desdeCache(ctx.db, clave);

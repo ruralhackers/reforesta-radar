@@ -113,6 +113,9 @@ const EN_JUEGO = `
     OR EXISTS (SELECT 1 FROM origenes_convocatoria o WHERE o.convocatoria_id = c.id))
 `;
 
+/** SQL: la fila `c` no la ha descartado el equipo (lo descartado no sale en ranking, listas ni resumen; no es lo mismo que "fuera de juego" del motor). */
+const NO_DESCARTADA_POR_EQUIPO = `NOT EXISTS (SELECT 1 FROM decisiones dq WHERE dq.convocatoria_id = c.id AND dq.decision = 'descartada')`;
+
 /**
  * Candidatas publicadas entre dos días incluidos, más recientes primero: sin descarte de reglas ni de ninguna fase,
  * y las que llevan condición (otra comunidad) solo si la criba LLM ya las dio por buenas.
@@ -121,7 +124,7 @@ export function candidatasEntre(db: DatabaseSync, desde: string, hasta: string):
   const filas = db.prepare(`
     SELECT id, fuente, titulo, organo_nivel1, organo_nivel2, organo_nivel3, fecha_publicacion, url
     FROM convocatorias c
-    WHERE fecha_publicacion BETWEEN ? AND ? AND ${EN_JUEGO}
+    WHERE fecha_publicacion BETWEEN ? AND ? AND ${EN_JUEGO} AND ${NO_DESCARTADA_POR_EQUIPO}
     ORDER BY fecha_publicacion DESC, id DESC
   `).all(desde, hasta) as Record<string, string | null>[];
   return filas.map((f) => ({
@@ -180,6 +183,7 @@ export function pendientesDeFase(
     SELECT * FROM convocatorias c
     WHERE (c.fecha_publicacion >= ? OR EXISTS (SELECT 1 FROM origenes_convocatoria o WHERE o.convocatoria_id = c.id)) AND c.descarte_regla IS NULL
       AND NOT EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND (f.fase = ? OR f.descarta = 1))
+      AND ${NO_DESCARTADA_POR_EQUIPO}
       AND (? IS NULL OR EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND f.fase = ? AND f.descarta = 0))
     ORDER BY c.fecha_publicacion DESC, c.id
   `).all(publicadasDesde, fase, requiereFase, requiereFase) as Record<string, unknown>[];
@@ -420,7 +424,7 @@ export function cierresEntre(db: DatabaseSync, desde: string, hasta: string, hoy
   const filas = db.prepare(`
     SELECT c.id, c.fuente, c.titulo, c.organo_nivel1, c.organo_nivel2, c.organo_nivel3, c.fecha_publicacion, c.url, p.*
     FROM convocatorias c JOIN plazos p ON p.convocatoria_id = c.id
-    WHERE p.fecha_cierre BETWEEN ? AND ? AND ${EN_JUEGO}
+    WHERE p.fecha_cierre BETWEEN ? AND ? AND ${EN_JUEGO} AND ${NO_DESCARTADA_POR_EQUIPO}
     ORDER BY p.fecha_cierre, c.id
   `).all(desde, hasta) as Record<string, string | null>[];
   return filas.map((f) => ({
@@ -472,7 +476,7 @@ export interface FilaRanking extends FilaConvocatoria {
 export function filasRanking(
   db: DatabaseSync, hoy: string, puntuador: (c: Convocatoria, plazo: PlazoGuardado | null) => Puntuacion, ahora: Date,
 ): FilaRanking[] {
-  const filas = db.prepare(`SELECT * FROM convocatorias c WHERE ${EN_JUEGO} ORDER BY c.fecha_publicacion DESC, c.id DESC`).all() as Record<string, string | null>[];
+  const filas = db.prepare(`SELECT * FROM convocatorias c WHERE ${EN_JUEGO} AND ${NO_DESCARTADA_POR_EQUIPO} ORDER BY c.fecha_publicacion DESC, c.id DESC`).all() as Record<string, string | null>[];
   return filas.map((f) => {
     const plazo = leerPlazo(db, f.id!, hoy);
     const p = puntuador(filaAConvocatoria(f), plazo);

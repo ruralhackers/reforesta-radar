@@ -10,6 +10,7 @@ import { analizarConLlm, FASE_ANALISIS } from './fases/analisis.ts';
 import { cribarConLlm, FASE_CRIBA } from './fases/criba.ts';
 import { CONFIG_GANADORES_POR_DEFECTO, type ConfigGanadores, recogerGanadores, type ResumenGanadores } from './fases/ganadores.ts';
 import { CONFIG_PARECIDAS_POR_DEFECTO, type ConfigParecidas, descubrirParecidas, type ResumenParecidas } from './fases/parecidas.ts';
+import { ejemplosDecisiones } from './db/decisiones.ts';
 import { quitarMarcaDescubierta } from './db/ganadores.ts';
 import { crearProbabilidad } from './ganadores.ts';
 import { calcularPlazos, type ResumenPlazos } from './fases/plazo.ts';
@@ -36,6 +37,8 @@ export interface DependenciasMotor {
   /** LLM para la criba y el análisis. null/ausente = se saltan esas fases con un aviso en el registro (sin clave de API). */
   llm?: Llm | null;
   configLlm?: Partial<ConfigLlm>;
+  /** Cuántas de las últimas decisiones del equipo se pasan como ejemplos a los prompts (por defecto RADAR_EJEMPLOS_DECISIONES, 20). */
+  maxEjemplosDecisiones?: number;
   /** Calendario de festivos para los plazos en días hábiles; por defecto, seed/festivos.json (o FESTIVOS_FILE). */
   festivos?: TablaFestivos;
   /** Pesos y umbrales de la puntuación; por defecto, seed/puntuacion.json (o PUNTUACION_FILE). */
@@ -154,7 +157,7 @@ async function fasesLlm(deps: DependenciasMotor, ejecucionId: number, perfil: Pe
     for (const f of fases) f.avisos.push(aviso);
     await entreCribaYAnalisis();
   } else {
-    const ctx = { db: deps.db, llm: deps.llm, reloj: deps.reloj, fetch: deps.fetch };
+    const ctx = { db: deps.db, llm: deps.llm, reloj: deps.reloj, fetch: deps.fetch, ejemplos: ejemplosDecisiones(deps.db, deps.maxEjemplosDecisiones ?? config.decisiones.maxEjemplos) };
     const publicadasDesde = sumarDias(diaLocal(inicio), -(cfg.diasPendientes - 1));
     const criba = await cribarConLlm(ctx, perfil, cfg.modeloCriba, publicadasDesde, deps.fuentes);
     guardarRegistroFase(deps.db, ejecucionId, criba);

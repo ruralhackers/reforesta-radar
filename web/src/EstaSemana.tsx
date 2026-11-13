@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { type ConvocatoriaSemana, type Semana, leerSemana, rutaFicha } from './api.ts';
+import { type ConvocatoriaSemana, type DecisionEquipo, type Semana, leerDecisiones, leerSemana, rutaFicha } from './api.ts';
+import { BotonesDecision } from './Decision.tsx';
 import { Nota } from './Puntuacion.tsx';
 import { Cierre } from './Plazo.tsx';
 
@@ -31,17 +32,25 @@ function Parecidas({ c }: { c: ConvocatoriaSemana }) {
 export function EstaSemana() {
   const [semana, setSemana] = useState<Semana | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [decisiones, setDecisiones] = useState<Map<string, DecisionEquipo>>(new Map());
 
   useEffect(() => {
     leerSemana().then(setSemana, (e: Error) => setError(e.message));
+    leerDecisiones().then((ds) => setDecisiones(new Map(ds.map((d) => [d.convocatoriaId, d]))), () => { /* sin acceso al equipo: sin botones marcados */ });
   }, []);
+
+  // Descartar la quita de la lista (el servidor ya no la devuelve); "nos interesa" solo marca la fila.
+  const alCambiar = (id: string, d: DecisionEquipo | null) => {
+    setDecisiones((m) => { const n = new Map(m); if (d) n.set(id, d); else n.delete(id); return n; });
+    if (d?.decision === 'descartada') setSemana((s) => s && { ...s, convocatorias: s.convocatorias.filter((c) => c.id !== id), lasGananParecidas: s.lasGananParecidas.filter((x) => x !== id) });
+  };
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
       <header className="mb-6">
         <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">Radar de convocatorias</p>
         <h1 className="text-2xl font-bold sm:text-3xl">Esta semana</h1>
-        <p className="mt-1 text-sm"><a href="/parecidas" className="text-emerald-800 hover:underline">Ajustar las organizaciones parecidas</a> · <a href="/perfil" className="text-emerald-800 hover:underline">Perfil</a></p>
+        <p className="mt-1 text-sm"><a href="/parecidas" className="text-emerald-800 hover:underline">Ajustar las organizaciones parecidas</a> · <a href="/perfil" className="text-emerald-800 hover:underline">Perfil</a> · <a href="/nos-interesa" className="text-emerald-800 hover:underline">Nos interesa</a></p>
         {semana && (
           <p className="mt-1 text-sm text-stone-600">
             Del {fecha(semana.desde)} al {fecha(semana.hasta)} · {semana.convocatorias.length} candidatas, abiertas, ordenadas por puntuación
@@ -97,6 +106,7 @@ export function EstaSemana() {
                     <Cierre plazo={c.plazo} />
                   </p>
                   <Parecidas c={c} />
+                  <BotonesDecision id={c.id} decision={decisiones.get(c.id) ?? null} alCambiar={(d) => alCambiar(c.id, d)} />
                 </li>
               ))}
             </ul>

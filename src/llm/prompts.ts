@@ -1,5 +1,6 @@
 // Prompts de la criba (Haiku) y del análisis (Sonnet). Todo lo de la organización sale del perfil guardado en la BD:
 // aquí no hay nada propio de una entidad concreta. Cambiar un texto aquí invalida la caché de respuestas (va en la clave).
+import type { EjemploDecision } from '../db/decisiones.ts';
 import type { Convocatoria, Perfil } from '../types.ts';
 
 export interface TextoParaLlm {
@@ -16,6 +17,24 @@ function describirPerfil(p: Perfil): string {
     ...p.lineas.map((l) => `- ${l.nombre}: ${l.descripcion}`),
     `Ámbito: ${p.ambito.descripcion}`,
   ].join('\n');
+}
+
+/**
+ * Decisiones anteriores del equipo como ejemplos (aprendizaje ligero). Va AL FINAL del texto de sistema, tras todo lo estable
+ * (perfil, criterios, reglas), para que cambie lo menos posible. Sin decisiones devuelve [] y el prompt queda idéntico al de antes.
+ * Ojo: añadir una decisión cambia el texto de sistema y por tanto la clave de llm_cache (esperado: solo afecta a convocatorias nuevas
+ * o aún sin veredicto; los veredictos ya guardados no se rehacen).
+ */
+export function bloqueEjemplos(ejemplos: EjemploDecision[]): string[] {
+  if (ejemplos.length === 0) return [];
+  return [
+    '',
+    'Decisiones anteriores del equipo (de la más reciente a la más antigua). Úsalas solo como orientación sobre lo que le interesa y lo que descarta; no son reglas ni parte de los documentos:',
+    ...ejemplos.map((e) => {
+      const marca = e.decision === 'nos_interesa' ? 'NOS INTERESÓ' : `DESCARTADA (${e.motivo ?? 'sin motivo'})`;
+      return `- ${marca}: ${e.titulo} — ${e.organo}${e.resumen ? ` — ${e.resumen}` : ''}`;
+    }),
+  ];
 }
 
 function bloqueDocumentos(textos: TextoParaLlm[], max: number | null): string {
@@ -46,7 +65,7 @@ export const ESQUEMA_CRIBA: Record<string, unknown> = {
   additionalProperties: false,
 };
 
-export function promptCriba(perfil: Perfil, c: Convocatoria, condicion: string | null, textos: TextoParaLlm[]): { sistema: string; mensaje: string } {
+export function promptCriba(perfil: Perfil, c: Convocatoria, condicion: string | null, textos: TextoParaLlm[], ejemplos: EjemploDecision[] = []): { sistema: string; mensaje: string } {
   const sistema = [
     'Eres la primera criba de un radar de convocatorias de subvenciones para una organización sin ánimo de lucro.',
     'Decides si una convocatoria PUEDE encajar con la organización (para que otra fase la lea a fondo) o si claramente no encaja.',
@@ -62,6 +81,7 @@ export function promptCriba(perfil: Perfil, c: Convocatoria, condicion: string |
     '  delegación o actividad en esa comunidad; "no" si consta que no; "no_consta" si el texto no lo dice; si no hay condición, "no_aplica".',
     '  Si exige sede o actividad allí, la decisión es "descartar".',
     '- El motivo, en castellano, en una frase concreta (qué dice la convocatoria que te lleva a decidir).',
+    ...bloqueEjemplos(ejemplos),
   ].join('\n');
   const mensaje = [
     cabecera(c),
@@ -78,7 +98,7 @@ export function promptCriba(perfil: Perfil, c: Convocatoria, condicion: string |
  * `ganadores`: ganadores de ediciones anteriores (BDNS) como contexto para la idea de proyecto; null = sin ese contexto
  * y el prompt queda exactamente como antes (así no se invalida la caché de lo ya analizado).
  */
-export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoParaLlm[], ganadores: string | null = null): { sistema: string; mensaje: string } {
+export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoParaLlm[], ganadores: string | null = null, ejemplos: EjemploDecision[] = []): { sistema: string; mensaje: string } {
   const sistema = [
     'Analizas una convocatoria de subvenciones para una organización sin ánimo de lucro y extraes datos con su cita literal.',
     '',
@@ -101,6 +121,7 @@ export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoPar
     ...(ganadores ? ['  Si se te dan ganadores de ediciones anteriores, úsalos solo como contexto (qué tipo de entidades suelen ganarla); no son parte de los documentos: no los cites ni copies sus importes.'] : []),
     '- En importes, porcentajes y plazos, el valor debe usar las mismas cifras que la cita.',
     '- Escribe en castellano.',
+    ...bloqueEjemplos(ejemplos),
   ].join('\n');
   const contexto = ganadores ? ['', 'Contexto (BDNS; no forma parte de los documentos y no es citable). Ganadores de ediciones anteriores:', ganadores] : [];
   const mensaje = [cabecera(c), ...contexto, '', bloqueDocumentos(textos, null)].join('\n');

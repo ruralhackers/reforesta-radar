@@ -2,6 +2,7 @@
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { guardarLlmCache, leerLlmCache, type RegistroFase } from '../db/repo.ts';
+import type { EjemploDecision } from '../db/decisiones.ts';
 import type { Llm, PeticionLlm } from '../llm/llm.ts';
 import { coste } from '../llm/precios.ts';
 import type { Reloj } from '../types.ts';
@@ -11,6 +12,8 @@ export interface ContextoFase {
   llm: Llm;
   reloj: Reloj;
   fetch: typeof globalThis.fetch;
+  /** Decisiones del equipo como ejemplos para los prompts; se leen una vez por ejecución para que todas las llamadas vean los mismos. */
+  ejemplos?: EjemploDecision[];
 }
 
 export function claveCache(p: PeticionLlm): string {
