@@ -2,14 +2,15 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { Hono } from 'hono';
 import { diaLocal, sumarDias } from '../dates.ts';
-import { descartesEntre, filasRanking, leerConvocatoria, leerPerfil, leerPlazo, ultimasEjecuciones, type VeredictoFase } from '../db/repo.ts';
+import { descartesEntre, leerConvocatoria, leerPerfil, leerPlazo, ultimasEjecuciones, type VeredictoFase } from '../db/repo.ts';
 import { crearProbabilidad, ganadoresPrevios, resumirHistorial } from '../ganadores.ts';
 import { FASE_ANALISIS } from '../fases/analisis.ts';
 import type { Analisis } from '../fases/analisis-esquema.ts';
 import { FASE_CRIBA } from '../fases/criba.ts';
 import { puntuarConvocatoria } from '../fases/puntuacion.ts';
 import { type ConfigPuntuacion, leerConfigPuntuacion, type ProveedorProbabilidad } from '../puntuacion.ts';
-import { construirRanking, seccionParecidas } from '../ranking.ts';
+import { seccionParecidas } from '../ranking.ts';
+import { calcularRanking } from '../semana.ts';
 import { infoParecidas } from '../parecidas.ts';
 import { activarParecida, altaParecidaManual, leerParecidasConAportes, NIF_ENTIDAD_VALIDO, quitarParecidaManual } from '../db/ganadores.ts';
 import { anadirNota, borrarNota, decidir, deshacerDecision, ErrorDecision, leerDecision, leerDecisiones, leerNotas, MOTIVOS_DESCARTE, nosInteresa } from '../db/decisiones.ts';
@@ -42,12 +43,7 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
   api.get('/semana', (c) => {
     const hasta = diaLocal(reloj.now());
     const { nuevasDias, cierranProntoDias } = cfg;
-    const importeMinimo = leerPerfil(db)?.importeMinimo ?? null;
-    // La puntuación se calcula aquí, con el reloj de la petición (función pura y barata): total, explicación de cierre y secciones coherentes.
-    const perfil = leerPerfil(db);
-    const conParecidas = filasRanking(db, hasta, (conv, plazo) => puntuarConvocatoria(db, conv, plazo, importeMinimo, cfg, probabilidad), reloj.now())
-      .map((f) => ({ ...f, parecidas: infoParecidas(db, leerConvocatoria(db, f.id)!.convocatoria, perfil) }));
-    const filas = construirRanking(conParecidas, hasta, { nuevasDias, cierranProntoDias });
+    const filas = calcularRanking(db, reloj.now(), cfg, probabilidad);
     return c.json({
       desde: sumarDias(hasta, -(nuevasDias - 1)),
       hasta,

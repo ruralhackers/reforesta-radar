@@ -38,6 +38,13 @@ export const config = {
     confiarXForwardedFor: process.env.RADAR_CONFIAR_X_FORWARDED_FOR === '1',
     secure: process.env.RADAR_COOKIE_SECURE === undefined || process.env.RADAR_COOKIE_SECURE === '' ? undefined : process.env.RADAR_COOKIE_SECURE === '1',
   },
+  /** Correo del lunes (npm run digest). Sin destinatarios no se envía nada; con destinatarios y sin clave, error. */
+  resumen: {
+    resendApiKey: process.env.RESEND_API_KEY || null,
+    destinatarios: (process.env.RADAR_DIGEST_DESTINATARIOS ?? '').split(',').map((d) => d.trim()).filter(Boolean),
+    remitente: process.env.RADAR_DIGEST_REMITENTE || 'Radar Reforesta <no-reply@out.ruralhackers.com>',
+    urlPublica: process.env.RADAR_URL_PUBLICA || 'https://radar-reforesta.ruralhackers.com',
+  },
   llm: {
     modeloCriba: process.env.RADAR_MODELO_CRIBA || CONFIG_LLM_POR_DEFECTO.modeloCriba,
     modeloAnalisis: process.env.RADAR_MODELO_ANALISIS || CONFIG_LLM_POR_DEFECTO.modeloAnalisis,

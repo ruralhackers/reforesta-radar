@@ -258,6 +258,20 @@ const MIGRACIONES: string[] = [
   );
   CREATE INDEX notas_por_convocatoria ON notas (convocatoria_id, creada_en);
   `,
+  `
+  -- Registro de los correos del resumen semanal: cuándo, a cuántos, qué convocatorias y el id del proveedor o el error.
+  -- semana (ISO, p. ej. 2026-W47) con error NULL = ya enviado esa semana (idempotencia).
+  CREATE TABLE envios_resumen (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    semana TEXT NOT NULL,
+    enviado_en TEXT NOT NULL,
+    destinatarios INTEGER NOT NULL,
+    convocatorias TEXT NOT NULL,         -- JSON: ids incluidos
+    proveedor_id TEXT,
+    error TEXT
+  );
+  CREATE INDEX envios_resumen_por_semana ON envios_resumen (semana);
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

@@ -41,3 +41,15 @@ export function sumarMeses(dia: string, n: number): string {
   const ultimo = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
   return `${anio}-${String(mes).padStart(2, '0')}-${String(Math.min(d, ultimo)).padStart(2, '0')}`;
 }
+
+/** Lunes de la semana (ISO) del día dado. */
+export function lunesDeLaSemana(dia: string): string {
+  return sumarDias(dia, -((diaDeLaSemana(dia) + 6) % 7));
+}
+
+/** Semana ISO 8601 del día dado, p. ej. "2026-W47". */
+export function semanaIso(dia: string): string {
+  const jueves = sumarDias(lunesDeLaSemana(dia), 3);
+  const anio = jueves.slice(0, 4);
+  return `${anio}-W${String(Math.floor(diasEntre(`${anio}-01-01`, jueves) / 7) + 1).padStart(2, '0')}`;
+}

@@ -316,7 +316,7 @@ describe('ventana desde 2022 y caché de series', () => {
     const { abrirBd, migrar } = await import('../src/db/schema.ts');
     const db = abrirBd(':memory:');
     db.prepare("INSERT INTO consultas_concesiones (clave, consultado_en, total) VALUES ('serie:x', '2026-08-19T00:00:00Z', 0), ('conv:1', '2026-08-19T00:00:00Z', 3), ('parecida:G1', '2026-08-19T00:00:00Z', 1)").run();
-    db.exec('DROP TABLE notas; DROP TABLE decisiones; PRAGMA user_version = 8'); // las migraciones posteriores (10) se reaplican
+    db.exec('DROP TABLE envios_resumen; DROP TABLE notas; DROP TABLE decisiones; PRAGMA user_version = 8'); // las migraciones posteriores (11) se reaplican
     migrar(db);
     assert.deepEqual((db.prepare('SELECT clave FROM consultas_concesiones ORDER BY clave').all() as { clave: string }[]).map((c) => c.clave), ['conv:1', 'parecida:G1']);
   });

@@ -205,3 +205,6 @@ async function recorrerFuente(
   for (const e of errores) log(`  ! ${e}`);
   return { fuente: fuente.nombre, ...n, errores };
 }
+
+// Correo del lunes: otra operación del motor, con su propio emisor inyectado.
+export { enviarResumen, prepararResumen } from './resumen.ts';
