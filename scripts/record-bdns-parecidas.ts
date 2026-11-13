@@ -30,6 +30,6 @@ const fetchQueGraba: typeof fetch = async (entrada, init) => {
   return new Response(cuerpo, { status: res.status });
 };
 
-const r = await descubrirParecidas({ db, fetch: fetchQueGraba, reloj: { now: () => AHORA_PARECIDAS } }, semilla.perfil, { diasCache: 7, maxPeticiones: 1000, pausaMs: 400, aniosVentana: 2, diasEdicion: 400 });
+const r = await descubrirParecidas({ db, fetch: fetchQueGraba, reloj: { now: () => AHORA_PARECIDAS } }, semilla.perfil, { diasCache: 7, maxPeticiones: 1000, pausaMs: 400, desdeAnio: 2022, diasEdicion: 400 });
 console.log(JSON.stringify(r), `${pedidas} respuestas nuevas`);
 console.log(db.prepare('SELECT convocatoria_id, nif, nombre, numero_previo, anio_previo FROM origenes_convocatoria').all());

@@ -29,13 +29,13 @@ export interface ConfigParecidas {
   /** Tope de peticiones HTTP a BDNS de esta fase (el de ganadores se descuenta de lo que quede del tope total). */
   maxPeticiones: number;
   pausaMs: number;
-  /** Solo se buscan series ganadas por una parecida en los últimos N años naturales (incluido el actual). */
-  aniosVentana: number;
+  /** Solo se buscan series con alguna concesión de una parecida desde este año (por defecto 2022, el suelo de BDNS: todo lo que hay). */
+  desdeAnio: number;
   /** Solo son candidatas las ediciones nuevas registradas en BDNS en los últimos N días. */
   diasEdicion: number;
 }
 
-export const CONFIG_PARECIDAS_POR_DEFECTO: ConfigParecidas = { diasCache: 7, maxPeticiones: 100, pausaMs: 250, aniosVentana: 2, diasEdicion: 400 };
+export const CONFIG_PARECIDAS_POR_DEFECTO: ConfigParecidas = { diasCache: 7, maxPeticiones: 100, pausaMs: 250, desdeAnio: 2022, diasEdicion: 400 };
 
 export interface ResumenParecidas {
   /** Parecidas activas consideradas. */
@@ -96,7 +96,7 @@ export async function descubrirParecidas(
   }
 
   // 2. Series ganadas recientemente (la clave de serie exige un título lo bastante específico).
-  const anioMin = Number(hoy.slice(0, 4)) - (cfg.aniosVentana - 1);
+  const anioMin = cfg.desdeAnio;
   interface Ganada { numero: string; anio: number | null; ultimoAnio: number; orgs: { nif: string; nombre: string }[] }
   const porSerie = new Map<string, { texto: string; ganadas: Map<string, Ganada>; ultimoAnio: number }>();
   for (const g of ganadasDeParecidasActivas(db)) {

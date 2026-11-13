@@ -234,6 +234,11 @@ const MIGRACIONES: string[] = [
     convocatoria_id TEXT PRIMARY KEY REFERENCES convocatorias (id)
   );
   `,
+  `
+  -- El texto de búsqueda de ediciones cambió (hasta el primer año, no el título sin año): lo cacheado con el anterior,
+  -- sobre todo las búsquedas con 0 resultados, no vale. Se vuelven a hacer.
+  DELETE FROM consultas_concesiones WHERE clave LIKE 'serie:%';
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

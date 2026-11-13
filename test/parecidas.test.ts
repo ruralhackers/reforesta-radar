@@ -66,7 +66,7 @@ describe('descubrimiento con concesiones grabadas', () => {
     const r = await ejecutar(db);
     assert.equal(r.parecidas?.consultas, 0);
     assert.equal(r.parecidas?.peticiones, 0);
-    assert.equal(r.parecidas?.desdeCache, 12);
+    assert.equal(r.parecidas?.desdeCache, 24);
     assert.equal(r.parecidas?.nuevas, 0);
     assert.equal(r.parecidas?.yaConocidas, 1);
     assert.equal(origenesDe(db, ID).length, antes);
@@ -276,5 +276,67 @@ describe('ajuste de la lista (activar, añadir, quitar)', () => {
     const grefa = lista.parecidas.find((p: any) => p.nif === NIF_GREFA);
     assert.deepEqual({ ...grefa }, { nif: NIF_GREFA, nombre: 'GREFA', origen: 'semilla', activa: true, coincidencias: 0, evidencia: [], convocatorias: 0 });
     assert.equal(lista.parecidas.filter((p: any) => !p.activa).length, 9);
+  });
+});
+
+describe('ventana desde 2022 y caché de series', () => {
+  /** GREFA solo "ganó" la edición 2022 de proyectos ambientales (CAM); la 2026 (904719) se hace pasar por abierta. */
+  function fetchSoloDosMilVeintidos(): typeof fetch {
+    const base = fetchGrabado({ concesiones: true });
+    return (async (entrada: string | URL | Request, init?: RequestInit) => {
+      const url = String(entrada instanceof Request ? entrada.url : entrada);
+      const res = await base(entrada, init);
+      if (url.includes(`nifCif=${NIF_GREFA}`)) {
+        const d = await res.json() as { content: { numeroConvocatoria: string }[] };
+        return new Response(JSON.stringify({ ...d, content: d.content.filter((c) => c.numeroConvocatoria === '626301') }), { status: 200 });
+      }
+      if (url.includes('numConv=904719')) {
+        const d = await res.json() as object;
+        return new Response(JSON.stringify({ ...d, fechaFinSolicitud: '2026-09-30', abierto: true }), { status: 200 });
+      }
+      return res;
+    }) as typeof fetch;
+  }
+
+  test('una victoria de 2022 lleva a descubrir la edición 2026 abierta (ventana por defecto desde 2022)', async () => {
+    const db = bdParecidas();
+    db.prepare('UPDATE organizaciones_parecidas SET activa = 0 WHERE nif = ?').run(NIF_BRINZAL);
+    const r = await ejecutar(db, { fetch: fetchSoloDosMilVeintidos() });
+    assert.equal(r.conErrores, false, JSON.stringify(r.parecidas?.errores));
+    assert.deepEqual(ids(db), ['bdns:904719']);
+    assert.deepEqual(origenesDe(db, 'bdns:904719').map((o) => [o.nif, o.numeroPrevio, o.anioPrevio]), [[NIF_GREFA, '626301', 2022]]);
+    // Con una ventana más corta (desde 2024) esa serie no se mira.
+    const db2 = bdParecidas();
+    db2.prepare('UPDATE organizaciones_parecidas SET activa = 0 WHERE nif = ?').run(NIF_BRINZAL);
+    await ejecutar(db2, { fetch: fetchSoloDosMilVeintidos(), parecidas: { desdeAnio: 2024 } });
+    assert.deepEqual(ids(db2), []);
+  });
+
+  test('la migración invalida las búsquedas de series cacheadas con el texto anterior', async () => {
+    const { abrirBd, migrar } = await import('../src/db/schema.ts');
+    const db = abrirBd(':memory:');
+    db.prepare("INSERT INTO consultas_concesiones (clave, consultado_en, total) VALUES ('serie:x', '2026-08-19T00:00:00Z', 0), ('conv:1', '2026-08-19T00:00:00Z', 3), ('parecida:G1', '2026-08-19T00:00:00Z', 1)").run();
+    db.exec('PRAGMA user_version = 8');
+    migrar(db);
+    assert.deepEqual((db.prepare('SELECT clave FROM consultas_concesiones ORDER BY clave').all() as { clave: string }[]).map((c) => c.clave), ['conv:1', 'parecida:G1']);
+  });
+
+  test('la búsqueda por prefijo más amplio cuesta como mucho las páginas máximas por serie y respeta el tope compartido', async () => {
+    const db = bdParecidas();
+    const base = fetchGrabado({ concesiones: true });
+    let busquedas = 0;
+    const sinFin = (async (entrada: string | URL | Request, init?: RequestInit) => {
+      const url = String(entrada instanceof Request ? entrada.url : entrada);
+      if (url.includes('/convocatorias/busqueda')) {
+        busquedas++;
+        const fila = (i: number) => ({ numeroConvocatoria: String(7000000 + busquedas * 1000 + i), descripcion: 'X', fechaRecepcion: '2026-01-01', nivel1: 'ESTADO', nivel2: null, nivel3: null });
+        return new Response(JSON.stringify({ content: [fila(1)], last: false }), { status: 200 });
+      }
+      return base(entrada, init);
+    }) as typeof fetch;
+    const r = await ejecutar(db, { fetch: sinFin, parecidas: { maxPeticiones: 40, pausaMs: 0 } });
+    assert.ok(r.parecidas!.peticiones <= 40, `peticiones ${r.parecidas!.peticiones}`);
+    assert.ok(busquedas <= 10 * r.parecidas!.series, 'cada serie pagina como mucho 10 veces');
+    assert.ok(r.parecidas!.omitidasPorTope > 0);
   });
 });

@@ -24,7 +24,7 @@ export const config = {
   /** Descubrimiento por organizaciones parecidas (comparte caché y pausa con los ganadores; su tope sale del tope total de peticiones). */
   parecidas: {
     maxPeticiones: Number(process.env.RADAR_MAX_PETICIONES_PARECIDAS ?? 100),
-    aniosVentana: Number(process.env.RADAR_ANIOS_PARECIDAS ?? 2),
+    desdeAnio: Number(process.env.RADAR_DESDE_ANIO_PARECIDAS ?? 2022),
     diasEdicion: Number(process.env.RADAR_DIAS_EDICION_PARECIDAS ?? 400),
   },
   llm: {
