@@ -29,8 +29,9 @@ export interface DependenciasResumen {
   puntuacion?: ConfigPuntuacion;
   probabilidad?: ProveedorProbabilidad;
   /**
-   * Punto de extensión: secciones que se añaden al final del correo. Task 13 enchufa aquí "Empresas nuevas de la semana"
-   * (recibe la BD y el día de hoy; devuelve SeccionCorreo[] con enlaces ya completos).
+   * Punto de extensión: secciones que se añaden al final del correo ("Empresas nuevas de la semana", src/correo-empresas.ts, lo enchufa el CLI).
+   * Recibe la BD y el día de hoy; devuelve SeccionCorreo[] con enlaces ya completos. Si hay secciones con contenido, el correo se envía aunque no
+   * haya convocatorias que contar.
    */
   seccionesExtra?: (ctx: { db: DatabaseSync; hoy: string; urlPublica: string }) => SeccionCorreo[];
   log?: (mensaje: string) => void;
@@ -50,7 +51,7 @@ const MAX_CIERRAN = 5;
 const MAX_PARECIDAS = 5;
 
 /** Compone el correo sin enviar ni registrar nada (la vista previa y `enviarResumen` usan lo mismo). */
-export function prepararResumen(deps: Pick<DependenciasResumen, 'db' | 'reloj' | 'puntuacion' | 'probabilidad' | 'seccionesExtra'>, cfgResumen: Pick<ConfigResumen, 'urlPublica'>): { correo: ResumenCorreo; convocatorias: string[]; semana: string } {
+export function prepararResumen(deps: Pick<DependenciasResumen, 'db' | 'reloj' | 'puntuacion' | 'probabilidad' | 'seccionesExtra'>, cfgResumen: Pick<ConfigResumen, 'urlPublica'>): { correo: ResumenCorreo; convocatorias: string[]; semana: string; extras: number } {
   const { db, reloj } = deps;
   const ahora = reloj.now();
   const hoy = diaLocal(ahora);
@@ -73,14 +74,15 @@ export function prepararResumen(deps: Pick<DependenciasResumen, 'db' | 'reloj' |
   const cierran = tomar([...cierranTodas].sort((a, b) => (a.plazo?.fechaCierre ?? '9999').localeCompare(b.plazo?.fechaCierre ?? '9999')), MAX_CIERRAN);
   const parecidas = tomar(seccionParecidas(ranking), MAX_PARECIDAS);
 
+  const extras = deps.seccionesExtra?.({ db, hoy, urlPublica: cfgResumen.urlPublica }) ?? [];
   const secciones: SeccionCorreo[] = [
     { titulo: 'Destacadas de la semana', items: destacadas },
     { titulo: 'Cierran pronto', intro: `Plazo de ${cfg.cierranProntoDias} días o menos.`, items: cierran },
     { titulo: 'Las ganan organizaciones como vosotros', intro: 'Convocatorias que ya han ganado organizaciones parecidas a Reforesta.', items: parecidas },
-    ...(deps.seccionesExtra?.({ db, hoy, urlPublica: cfgResumen.urlPublica }) ?? []),
+    ...extras,
   ];
   const correo = componerCorreo({ hoy, lunes: lunesDeLaSemana(hoy), total: usadas.size, cierranPronto: cierranTodas.length, secciones, urlPublica: cfgResumen.urlPublica });
-  return { correo, convocatorias: [...usadas], semana: semanaIso(hoy) };
+  return { correo, convocatorias: [...usadas], semana: semanaIso(hoy), extras: extras.reduce((n, x) => n + x.items.length, 0) };
 }
 
 export async function enviarResumen(deps: DependenciasResumen, opciones: OpcionesResumen = {}): Promise<ResultadoResumen> {
@@ -99,8 +101,8 @@ export async function enviarResumen(deps: DependenciasResumen, opciones: Opcione
     return { estado: 'ya_enviado', semana };
   }
 
-  const { correo, convocatorias } = prepararResumen(deps, cfg);
-  if (!convocatorias.length) {
+  const { correo, convocatorias, extras } = prepararResumen(deps, cfg);
+  if (!convocatorias.length && !extras) {
     log('Nada que contar esta semana: no se envía');
     return { estado: 'sin_novedades', semana };
   }

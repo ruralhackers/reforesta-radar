@@ -8,6 +8,7 @@ import {
 } from './db/repo.ts';
 import { analizarConLlm, FASE_ANALISIS } from './fases/analisis.ts';
 import { cribarConLlm, FASE_CRIBA } from './fases/criba.ts';
+import { CONFIG_EMPRESAS_POR_DEFECTO, type ConfigEmpresas, recogerEmpresasDia, type ResumenEmpresas } from './fases/empresas.ts';
 import { CONFIG_GANADORES_POR_DEFECTO, type ConfigGanadores, recogerGanadores, type ResumenGanadores } from './fases/ganadores.ts';
 import { CONFIG_PARECIDAS_POR_DEFECTO, type ConfigParecidas, descubrirParecidas, type ResumenParecidas } from './fases/parecidas.ts';
 import { ejemplosDecisiones } from './db/decisiones.ts';
@@ -52,6 +53,11 @@ export interface DependenciasMotor {
   ganadores?: boolean | Partial<ConfigGanadores>;
   /** Descubrimiento por organizaciones parecidas: false = se salta (sin red); objeto = caché, tope y ventanas. Por defecto, activo. */
   parecidas?: boolean | Partial<ConfigParecidas>;
+  /**
+   * Empresas con obligación de restaurar, a partir de las DIA del BOE (fase `empresas_dia_boe`, Haiku). Solo se ejecuta si se pide: `true` (valores por
+   * defecto) u objeto con la configuración (el CLI pasa la de las variables de entorno); ausente/false = se salta (sin red hacia el BOE).
+   */
+  empresas?: boolean | Partial<ConfigEmpresas>;
   /** Espera entre peticiones a BDNS (por defecto setTimeout); los tests la inyectan. */
   dormir?: (ms: number) => Promise<void>;
   log?: (mensaje: string) => void;
@@ -78,6 +84,8 @@ export interface ResumenEjecucion {
   ganadores: ResumenGanadores | null;
   /** Descubrimiento por organizaciones parecidas; null si se saltó la fase. */
   parecidas: ResumenParecidas | null;
+  /** Empresas de las DIA del BOE; null si no se pidió la fase. */
+  empresas: ResumenEmpresas | null;
   /** Convocatorias de otras fuentes marcadas como duplicadas de una de BDNS (mismo título). */
   duplicadas: ResumenDuplicadas;
 }
@@ -101,6 +109,7 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
   let ganadores = null as ResumenGanadores | null;
   let parecidas = null as ResumenParecidas | null;
   let duplicadas: ResumenDuplicadas = { marcadas: 0 };
+  let empresas: ResumenEmpresas | null = null;
   let errorGeneral: string | null = null;
 
   try {
@@ -130,6 +139,17 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
       for (const e of ganadores.errores) log(`  ! ${e}`);
     };
     fases = [...fasesDeFuentes, ...(await fasesLlm(deps, ejecucionId, perfil, inicio, pedirGanadores))];
+    if (deps.empresas) {
+      const modelo = { ...CONFIG_LLM_POR_DEFECTO, ...deps.configLlm }.modeloCriba;
+      const cfgE: ConfigEmpresas = { ...CONFIG_EMPRESAS_POR_DEFECTO, ...(typeof deps.empresas === 'object' ? deps.empresas : {}) };
+      empresas = await recogerEmpresasDia({ db, fetch: deps.fetch, reloj, llm: deps.llm ?? null, modelo, dormir: deps.dormir }, cfgE);
+      guardarRegistroFase(db, ejecucionId, empresas.fase);
+      fases = [...fases, empresas.fase];
+      const e = empresas;
+      log(`empresas (DIA del BOE): ${e.diasRevisados} días revisados, ${e.resolucionesNuevas} resoluciones nuevas, ${e.leidas} leídas, ${e.conMedidas} con medidas (${e.empresasNuevas} empresas nuevas), ${e.sinMedidas} sin medidas, ${e.desfavorables} desfavorables, ${e.sinPromotor} sin promotor empresa, ${e.omitidasPorTope} sin hacer por el tope, ${e.fase.costeUsd.toFixed(4)} USD, ${e.errores.length} errores`);
+      for (const a of e.fase.avisos) log(`  · ${a}`);
+      for (const x of e.errores) log(`  ! ${x}`);
+    }
     plazos = calcularPlazos(db, reloj, perfil, deps.festivos ?? leerFestivos(config.rutaFestivos), deps.fuentes);
     log(`plazos: ${plazos.total} candidatas, ${plazos.literales} literales, ${plazos.calculadas} calculadas, ${plazos.desconocidas} desconocidas, ${plazos.errores.length} errores`);
     for (const e of plazos.errores) log(`  ! ${e}`);
@@ -141,7 +161,7 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
     errorGeneral = (e as Error).message;
     throw e;
   } finally {
-    const conErrores = errorGeneral !== null || resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0 || (parecidas?.errores.length ?? 0) > 0;
+    const conErrores = errorGeneral !== null || resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0 || (parecidas?.errores.length ?? 0) > 0 || (empresas?.errores.length ?? 0) > 0;
     try {
       terminarEjecucion(db, ejecucionId, reloj.now(), conErrores, errorGeneral);
     } catch (e) {
@@ -150,8 +170,8 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
     }
   }
 
-  const conErrores = resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0 || (parecidas?.errores.length ?? 0) > 0;
-  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, parecidas, duplicadas };
+  const conErrores = resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0 || (parecidas?.errores.length ?? 0) > 0 || (empresas?.errores.length ?? 0) > 0;
+  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, parecidas, empresas, duplicadas };
 }
 
 /**

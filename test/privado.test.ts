@@ -30,6 +30,7 @@ const PRIVADAS: [string, string, unknown?][] = [
   ['PUT', '/decisiones/bdns%3A1', { decision: 'nos_interesa' }], ['DELETE', '/decisiones/bdns%3A1'],
   ['POST', '/decisiones/bdns%3A1/notas', { texto: 'hola' }], ['DELETE', '/decisiones/bdns%3A1/notas/1'],
   ['PUT', '/perfil', { lineas: [], ambito: {}, importeMinimo: null }],
+  ['GET', '/equipo/empresas'], ['PATCH', '/empresas/1', { estado: 'contactada' }],
   ['PATCH', '/parecidas/G78456118', { activa: false }], ['POST', '/parecidas', { nif: 'G78456118' }], ['DELETE', '/parecidas/G78456118'],
 ];
 const pedir = (api: Api, [metodo, ruta, cuerpo]: [string, string, unknown?], cookie?: string) =>

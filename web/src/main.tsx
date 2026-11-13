@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Empresas } from './Empresas.tsx';
 import { EstaSemana } from './EstaSemana.tsx';
 import { Ficha } from './Ficha.tsx';
 import { Fundaciones } from './Fundaciones.tsx';
@@ -9,12 +10,12 @@ import { Perfil } from './Perfil.tsx';
 import { AccesoEquipo } from './Sesion.tsx';
 import './index.css';
 
-// Pantallas: "Esta semana" (/), la ficha (/convocatoria/<id>) las organizaciones parecidas (/parecidas), el perfil (/perfil) "nos interesa" (/nos-interesa) y las fundaciones vigiladas (/fundaciones). El servidor sirve index.html para ambas.
+// Pantallas: "Esta semana" (/), la ficha (/convocatoria/<id>) las organizaciones parecidas (/parecidas), el perfil (/perfil) "nos interesa" (/nos-interesa) las fundaciones vigiladas (/fundaciones) y las empresas (/empresas). El servidor sirve index.html para ambas.
 const ficha = /^\/convocatoria\/([^/]+)\/?$/.exec(window.location.pathname);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AccesoEquipo />
-    {ficha ? <Ficha id={decodeURIComponent(ficha[1])} /> : /^\/parecidas\/?$/.test(window.location.pathname) ? <Parecidas /> : /^\/perfil\/?$/.test(window.location.pathname) ? <Perfil /> : /^\/nos-interesa\/?$/.test(window.location.pathname) ? <NosInteresa /> : /^\/fundaciones\/?$/.test(window.location.pathname) ? <Fundaciones /> : <EstaSemana />}
+    {ficha ? <Ficha id={decodeURIComponent(ficha[1])} /> : /^\/parecidas\/?$/.test(window.location.pathname) ? <Parecidas /> : /^\/perfil\/?$/.test(window.location.pathname) ? <Perfil /> : /^\/nos-interesa\/?$/.test(window.location.pathname) ? <NosInteresa /> : /^\/fundaciones\/?$/.test(window.location.pathname) ? <Fundaciones /> : /^\/empresas\/?$/.test(window.location.pathname) ? <Empresas /> : <EstaSemana />}
   </StrictMode>,
 );

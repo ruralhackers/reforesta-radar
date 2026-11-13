@@ -40,6 +40,13 @@ export const config = {
     maxFuentes: Number(process.env.RADAR_MAX_FUNDACIONES ?? 60),
     maxCaracteres: Number(process.env.RADAR_MAX_CARACTERES_FUNDACIONES ?? 60_000),
   },
+  /** Empresas desde las DIA del BOE: días hacia atrás (la primera vez; luego solo lo no revisado), tope de resoluciones leídas con el LLM por ejecución y pausa entre peticiones al BOE. */
+  empresas: {
+    diasAtras: Number(process.env.RADAR_DIAS_DIA_BOE ?? 60),
+    maxResoluciones: Number(process.env.RADAR_MAX_DIA_BOE ?? 40),
+    pausaMs: Number(process.env.RADAR_PAUSA_BOE_MS ?? 300),
+    maxCaracteres: Number(process.env.RADAR_MAX_CARACTERES_DIA_BOE ?? 150_000),
+  },
   /** Aprendizaje ligero: cuántas de las últimas decisiones del equipo se pasan como ejemplos a la criba y el análisis de lo nuevo. */
   decisiones: {
     maxEjemplos: Number(process.env.RADAR_EJEMPLOS_DECISIONES ?? 20),

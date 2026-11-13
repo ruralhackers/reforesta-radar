@@ -287,3 +287,33 @@ export const leerFundaciones = async () => (await pedir<{ fundaciones: FuenteVig
 export const anadirFundacion = (f: { nombre: string; url: string; tipo: 'fundacion' | 'agregador' }) => pedir<FuenteVigilada>('/api/fundaciones', 'POST', f);
 export const activarFundacion = (id: number, activa: boolean) => pedir<object>(`/api/fundaciones/${id}`, 'PATCH', { activa });
 export const quitarFundacion = (id: number) => pedir<object>(`/api/fundaciones/${id}`, 'DELETE');
+
+// --- Empresas (DIA del BOE con medidas de restauración): GET público sin nota; la nota solo en la lectura del equipo; PATCH del equipo ---
+export type EstadoEmpresa = 'pendiente' | 'contactada' | 'descartada';
+export interface SenalEmpresa {
+  boeId: string;
+  titulo: string;
+  proyecto: string | null;
+  provincia: string | null;
+  motivo: string;
+  medidas: { tipo: string; cita: string }[];
+  enlace: string;
+  fechaPublicacion: string;
+}
+export interface Empresa {
+  id: number;
+  nombre: string;
+  cif: string | null;
+  motivo: string;
+  cita: string;
+  enlace: string;
+  provincia: string | null;
+  paginaRsc: string | null;
+  primeraVezVista: string;
+  estado: EstadoEmpresa;
+  /** Solo si se lee como equipo. */
+  nota?: string | null;
+  senales: SenalEmpresa[];
+}
+export const leerEmpresas = async (equipo: boolean) => (await pedir<{ empresas: Empresa[] }>(equipo ? '/api/equipo/empresas' : '/api/empresas')).empresas;
+export const actualizarEmpresa = (id: number, cambios: { estado?: EstadoEmpresa; nota?: string }) => pedir<{ id: number; estado: EstadoEmpresa; nota: string | null }>(`/api/empresas/${id}`, 'PATCH', cambios);

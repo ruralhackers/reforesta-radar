@@ -14,6 +14,7 @@ import { calcularRanking } from '../semana.ts';
 import { infoParecidas } from '../parecidas.ts';
 import { activarParecida, altaParecidaManual, leerParecidasConAportes, NIF_ENTIDAD_VALIDO, quitarParecidaManual } from '../db/ganadores.ts';
 import { anadirNota, borrarNota, decidir, deshacerDecision, ErrorDecision, leerDecision, leerDecisiones, leerNotas, MOTIVOS_DESCARTE, nosInteresa } from '../db/decisiones.ts';
+import { actualizarEmpresa, ErrorEmpresa, ESTADOS_EMPRESA, type EstadoEmpresa, leerEmpresas } from '../db/empresas.ts';
 import { activarFuente, altaFuente, ErrorFundacion, leerFuentesVigiladas, quitarFuente } from '../db/fundaciones.ts';
 import { config } from '../config.ts';
 import { crearAcceso, type OpcionesEquipo } from './equipo.ts';
@@ -178,6 +179,16 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
     if (!leerConvocatoria(db, id)) return c.json({ error: 'No existe' }, 404);
     return c.json({ decision: leerDecision(db, id), notas: leerNotas(db, id) });
   });
+  const filtroEstado = (c: { req: { query: (k: string) => string | undefined } }): EstadoEmpresa | null | 'invalido' => {
+    const e = c.req.query('estado');
+    if (!e) return null;
+    return (ESTADOS_EMPRESA as readonly string[]).includes(e) ? (e as EstadoEmpresa) : 'invalido';
+  };
+  equipo.get('/empresas', (c) => {
+    const estado = filtroEstado(c);
+    if (estado === 'invalido') return c.json({ error: `"estado" debe ser uno de: ${ESTADOS_EMPRESA.join(', ')}` }, 400);
+    return c.json({ empresas: leerEmpresas(db, { estado, conNota: true }) });
+  });
   api.route('/equipo', equipo);
 
   const privadaDecisiones = new Hono();
@@ -202,6 +213,28 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
   });
   privadaDecisiones.delete('/:id/notas/:notaId', (c) => (borrarNota(db, c.req.param('id'), Number(c.req.param('notaId'))) ? c.json({ borrada: true }) : c.json({ error: 'No existe esa nota' }, 404)));
   api.route('/decisiones', privadaDecisiones);
+
+  // --- Empresas (canal de empresas: DIA del BOE con medidas de restauración) ---
+  // GET público (empresa, motivo, cita, enlace al BOE, provincia, estado y señales; SIN la nota del equipo). La nota va solo en la lectura del equipo
+  // (/api/equipo/empresas). Estado y nota se escriben en `privadaEmpresas` (cuerpo { estado?, nota? }). `?estado=` filtra.
+  api.get('/empresas', (c) => {
+    const estado = filtroEstado(c);
+    if (estado === 'invalido') return c.json({ error: `"estado" debe ser uno de: ${ESTADOS_EMPRESA.join(', ')}` }, 400);
+    return c.json({ empresas: leerEmpresas(db, { estado }) });
+  });
+  const privadaEmpresas = new Hono();
+  privadaEmpresas.use('*', acceso.requiereEquipo);
+  privadaEmpresas.patch('/:id', async (c) => {
+    const cuerpo = await c.req.json().catch(() => undefined);
+    if (cuerpo === undefined) return c.json({ error: 'El cuerpo no es JSON válido' }, 400);
+    try {
+      return c.json(actualizarEmpresa(db, Number(c.req.param('id')), cuerpo, reloj.now()));
+    } catch (e) {
+      if (e instanceof ErrorEmpresa) return c.json({ error: e.message }, e.estado);
+      throw e;
+    }
+  });
+  api.route('/empresas', privadaEmpresas);
 
   /**
    * Descartadas con su motivo (reglas y fases). Por defecto, los últimos 7 días.

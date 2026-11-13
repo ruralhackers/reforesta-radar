@@ -281,6 +281,56 @@ const MIGRACIONES: string[] = [
   ALTER TABLE fundaciones ADD COLUMN ultima_revision TEXT;
   ALTER TABLE fundaciones ADD COLUMN ultimo_error TEXT;
   `,
+  `
+  -- Empresas con obligación legal de restaurar (DIA del BOE con medidas compensatorias). Una fila por empresa (clave = CIF si
+  -- consta, si no el nombre normalizado); cada DIA es una señal enlazada. Solo datos de la empresa: nunca personas de contacto.
+  -- estado y nota son del equipo (las escrituras van tras el acceso del equipo; la lectura pública no incluye la nota).
+  CREATE TABLE empresas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    clave TEXT NOT NULL UNIQUE,            -- nombre normalizado (sin acentos ni forma societaria) para unir duplicados
+    nombre TEXT NOT NULL,
+    cif TEXT UNIQUE,
+    origen TEXT NOT NULL,                  -- 'dia_boe'
+    motivo TEXT NOT NULL,                  -- una línea
+    cita TEXT NOT NULL,                    -- literal de la DIA
+    enlace TEXT NOT NULL,                  -- DIA en el BOE
+    provincia TEXT,
+    pagina_rsc TEXT,                       -- página pública de RSC o fundación (aún sin rellenar)
+    primera_vez_vista TEXT NOT NULL,
+    estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'contactada', 'descartada')),
+    nota TEXT,
+    actualizada_en TEXT
+  );
+  CREATE INDEX empresas_por_primera_vez ON empresas (primera_vez_vista);
+  CREATE TABLE empresa_senales (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    empresa_id INTEGER NOT NULL REFERENCES empresas (id),
+    tipo TEXT NOT NULL,                    -- 'dia_boe'
+    boe_id TEXT NOT NULL,
+    titulo TEXT NOT NULL,                  -- título oficial de la resolución
+    proyecto TEXT,
+    provincia TEXT,
+    motivo TEXT NOT NULL,
+    medidas TEXT NOT NULL,                 -- JSON: [{ tipo, cita }] con cita comprobada contra el texto
+    enlace TEXT NOT NULL,
+    fecha_publicacion TEXT NOT NULL,
+    vista_en TEXT NOT NULL,
+    UNIQUE (empresa_id, boe_id)
+  );
+  CREATE INDEX empresa_senales_por_empresa ON empresa_senales (empresa_id);
+  -- Qué resoluciones del BOE ya se leyeron (con el resultado) y qué días ya se revisaron del todo.
+  CREATE TABLE dia_boe_procesadas (
+    boe_id TEXT PRIMARY KEY,
+    fecha TEXT NOT NULL,
+    titulo TEXT NOT NULL,
+    resultado TEXT NOT NULL CHECK (resultado IN ('con_medidas', 'sin_medidas', 'sin_promotor', 'desfavorable')),
+    procesada_en TEXT NOT NULL
+  );
+  CREATE TABLE boe_dias (
+    fecha TEXT PRIMARY KEY,
+    revisado_en TEXT NOT NULL
+  );
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

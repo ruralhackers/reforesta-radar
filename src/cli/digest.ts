@@ -5,6 +5,7 @@ import { dirname } from 'node:path';
 import { config } from '../config.ts';
 import { abrirBd } from '../db/schema.ts';
 import { enviarResumen, prepararResumen } from '../engine.ts';
+import { seccionEmpresasNuevas } from '../correo-empresas.ts';
 import { crearEmisorResend } from '../mailer.ts';
 
 const args = process.argv.slice(2);
@@ -15,14 +16,14 @@ try {
   if (iPrevia >= 0) {
     const siguiente = args[iPrevia + 1];
     const ruta = siguiente && !siguiente.startsWith('--') ? siguiente : 'data/digest-preview.html';
-    const { correo, convocatorias } = prepararResumen({ db, reloj }, config.resumen);
+    const { correo, convocatorias } = prepararResumen({ db, reloj, seccionesExtra: seccionEmpresasNuevas }, config.resumen);
     mkdirSync(dirname(ruta), { recursive: true });
     writeFileSync(ruta, correo.html);
     writeFileSync(ruta.replace(/\.html?$/, '') + '.txt', correo.texto);
     console.log(`Vista previa en ${ruta} (y .txt): "${correo.asunto}", ${convocatorias.length} convocatorias. No se ha enviado nada.`);
   } else {
     const emisor = config.resumen.resendApiKey ? crearEmisorResend({ apiKey: config.resumen.resendApiKey }) : null;
-    const r = await enviarResumen({ db, reloj, emisor, log: console.log }, { forzar: args.includes('--forzar') });
+    const r = await enviarResumen({ db, reloj, emisor, seccionesExtra: seccionEmpresasNuevas, log: console.log }, { forzar: args.includes('--forzar') });
     console.log(`Resumen: ${r.estado}`);
   }
 } catch (e) {
