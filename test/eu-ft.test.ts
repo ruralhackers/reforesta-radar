@@ -175,6 +175,10 @@ describe('fuente EU Funding & Tenders', () => {
     assert.match(criba.mensaje, /Fecha límite \(hora de Bruselas\): 2027-01-14/);
     assert.match(criba.mensaje, /<documento titulo="Descripción del topic \(inglés\)">/);
     assert.match(criba.mensaje, /restoration/i);
+    assert.match(criba.sistema, /CONVOCATORIAS DE LA UE .*prevalece sobre "ante la duda"/);
+    assert.match(criba.sistema, /socia de un consorcio|socia de consorcio/);
+    // La fecha de publicación es la apertura real (13/10/2026, fuera de la ventana de 30 días) y aun así la criba la leyó.
+    assert.equal(fila(db, NATURALEZA)!.fecha_publicacion, '2026-10-13');
     const analisis = peticiones.find((p) => p.tarea === 'analisis')!;
     assert.match(analisis.sistema, /citas, que se copian literalmente en inglés/);
     // La criba descartó el resto: quedan sus veredictos; la elegida tiene análisis.

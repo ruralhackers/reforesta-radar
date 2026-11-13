@@ -58,6 +58,25 @@ function notaIdioma(c: Convocatoria, citas: boolean): string[] {
   ];
 }
 
+/**
+ * Criterio más estricto para las convocatorias de la UE (fuente eu_ft): son centenares, casi todas de investigación, y "ante la duda" las
+ * dejaría pasar todas. Se apoya en las líneas de trabajo del perfil (ya listadas en el prompt), no en nada propio de una organización.
+ */
+function criterioUe(c: Convocatoria): string[] {
+  if (c.fuente !== 'eu_ft') return [];
+  return [
+    '- CONVOCATORIAS DE LA UE (este criterio prevalece sobre "ante la duda"): decide "puede_encajar" solo si se cumplen las dos cosas:',
+    '  (1) el tema CENTRAL de la convocatoria, el que resume su título, es una de las líneas de trabajo de la organización (listadas arriba): actuar sobre',
+    '  ecosistemas o hábitats (restaurarlos, conservarlos, controlar invasoras) o educación y sensibilización ambiental. Agricultura, suelo, agua, clima,',
+    '  océano, asesoramiento agrario, observación o investigación científica NO bastan por sí solos aunque mencionen la biodiversidad o la restauración;',
+    '  (2) una ONG como esta podría participar de forma realista: como coordinadora (p. ej. en LIFE) o como socia de un consorcio en acciones de',
+    '  investigación, innovación o coordinación (RIA, IA, CSA) de Horizon Europe. En el motivo di en qué papel (coordinadora o socia de consorcio).',
+    '  Descarta si la naturaleza o el medio ambiente son incidentales (patrimonio cultural, valorización de resultados de proyectos, innovación o',
+    '  ecosistemas de innovación en general, cohesión social urbana, salud, energía, agricultura o alimentación sin acción sobre ecosistemas),',
+    '  si es investigación puramente científica o tecnológica que una ONG no lideraría ni integraría, o si es una acción de gestión del programa.',
+  ];
+}
+
 function cabecera(c: Convocatoria): string {
   return [
     `Convocatoria ${c.id}: ${c.titulo}`,
@@ -95,6 +114,7 @@ export function promptCriba(perfil: Perfil, c: Convocatoria, condicion: string |
     '  Si exige sede o actividad allí, la decisión es "descartar".',
     '- El motivo, en castellano, en una frase concreta (qué dice la convocatoria que te lleva a decidir).',
     ...notaIdioma(c, false),
+    ...criterioUe(c),
     ...bloqueEjemplos(ejemplos),
   ].join('\n');
   const mensaje = [

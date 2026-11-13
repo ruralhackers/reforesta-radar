@@ -171,6 +171,12 @@ export function leerConvocatoria(db: DatabaseSync, id: string): ConvocatoriaGuar
 }
 
 /**
+ * Fuentes cuyas fichas son ofertas vigentes sin una fecha de publicación que sirva para la ventana de pendientes (un topic de la UE
+ * abrió hace meses y sigue abierto): están pendientes de criba y análisis mientras la fuente las siga devolviendo.
+ */
+const FUENTES_VIGENTES = ['eu_ft'];
+
+/**
  * Convocatorias pendientes de `fase`: siguen en juego según las reglas y las fases anteriores, no tienen veredicto
  * de `fase` y se publicaron desde `publicadasDesde` (YYYY-MM-DD) — da igual que la fuente las haya vuelto a devolver
  * en esta ejecución: lo omitido por el tope o por un error se recupera en la siguiente aunque ya no esté en la ventana.
@@ -181,12 +187,13 @@ export function pendientesDeFase(
 ): { convocatoria: Convocatoria; condicion: string | null }[] {
   const filas = db.prepare(`
     SELECT * FROM convocatorias c
-    WHERE (c.fecha_publicacion >= ? OR EXISTS (SELECT 1 FROM origenes_convocatoria o WHERE o.convocatoria_id = c.id)) AND c.descarte_regla IS NULL
+    WHERE (c.fecha_publicacion >= ? OR EXISTS (SELECT 1 FROM origenes_convocatoria o WHERE o.convocatoria_id = c.id)
+        OR (c.fuente IN (${FUENTES_VIGENTES.map((f) => `'${f}'`).join(',')}) AND c.ultima_vez >= ?)) AND c.descarte_regla IS NULL
       AND NOT EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND (f.fase = ? OR f.descarta = 1))
       AND ${NO_DESCARTADA_POR_EQUIPO}
       AND (? IS NULL OR EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND f.fase = ? AND f.descarta = 0))
     ORDER BY c.fecha_publicacion DESC, c.id
-  `).all(publicadasDesde, fase, requiereFase, requiereFase) as Record<string, unknown>[];
+  `).all(publicadasDesde, publicadasDesde, fase, requiereFase, requiereFase) as Record<string, unknown>[];
   return filas.map((f) => ({ convocatoria: filaAConvocatoria(f), condicion: (f.condicion as string | null) ?? null }));
 }
 

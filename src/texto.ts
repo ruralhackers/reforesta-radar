@@ -65,40 +65,80 @@ const UNIDADES: Record<string, number> = {
 const DECENAS: Record<string, number> = { treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90 };
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
-/** "17.389.322,52" → 17389322.52; "100.000" → 100000; "20,5" → 20.5; "09" → 9. Coma decimal, punto de millares. */
-function cifra(token: string): number {
+const MESES_EN = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const UNIDADES_EN: Record<string, number> = {
+  two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14,
+  fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+};
+const DECENAS_EN: Record<string, number> = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+
+/** "17.389.322,52" → 17389322.52 (coma decimal, punto de millares); "100.000" → 100000; "20,5" → 20.5; "09" → 9. */
+function cifraEs(token: string): number {
   let t = token;
   if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
   else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
   return Number.parseFloat(t);
 }
 
+/** "3,000,000" → 3000000; "3,000.50" → 3000.5; "3.5" → 3.5 (coma de millares, punto decimal). */
+function cifraEn(token: string): number {
+  return Number.parseFloat(token.replace(/,/g, ''));
+}
+
 /**
- * Números que aparecen en un texto: cifras (con millares y coma decimal), números en letra hasta noventa y nueve
- * (y cien), meses por su número y las partes de una fecha (30/09/2026 → 30, 9, 2026). Sirve para comparar un valor
- * con su cita sin depender del formato: "15 días hábiles" ~ "quince días hábiles", "30 de septiembre" ~ "30/09/2026".
+ * Cada cifra del texto con sus lecturas posibles. El formato es ambiguo ("1.500" = 1500 en castellano y 1,5 en inglés; "3,000" = 3
+ * en castellano y 3000 en inglés), así que se guardan las dos. También: millares con espacio ("3 000 000"), "3 million" / "3 millones" /
+ * "€3.5M" (×10⁶) y las partes de una fecha.
  */
-export function numerosDe(s: string): Set<number> {
-  const n = new Set<number>();
-  for (const m of s.match(/\d[\d.,]*\d|\d/g) ?? []) {
-    const v = cifra(m);
-    if (Number.isFinite(v)) n.add(v);
+function cifrasDe(s: string): number[][] {
+  const grupos: number[][] = [];
+  const re = /(\d{1,3}(?:[  ]\d{3})+(?:[.,]\d+)?|\d[\d.,]*\d|\d)(\s*(?:million|millones|millon|mn|m)(?![a-z\p{L}]))?/giu;
+  for (const m of s.matchAll(re)) {
+    const t = m[1].replace(/[  ]/g, '');
+    const lecturas = [cifraEs(t), cifraEn(t)].filter(Number.isFinite);
+    const alts = m[2] ? lecturas.map((v) => v * 1e6) : lecturas;
+    if (alts.length) grupos.push([...new Set(alts)]);
   }
+  return grupos;
+}
+
+function palabrasNumericas(s: string): number[] {
+  const n: number[] = [];
   const palabras = s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().split(/[^a-zñ]+/).filter(Boolean);
   for (let i = 0; i < palabras.length; i++) {
     const p = palabras[i];
     if (p in DECENAS) {
       const u = palabras[i + 1] === 'y' ? UNIDADES[palabras[i + 2]] : undefined;
-      n.add(DECENAS[p] + (u && u < 10 ? u : 0));
-    } else if (p in UNIDADES) n.add(UNIDADES[p]);
+      n.push(DECENAS[p] + (u && u < 10 ? u : 0));
+    } else if (p in UNIDADES) n.push(UNIDADES[p]);
+    else if (p in DECENAS_EN) {
+      const u = UNIDADES_EN[palabras[i + 1]];
+      n.push(DECENAS_EN[p] + (u && u < 10 ? u : 0));
+    } else if (p in UNIDADES_EN) n.push(UNIDADES_EN[p]);
     const mes = MESES.indexOf(p);
-    if (mes >= 0) n.add(mes + 1);
+    if (mes >= 0) n.push(mes + 1);
+    const mesEn = MESES_EN.indexOf(p);
+    if (mesEn >= 0) n.push(mesEn + 1);
   }
   return n;
 }
 
-/** true si todos los números del valor están en la cita (un valor sin números no se puede contrastar así: true). */
+/**
+ * Números que aparecen en un texto (todas las lecturas posibles de cada cifra): cifras en formato castellano o inglés, con millares
+ * y decimales, "3 million", números en letra hasta noventa y nueve (castellano e inglés), meses por su número (también en inglés) y las
+ * partes de una fecha (30/09/2026 → 30, 9, 2026). Sirve para comparar un valor con su cita sin depender del formato:
+ * "15 días hábiles" ~ "fifteen working days", "30 de septiembre" ~ "30/09/2026", "3.000.000 €" ~ "EUR 3,000,000" ~ "€3 million".
+ */
+export function numerosDe(s: string): Set<number> {
+  return new Set([...cifrasDe(s).flat(), ...palabrasNumericas(s)]);
+}
+
+/**
+ * true si todos los números del valor están en la cita (un valor sin números no se puede contrastar así: true).
+ * Cada cifra del valor vale si CUALQUIERA de sus lecturas está en la cita.
+ */
 export function valorEnCita(valor: string, cita: string): boolean {
   const enCita = [...numerosDe(cita)];
-  return [...numerosDe(valor)].every((v) => enCita.some((c) => Math.abs(c - v) < 1e-9));
+  const esta = (v: number) => enCita.some((c) => Math.abs(c - v) < 1e-9 * Math.max(1, Math.abs(v)));
+  return cifrasDe(valor).every((alts) => alts.some(esta)) && palabrasNumericas(valor).every(esta);
 }

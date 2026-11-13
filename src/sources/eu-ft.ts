@@ -125,16 +125,13 @@ export function esRelevante(t: Topic): boolean {
   return coincidencias.length >= 5;
 }
 
-function aConvocatoria(t: Topic, ahora: Date, diasAtras: number): Convocatoria {
-  const hoy = diaLocal(ahora);
-  // Fecha efectiva en el radar: la apertura si es reciente; si abrió hace tiempo (o aún no ha abierto) la ficha sigue vigente y se cuenta
-  // desde el comienzo de la ventana, para que la criba y el análisis (que miran lo publicado en los últimos días) no la pierdan. La apertura real va en datos.
-  const inicioVentana = diaLocal(new Date(ahora.getTime() - (diasAtras - 1) * 86_400_000));
-  const fechaPublicacion = t.apertura && t.apertura >= inicioVentana && t.apertura <= hoy ? t.apertura : hoy;
+function aConvocatoria(t: Topic, ahora: Date): Convocatoria {
+  // Fecha de publicación = la apertura real del topic (también si es futura); sin ella, el día de hoy. La criba y el análisis no la usan
+  // para decidir si una ficha de la UE está pendiente: ver FUENTES_VIGENTES en db/repo.ts.
   return {
     id: `ft:${t.identifier}`, fuente: 'eu_ft', fuenteId: t.identifier, titulo: t.title,
     organo: { nivel1: 'UE', nivel2: t.programa, nivel3: t.convocatoria.titulo },
-    fechaPublicacion, url: PORTAL_TOPIC + t.identifier, tipo: t.tiposDeAccion[0] ?? null, finalidad: null, regiones: [],
+    fechaPublicacion: t.apertura ?? diaLocal(ahora), url: PORTAL_TOPIC + t.identifier, tipo: t.tiposDeAccion[0] ?? null, finalidad: null, regiones: [],
     abierto: t.estado === 'abierta' ? true : null, datos: { ft: t },
   };
 }
@@ -198,11 +195,11 @@ export function crearFuenteEuFt(opciones: () => OpcionesFuenteFt = () => config.
     const cribadas: Cribada[] = [];
     for (const t of topics.values()) {
       if (esRelevante(t)) {
-        const c = aConvocatoria(t, ctx.ahora, ctx.diasAtras);
+        const c = aConvocatoria(t, ctx.ahora);
         cribadas.push({ convocatoria: c, descarte: ctx.cribar(c) });
       } else {
         // Se guarda con su motivo (auditable) pero sin los textos largos: son cientos de topics ajenos.
-        const c = aConvocatoria({ ...t, descripcion: '', condiciones: '' }, ctx.ahora, ctx.diasAtras);
+        const c = aConvocatoria({ ...t, descripcion: '', condiciones: '' }, ctx.ahora);
         cribadas.push({ convocatoria: c, descarte: { regla: 'tema', motivo: 'Fuera de los temas del perfil (restauración, biodiversidad, naturaleza, bosque, adaptación, educación ambiental, LIFE)' } });
       }
     }
