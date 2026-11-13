@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { type Semana, leerSemana, rutaFicha } from './api.ts';
+import { Nota } from './Puntuacion.tsx';
 import { Cierre } from './Plazo.tsx';
 
 const fecha = (dia: string) =>
@@ -7,6 +8,11 @@ const fecha = (dia: string) =>
 
 const instante = (iso: string) =>
   new Date(iso).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Madrid' });
+
+const SECCIONES: { id: 'cierran_pronto' | 'nuevas'; titulo: string; ayuda: (s: Semana) => string }[] = [
+  { id: 'cierran_pronto', titulo: 'Cierran pronto', ayuda: (s) => `Cierre en ${s.cierranProntoDias} días o menos, por puntuación.` },
+  { id: 'nuevas', titulo: 'Nuevas', ayuda: (s) => `Vistas por primera vez en los últimos ${s.nuevasDias} días y que no cierran pronto, por puntuación.` },
+];
 
 export function EstaSemana() {
   const [semana, setSemana] = useState<Semana | null>(null);
@@ -23,7 +29,7 @@ export function EstaSemana() {
         <h1 className="text-2xl font-bold sm:text-3xl">Esta semana</h1>
         {semana && (
           <p className="mt-1 text-sm text-stone-600">
-            Publicadas del {fecha(semana.desde)} al {fecha(semana.hasta)} · {semana.convocatorias.length} candidatas
+            Del {fecha(semana.desde)} al {fecha(semana.hasta)} · {semana.convocatorias.length} candidatas, ordenadas por puntuación
           </p>
         )}
       </header>
@@ -35,21 +41,34 @@ export function EstaSemana() {
         <p className="rounded-md bg-white p-4 text-stone-600 shadow-sm">No hay convocatorias candidatas esta semana.</p>
       )}
 
-      <ul className="space-y-3">
-        {semana?.convocatorias.map((c) => (
-          <li key={c.id} className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-stone-200">
-            <a href={rutaFicha(c.id)} className="font-semibold leading-snug text-emerald-800 hover:underline [overflow-wrap:anywhere]">
-              {c.titulo}
-            </a>
-            <p className="mt-1 text-sm text-stone-600">{c.organo}</p>
-            <p className="mt-2 flex flex-wrap gap-x-3 text-xs text-stone-500">
-              <span>{fecha(c.fechaPublicacion)}</span>
-              <a href={c.url} target="_blank" rel="noreferrer" className="uppercase hover:underline">{c.fuente}</a>
-              <Cierre plazo={c.plazo} />
-            </p>
-          </li>
-        ))}
-      </ul>
+      {semana && SECCIONES.map(({ id, titulo, ayuda }) => {
+        const lista = semana.convocatorias.filter((c) => c.seccion === id);
+        if (lista.length === 0) return null;
+        return (
+          <section key={id} className="mb-8">
+            <h2 className="text-lg font-semibold">{titulo} <span className="text-sm font-normal text-stone-500">({lista.length})</span></h2>
+            <p className="mb-3 text-sm text-stone-600">{ayuda(semana)}</p>
+            <ul className="space-y-3">
+              {lista.map((c) => (
+                <li key={c.id} className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-stone-200">
+                  <div className="flex items-start justify-between gap-3">
+                    <a href={rutaFicha(c.id)} className="font-semibold leading-snug text-emerald-800 hover:underline [overflow-wrap:anywhere]">
+                      {c.titulo}
+                    </a>
+                    <Nota puntuacion={c.puntuacion} />
+                  </div>
+                  <p className="mt-1 text-sm text-stone-600">{c.organo}</p>
+                  <p className="mt-2 flex flex-wrap gap-x-3 text-xs text-stone-500">
+                    <span>{fecha(c.fechaPublicacion)}</span>
+                    <a href={c.url} target="_blank" rel="noreferrer" className="uppercase hover:underline">{c.fuente}</a>
+                    <Cierre plazo={c.plazo} />
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
 
       {semana?.ultimaEjecucion && (
         <footer className="mt-8 border-t border-stone-200 pt-4 text-xs text-stone-500">

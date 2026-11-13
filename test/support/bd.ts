@@ -8,6 +8,8 @@ export const RUTA_SEMILLA = join(import.meta.dirname, '..', '..', 'seed', 'perfi
 
 export const RUTA_FESTIVOS = join(import.meta.dirname, '..', '..', 'seed', 'festivos.json');
 
+export const RUTA_PUNTUACION = join(import.meta.dirname, '..', '..', 'seed', 'puntuacion.json');
+
 export function bdSembrada(): DatabaseSync {
   const db = abrirBd(':memory:');
   sembrarSiVacia(db, RUTA_SEMILLA, new Date('2026-01-01T00:00:00Z'));

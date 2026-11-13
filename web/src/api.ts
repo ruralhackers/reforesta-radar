@@ -13,6 +13,25 @@ export interface Plazo {
   diasHastaCierre: number | null;
 }
 
+/** Un factor de la puntuación: subpuntuación 0-1 y su explicación en una línea. */
+export interface FactorPuntuacion {
+  id: 'encaje' | 'importe' | 'cierre' | 'esfuerzo' | 'probabilidad';
+  nombre: string;
+  peso: number;
+  subpuntuacion: number;
+  /** false = faltaba el dato (cuenta como desconocido, no como bueno). */
+  conocido: boolean;
+  explicacion: string;
+}
+
+export interface Puntuacion {
+  /** 0-100. */
+  total: number;
+  analizada: boolean;
+  factores: FactorPuntuacion[];
+  calculadoEn: string;
+}
+
 export interface ConvocatoriaSemana {
   id: string;
   fuente: string;
@@ -21,6 +40,10 @@ export interface ConvocatoriaSemana {
   fechaPublicacion: string;
   url: string;
   plazo: Plazo | null;
+  /** "cierran_pronto" tiene preferencia sobre "nuevas": sale en una sola. */
+  seccion: 'cierran_pronto' | 'nuevas';
+  /** null = todavía no hubo ninguna pasada tras guardarla. */
+  puntuacion: Puntuacion | null;
 }
 
 export interface Ejecucion {
@@ -34,6 +57,9 @@ export interface Ejecucion {
 export interface Semana {
   desde: string;
   hasta: string;
+  nuevasDias: number;
+  cierranProntoDias: number;
+  /** Ya en orden: primero las que cierran pronto, luego las nuevas; cada sección por puntuación. */
   convocatorias: ConvocatoriaSemana[];
   ultimaEjecucion: Ejecucion | null;
 }
@@ -80,6 +106,8 @@ export interface Ficha {
   condicion: string | null;
   enJuego: boolean;
   plazo: Plazo | null;
+  /** null = aún sin puntuar; `excluida` = motivo por el que no entra en el ranking. */
+  puntuacion: (Puntuacion & { excluida: string | null }) | null;
   criba: { descarta: boolean; motivo: string | null; modelo?: string } | null;
   analisis: {
     descarta: boolean;

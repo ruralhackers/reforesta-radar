@@ -44,3 +44,28 @@ como *aproximada*):
 Los festivos viven en `seed/festivos.json` (2025–2027: nacionales y Comunidad de Madrid, de las resoluciones de la Dirección General
 de Trabajo en el BOE); se aplican los de las regiones del perfil. No incluye fiestas locales. Para otro año, añadirlo al fichero
 (`FESTIVOS_FILE` cambia la ruta).
+
+## Puntuación y ranking
+
+Cada candidata en juego recibe una puntuación **0–100 explicable**, calculada en código, sin LLM, en cada ejecución
+(`src/puntuacion.ts`, fase `puntuacion`; el desglose se guarda en la tabla `puntuaciones` y se ve en la ficha, "Por qué está donde está").
+Es una suma ponderada de cinco factores, cada uno con una subpuntuación 0–1 y una explicación de una línea:
+
+| Factor | Qué mira |
+|---|---|
+| encaje | líneas de Reforesta con las que encaja el análisis (Sonnet) y si admite entidades sin ánimo de lucro |
+| importe | máximo por proyecto (o, si solo consta, el total, que vale menos) frente al mínimo del perfil, en escala logarítmica |
+| cierre | días que faltan según el plazo (poco tiempo penaliza; muy lejano, algo menos) |
+| esfuerzo | % de cofinanciación y número de requisitos con cita |
+| probabilidad | enchufable (`ProveedorProbabilidad`): hoy sin datos (valor neutro, "desconocida"); el ticket de ganadoras e historial propio lo rellena |
+
+Un dato que falta **no cuenta como bueno**: el factor vale su `valorDesconocido` y la explicación dice "desconocido".
+Quedan fuera del ranking (con el motivo guardado) las que no admiten entidades sin ánimo de lucro y las ya cerradas.
+
+**Pesos y umbrales: `seed/puntuacion.json`** (`PUNTUACION_FILE` cambia la ruta; documentado dentro, campo `_`). Los pesos son relativos
+(no tienen que sumar 100). Al cambiarlos, la siguiente pasada del radar recalcula todo.
+
+"Esta semana" (`GET /api/semana`) se ordena por puntuación y se divide en **cierran pronto** (cierre en `cierranProntoDias`, 21 por
+defecto) y **nuevas** (vistas por primera vez en los últimos `nuevasDias`, 7). Una convocatoria sale en **una sola** sección:
+"cierran pronto" tiene preferencia (lo urgente manda; sin duplicados). Las cerradas y las excluidas no salen. Los días hasta el cierre
+y las secciones se calculan al pedir la lista con el reloj de ese momento; la puntuación guardada es la de la última pasada.

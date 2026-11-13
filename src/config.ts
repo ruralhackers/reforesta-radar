@@ -7,6 +7,8 @@ export const config = {
   rutaSemilla: process.env.SEED_FILE ?? 'seed/perfil.json',
   /** Festivos (nacionales y regionales) para contar días hábiles. */
   rutaFestivos: process.env.FESTIVOS_FILE ?? fileURLToPath(new URL('../seed/festivos.json', import.meta.url)),
+  /** Pesos y umbrales de la puntuación. */
+  rutaPuntuacion: process.env.PUNTUACION_FILE ?? fileURLToPath(new URL('../seed/puntuacion.json', import.meta.url)),
   puerto: Number(process.env.PORT ?? 8116),
   host: process.env.HOST ?? '127.0.0.1',
   diasAtras: Number(process.env.LOOKBACK_DAYS ?? 7),

@@ -1,0 +1,42 @@
+{
+  "_": "Pesos y umbrales de la puntuación 0-100 (src/puntuacion.ts; documentado en el README). Se cambian aquí, sin tocar el código. Los pesos son relativos: no hace falta que sumen 100. Cada factor da una subpuntuación 0-1; el total es la suma ponderada. 'valorDesconocido' es lo que vale un factor cuando falta el dato (nunca el máximo).",
+  "pesos": { "encaje": 35, "importe": 20, "cierre": 15, "esfuerzo": 15, "probabilidad": 15 },
+  "nuevasDias": 7,
+  "cierranProntoDias": 21,
+  "encaje": {
+    "_": "Subpuntuación según el número de líneas del perfil con las que encaja (índice = nº de líneas; el último valor vale para más). Si la elegibilidad para entidades sin ánimo de lucro es desconocida se multiplica por esflDesconocido.",
+    "porLineas": [0, 0.7, 0.9, 1],
+    "esflDesconocido": 0.7,
+    "valorDesconocido": 0.3
+  },
+  "importe": {
+    "_": "0 por debajo del mínimo del perfil; de ahí hasta 'techo' euros sube en escala logarítmica de 0,3 a 1. Si solo consta el importe total (no el máximo por proyecto) la subpuntuación se multiplica por pesoSoloTotal.",
+    "techo": 100000,
+    "minimoSiPerfilNoTiene": 1000,
+    "pesoSoloTotal": 0.6,
+    "valorDesconocido": 0.3
+  },
+  "cierre": {
+    "_": "Tiempo para preparar la solicitud. Primer tramo cuyo hastaDias >= días que faltan; hastaDias null = el resto. Cerradas (días < 0) no entran en el ranking.",
+    "tramos": [
+      { "hastaDias": 3, "valor": 0.15 },
+      { "hastaDias": 7, "valor": 0.5 },
+      { "hastaDias": 14, "valor": 0.8 },
+      { "hastaDias": 90, "valor": 1 },
+      { "hastaDias": null, "valor": 0.7 }
+    ],
+    "valorDesconocido": 0.4
+  },
+  "esfuerzo": {
+    "_": "Media de dos componentes: cofinanciación (1 sin cofinanciación, 0 a partir de cofinanciacionMaxima %) y requisitos (1 hasta requisitosSinPenalizar; resta penalizacionPorRequisito por cada uno más, con suelo).",
+    "cofinanciacionMaxima": 50,
+    "requisitosSinPenalizar": 2,
+    "penalizacionPorRequisito": 0.1,
+    "suelo": 0.2,
+    "valorDesconocido": 0.5
+  },
+  "probabilidad": {
+    "_": "Sin datos de ganadoras parecidas ni historial propio vale esto. Otro proveedor (Task 5) puede dar un valor con su explicación.",
+    "valorDesconocido": 0.5
+  }
+}

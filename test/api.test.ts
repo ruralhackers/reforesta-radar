@@ -19,13 +19,13 @@ function conv(id: string, fechaPublicacion: string): Convocatoria {
   };
 }
 
-test('GET /semana lista las candidatas de los últimos 7 días, más recientes primero', async () => {
+test('GET /semana lista las vistas por primera vez en los últimos 7 días (sin puntuar, por fecha de publicación), no las descartadas', async () => {
   const db = abrirBd(join(dir, 'radar.sqlite'));
   const ahora = new Date('2026-11-13T10:00:00Z');
   const guardar = (c: Convocatoria, descarte: Descarte | null = null) => guardarConvocatoria(db, { convocatoria: c, descarte }, ahora);
   guardar(conv('1', '2026-11-13'));
   guardar(conv('2', '2026-11-07'));
-  guardar(conv('3', '2026-11-06')); // fuera de la semana
+  guardarConvocatoria(db, { convocatoria: conv('3', '2026-11-06'), descarte: null }, new Date('2026-11-03T10:00:00Z')); // vista hace 10 días: no es nueva
   guardar(conv('4', '2026-11-12'), { regla: 'nominativa', motivo: 'Subvención nominativa' });
 
   const api = crearApi({ db, reloj: { now: () => ahora } });

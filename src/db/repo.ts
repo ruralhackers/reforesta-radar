@@ -2,6 +2,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { diasEntre } from '../dates.ts';
 import type { Plazo } from '../plazos.ts';
+import type { Puntuacion } from '../puntuacion.ts';
 import type { Convocatoria, Cribada, Perfil, Semilla } from '../types.ts';
 
 export function transaccion<T>(db: DatabaseSync, fn: () => T): T {
@@ -427,4 +428,42 @@ export function cierresEntre(db: DatabaseSync, desde: string, hasta: string, hoy
 export function enJuegoTodas(db: DatabaseSync): Convocatoria[] {
   const filas = db.prepare(`SELECT * FROM convocatorias c WHERE ${EN_JUEGO} ORDER BY c.fecha_publicacion DESC, c.id`).all() as Record<string, unknown>[];
   return filas.map(filaAConvocatoria);
+}
+
+// --- Puntuación (fase determinista) ---
+
+export interface PuntuacionGuardada extends Puntuacion {
+  calculadoEn: string;
+}
+
+export function guardarPuntuacion(db: DatabaseSync, convocatoriaId: string, p: Puntuacion, ahora: Date): void {
+  db.prepare(`
+    INSERT INTO puntuaciones (convocatoria_id, total, excluida, analizada, factores, calculado_en) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT (convocatoria_id) DO UPDATE SET total = excluded.total, excluida = excluded.excluida,
+      analizada = excluded.analizada, factores = excluded.factores, calculado_en = excluded.calculado_en
+  `).run(convocatoriaId, p.total, p.excluida, Number(p.analizada), JSON.stringify(p.factores), ahora.toISOString());
+}
+
+export function leerPuntuacion(db: DatabaseSync, convocatoriaId: string): PuntuacionGuardada | null {
+  const f = db.prepare('SELECT * FROM puntuaciones WHERE convocatoria_id = ?').get(convocatoriaId) as Record<string, unknown> | undefined;
+  if (!f) return null;
+  return {
+    total: Number(f.total), excluida: (f.excluida as string | null) ?? null, analizada: f.analizada === 1,
+    factores: JSON.parse(String(f.factores)) as Puntuacion['factores'], calculadoEn: String(f.calculado_en),
+  };
+}
+
+/** Candidata en juego con lo necesario para el ranking: primera vez vista, plazo (días desde `hoy`) y última puntuación. */
+export interface FilaRanking extends FilaConvocatoria {
+  primeraVez: string;
+  plazo: PlazoGuardado | null;
+  puntuacion: PuntuacionGuardada | null;
+}
+
+export function filasRanking(db: DatabaseSync, hoy: string): FilaRanking[] {
+  const filas = db.prepare(`SELECT * FROM convocatorias c WHERE ${EN_JUEGO} ORDER BY c.fecha_publicacion DESC, c.id DESC`).all() as Record<string, string | null>[];
+  return filas.map((f) => ({
+    id: f.id!, fuente: f.fuente!, titulo: f.titulo!, organo: organoLegible(f), fechaPublicacion: f.fecha_publicacion!, url: f.url!,
+    primeraVez: f.primera_vez!, plazo: leerPlazo(db, f.id!, hoy), puntuacion: leerPuntuacion(db, f.id!),
+  }));
 }

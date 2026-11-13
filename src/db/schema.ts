@@ -151,6 +151,17 @@ const MIGRACIONES: string[] = [
   );
   CREATE INDEX plazos_cierre ON plazos (fecha_cierre);
   `,
+  `
+  -- Puntuación explicable 0-100 (fase determinista, sin LLM; se recalcula en cada ejecución). Una fila por convocatoria.
+  CREATE TABLE puntuaciones (
+    convocatoria_id TEXT PRIMARY KEY REFERENCES convocatorias (id),
+    total INTEGER NOT NULL,
+    excluida TEXT,                      -- motivo si no entra en el ranking (no admite ESFL, cerrada); null = entra
+    analizada INTEGER NOT NULL,
+    factores TEXT NOT NULL,             -- JSON Factor[]: id, nombre, peso, subpuntuacion, conocido, explicacion
+    calculado_en TEXT NOT NULL
+  );
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {
