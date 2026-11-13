@@ -8,7 +8,7 @@ import { guardarConvocatoria, guardarFase, guardarPlazo } from '../src/db/repo.t
 import { enviarResumen } from '../src/engine.ts';
 import { crearEmisorResend, type CorreoSaliente, type Emisor } from '../src/mailer.ts';
 import { leerConfigPuntuacion } from '../src/puntuacion.ts';
-import { componerCorreo } from '../src/correo.ts';
+import { acortar, componerCorreo, textoImporte } from '../src/correo.ts';
 import type { Convocatoria } from '../src/types.ts';
 import { bdSembrada, RUTA_PUNTUACION, relojFijo } from './support/bd.ts';
 
@@ -190,6 +190,15 @@ describe('piezas', () => {
     const c = componerCorreo({ hoy: '2026-11-16', lunes: '2026-11-16', total: 1, cierranPronto: 0, urlPublica: 'https://x.org', secciones: [{ titulo: 'T', items: [{ titulo: '<script>alert(1)</script> & "co"', url: 'https://x.org/a?b=1&c=2', detalles: [] }] }] });
     assert.ok(!c.html.includes('<script>'));
     assert.ok(c.html.includes('&lt;script&gt;'));
+  });
+  test('importe: solo la cifra inicial, sin Hasta duplicado; títulos largos cortados en palabra', () => {
+    const a = (v: string) => ({ importeMaximoProyecto: { valor: v }, importeTotal: { valor: '' } }) as never;
+    assert.equal(textoImporte(a('1.500 euros (límite de la línea de Medio Ambiente, Protección Animal y Gestión de Residuos)')), 'Hasta 1.500 euros por proyecto');
+    assert.equal(textoImporte(a('60.000 euros; cofinanciación del 10 %')), 'Hasta 60.000 euros por proyecto');
+    assert.equal(textoImporte(a('Hasta 5.000 euros')), 'Hasta 5.000 euros por proyecto');
+    assert.equal(textoImporte(a('Máximo 3.000 euros')), 'Máximo 3.000 euros por proyecto');
+    const t = acortar('palabra '.repeat(40), 140);
+    assert.ok(t.length <= 140 && t.endsWith('palabra...'));
   });
   test('semana ISO', () => {
     assert.equal(semanaIso('2026-11-16'), '2026-W47');

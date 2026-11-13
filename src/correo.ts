@@ -43,11 +43,28 @@ export function porQue(p: EntradaItem['puntuacion']): string | undefined {
   return t.charAt(0).toUpperCase() + t.slice(1) + '.';
 }
 
-const corto = (t: string) => (t.length > 60 ? `${t.slice(0, 57).trimEnd()}...` : t);
+/** Corta en el último límite de palabra antes de `max` caracteres y añade "...". */
+export function acortar(t: string, max: number): string {
+  const l = t.replace(/\s+/g, ' ').trim();
+  if (l.length <= max) return l;
+  const corte = l.slice(0, max - 3);
+  const i = corte.lastIndexOf(' ');
+  return `${(i > max / 2 ? corte.slice(0, i) : corte).replace(/[\s,;:.]+$/, '')}...`;
+}
+
+/** Solo el importe inicial: se corta en el primer "(" o ";" (aclaraciones), y como último recurso en límite de palabra. */
+export function importeLimpio(v: string): string {
+  return acortar(v.split(/[(;]/)[0].replace(/[\s,.:]+$/, '') || v, 60);
+}
+
+const EMPIEZA_CON_LIMITE = /^(hasta|máximo|maximo|como máximo|un máximo|de hasta|desde)\b/i;
 
 export function textoImporte(a: Analisis | null): string {
-  if (a?.importeMaximoProyecto.valor) return `Hasta ${corto(a.importeMaximoProyecto.valor)} por proyecto`;
-  if (a?.importeTotal.valor) return `${corto(a.importeTotal.valor)} en total`;
+  if (a?.importeMaximoProyecto.valor) {
+    const v = importeLimpio(a.importeMaximoProyecto.valor);
+    return EMPIEZA_CON_LIMITE.test(v) ? `${v} por proyecto` : `Hasta ${v} por proyecto`;
+  }
+  if (a?.importeTotal.valor) return `${importeLimpio(a.importeTotal.valor)} en total`;
   return 'Importe por confirmar';
 }
 
@@ -59,7 +76,7 @@ export function textoCierre(p: EntradaItem['plazo']): string {
 }
 
 export function itemCorreo(e: EntradaItem, urlPublica: string): ItemCorreo {
-  return { titulo: e.titulo.replace(/\s+/g, ' ').trim(), url: urlFicha(urlPublica, e.id), porQue: porQue(e.puntuacion), detalles: [e.organo, `${textoImporte(e.analisis)} · ${textoCierre(e.plazo)}`] };
+  return { titulo: acortar(e.titulo, 140), url: urlFicha(urlPublica, e.id), porQue: porQue(e.puntuacion), detalles: [e.organo, `${textoImporte(e.analisis)} · ${textoCierre(e.plazo)}`] };
 }
 
 export interface ResumenCorreo {
