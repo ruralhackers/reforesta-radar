@@ -2,8 +2,8 @@
 // los tests inyectan una falsa. El motor no sabe de SDKs: pide un JSON con un esquema y recibe datos + uso.
 
 export interface PeticionLlm {
-  /** Para qué es (criba, analisis): solo para el registro y los tests. */
-  tarea: 'criba' | 'analisis';
+  /** Para qué es (criba, analisis, extraccion de fundaciones): solo para el registro y los tests. */
+  tarea: 'criba' | 'analisis' | 'extraccion';
   modelo: string;
   sistema: string;
   mensaje: string;

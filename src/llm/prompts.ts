@@ -164,3 +164,64 @@ export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoPar
   const mensaje = [cabecera(c), ...contexto, '', bloqueDocumentos(textos, null)].join('\n');
   return { sistema, mensaje };
 }
+
+// --- Extracción de convocatorias de una página de fundación o agregador (Haiku) ---
+
+export const ESQUEMA_EXTRACCION: Record<string, unknown> = {
+  type: 'object',
+  properties: {
+    convocatorias: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          titulo: { type: 'string' },
+          url: { type: 'string' },
+          plazo: { type: 'string' },
+          importe: { type: 'string' },
+          extracto: { type: 'string' },
+          resumen: { type: 'string' },
+        },
+        required: ['titulo', 'url', 'plazo', 'importe', 'extracto', 'resumen'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['convocatorias'],
+  additionalProperties: false,
+};
+
+/**
+ * La página (texto principal, con los enlaces como "texto [url]") de una fundación o de un agregador de convocatorias del tercer sector.
+ * Se pide solo lo que la página dice: plazo, importe y extracto copiados literalmente (el código comprueba que están en la página).
+ */
+export function promptExtraccion(perfil: Perfil, nombre: string, tipo: 'fundacion' | 'agregador', urlPagina: string, texto: string): { sistema: string; mensaje: string } {
+  const sistema = [
+    'Lees la página web de una fundación (o de un agregador de convocatorias del tercer sector) y extraes las convocatorias de ayudas, subvenciones,',
+    'premios o programas de financiación que figuran en ella, para un radar de convocatorias de una organización sin ánimo de lucro.',
+    '',
+    describirPerfil(perfil),
+    '',
+    'Reglas (obligatorias):',
+    '- Solo convocatorias ABIERTAS, próximas a abrir o sin fecha de cierre a la vista. Ignora las marcadas como cerradas, resueltas, finalizadas o de ediciones pasadas,',
+    '  salvo que la página diga que se reabren. Ignora noticias sin convocatoria, menús, avisos legales y programas internos de la fundación sin solicitud externa.',
+    '- Solo convocatorias concretas: no incluyas enlaces genéricos a la web de otra entidad, a un buscador o a un listado de convocatorias, ni la propia fundación como si fuera una convocatoria.',
+    '- Incluye convocatorias aunque a primera vista no encajen con las líneas de la organización (la criba posterior decide); excluye solo las claramente',
+    '  dirigidas a otro público (becas de estudios para personas, premios a individuos, ayudas a empresas).',
+    '- Nunca inventes: todo sale de la página. "titulo" copiado tal cual. "url": el enlace de esa convocatoria tal como aparece en la página entre corchetes',
+    '  (absoluto); si la convocatoria no tiene enlace propio, cadena vacía "". No uses el enlace de la propia página ni enlaces de redes sociales.',
+    '- "plazo" e "importe": un fragmento copiado LITERALMENTE de la página (sin parafrasear ni completar). Si no consta, cadena vacía "".',
+    '- "extracto": un fragmento literal de la página (hasta 400 caracteres) que describe la convocatoria o a quién se dirige. Si no hay, "".',
+    '- "resumen": una frase en castellano de qué financia y a quién se dirige (puede ser una síntesis tuya; no incluyas cifras ni fechas que no estén en la página).',
+    '- Máximo 15 convocatorias. Si la página no contiene ninguna, devuelve una lista vacía.',
+  ].join('\n');
+  const mensaje = [
+    `Fuente: ${nombre} (${tipo === 'agregador' ? 'agregador de convocatorias' : 'fundación'})`,
+    `Página: ${urlPagina}`,
+    '',
+    '<pagina>',
+    texto,
+    '</pagina>',
+  ].join('\n');
+  return { sistema, mensaje };
+}

@@ -32,6 +32,14 @@ export const config = {
     pausaMs: Number(process.env.RADAR_PAUSA_FT_MS ?? 500),
     maxPeticiones: Number(process.env.RADAR_MAX_PETICIONES_FT ?? 8),
   },
+  /** Fundaciones vigiladas: pausa entre páginas, tiempo máximo y tamaño máximo de cada una, tope de fuentes por ejecución y de texto que se pasa al LLM. */
+  fundaciones: {
+    pausaMs: Number(process.env.RADAR_PAUSA_FUNDACIONES_MS ?? 1000),
+    timeoutMs: Number(process.env.RADAR_TIMEOUT_FUNDACIONES_MS ?? 30_000),
+    maxBytes: Number(process.env.RADAR_MAX_BYTES_FUNDACIONES ?? 3 * 1024 * 1024),
+    maxFuentes: Number(process.env.RADAR_MAX_FUNDACIONES ?? 60),
+    maxCaracteres: Number(process.env.RADAR_MAX_CARACTERES_FUNDACIONES ?? 60_000),
+  },
   /** Aprendizaje ligero: cuántas de las últimas decisiones del equipo se pasan como ejemplos a la criba y el análisis de lo nuevo. */
   decisiones: {
     maxEjemplos: Number(process.env.RADAR_EJEMPLOS_DECISIONES ?? 20),

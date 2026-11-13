@@ -49,15 +49,19 @@
     { "nif": "G79275632", "nombre": "Federación Madrileña de Caza" }
   ],
   "fundaciones": [
-    { "nombre": "Fundación Montemadrid", "url": "https://www.fundacionmontemadrid.es/", "notas": "Donante recurrente (con CaixaBank). TODO: página concreta de convocatorias." },
-    { "nombre": "Fundación \"la Caixa\" / CaixaBank", "url": "https://fundacionlacaixa.org/es/convocatorias", "notas": "Donante recurrente." },
-    { "nombre": "Fundación Repsol", "url": "https://www.fundacionrepsol.com/", "notas": "Donante recurrente. TODO: página concreta de convocatorias." },
-    { "nombre": "Fundación Iberdrola España", "url": "https://www.fundacioniberdrolaespana.org/", "notas": "Donante recurrente. TODO: página concreta de convocatorias." },
-    { "nombre": "Fundación Endesa", "url": "https://www.fundacionendesa.org/", "notas": "TODO: página concreta de convocatorias." },
-    { "nombre": "Fundación BBVA", "url": "https://www.fbbva.es/", "notas": "TODO: página concreta de convocatorias." },
-    { "nombre": "Fundación Mapfre", "url": "https://www.fundacionmapfre.org/", "notas": "TODO: página concreta de convocatorias." },
-    { "nombre": "Ecoembes", "url": "https://www.ecoembes.com/", "notas": "TODO: página concreta de convocatorias." },
-    { "nombre": "Caterpillar Foundation", "url": null, "notas": "Donante recurrente vía CAF America. TODO: URL de convocatorias." },
-    { "nombre": "Alstom Foundation", "url": null, "notas": "Donante recurrente. TODO: URL de convocatorias." }
+    {"nombre": "Fundación Montemadrid", "url": "https://www.fundacionmontemadrid.es/convocatorias/", "notas": "Donante recurrente (con CaixaBank). Verificada 2026-11-13: HTTP 200, lista de convocatorias con estado.", "tipo": "fundacion", "activa": true},
+    {"nombre": "Fundación \"la Caixa\"", "url": "https://fundacionlacaixa.org/es/convocatorias-sociales", "notas": "Donante recurrente. Desactivada: la web responde HTTP 403 a clientes automáticos (verificado 2026-11-13). Revisar a mano o activar si abren el acceso.", "tipo": "fundacion", "activa": false},
+    {"nombre": "Fundación Repsol", "url": "https://www.fundacionrepsol.com/es/que-hacemos/", "notas": "Donante recurrente. Verificada 2026-11-13: HTTP 200. Sin página única de convocatorias de ONG: lista sus programas (Fondo de Emprendedores, Motor Verde…).", "tipo": "fundacion", "activa": true},
+    {"nombre": "Fundación Iberdrola España", "url": "https://www.fundacioniberdrolaespana.org/accion-social/programa-social", "notas": "Donante recurrente. Verificada 2026-11-13: HTTP 200 (Convocatoria Programa Social). Con otro User-Agent o desde curl puede dar 403.", "tipo": "fundacion", "activa": true},
+    {"nombre": "Fundación Endesa", "url": "https://www.fundacionendesa.org/es", "notas": "Verificada 2026-11-13 con respuestas intermitentes (HTTP 200 y 404 sobre la misma URL). Portada: lista las convocatorias abiertas.", "tipo": "fundacion", "activa": true},
+    {"nombre": "Fundación BBVA", "url": "https://www.fbbva.es/convocatorias/", "notas": "Verificada 2026-11-13: HTTP 200. Convocatorias abiertas de becas, ayudas a proyectos y premios (incluye Biodiversidad).", "tipo": "fundacion", "activa": true},
+    {"nombre": "Fundación Mapfre", "url": "https://www.fundacionmapfre.org/premios-ayudas/convocatorias/", "notas": "Verificada 2026-11-13: HTTP 200. Convocatorias de ayudas (proyectos sociales, contratación…).", "tipo": "fundacion", "activa": true},
+    {"nombre": "Fundación Banco Santander", "url": "https://www.fundacionbancosantander.com/es/convocatorias", "notas": "Verificada 2026-11-13: HTTP 200. Convocatorias anuales en cultura, medioambiente y acción social.", "tipo": "fundacion", "activa": true},
+    {"nombre": "Fundación Biodiversidad (MITECO)", "url": "https://fundacion-biodiversidad.es/buscador-de-convocatorias/", "notas": "Verificada 2026-11-13: HTTP 200. Se solapa con BDNS: la duplicada por título se descarta.", "tipo": "fundacion", "activa": true},
+    {"nombre": "Ecoembes", "url": null, "notas": "Donante potencial. Sin página de ayudas a ONG localizada: ecoembes.com/es/convocatorias son licitaciones a recicladores, no encajan. TODO: buscar su programa de proyectos medioambientales con convocatoria.", "tipo": "fundacion", "activa": false},
+    {"nombre": "Caterpillar Foundation", "url": "https://www.caterpillar.com/en/company/caterpillar-foundation", "notas": "Donante recurrente vía CAF America. Verificada 2026-11-13: HTTP 200, pero es una página institucional sin convocatoria abierta (se concede por invitación). Desactivada.", "tipo": "fundacion", "activa": false},
+    {"nombre": "Alstom Foundation", "url": null, "notas": "Donante recurrente. Sin página pública de convocatoria encontrada (alstom.com/alstom-foundation da 404). TODO: URL de convocatorias.", "tipo": "fundacion", "activa": false},
+    {"nombre": "Corresponsables · ayudas", "url": "https://www.corresponsables.com/etiqueta/ayudas/", "notas": "Agregador de noticias de convocatorias de fundaciones y empresas (RSC). Verificado 2026-11-13: HTTP 200.", "tipo": "agregador", "activa": true},
+    {"nombre": "MITECO · ayudas y subvenciones de biodiversidad", "url": "https://www.miteco.gob.es/es/biodiversidad/ayudas-y-subvenciones.html", "notas": "Agregador oficial de convocatorias de biodiversidad (MITECO, Fundación Biodiversidad, LIFE). Verificado 2026-11-13: HTTP 200. Se solapa con BDNS.", "tipo": "agregador", "activa": true}
   ]
 }

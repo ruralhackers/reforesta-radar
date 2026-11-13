@@ -29,8 +29,8 @@ export function guardarSemilla(db: DatabaseSync, s: Semilla, ahora: Date): void 
     db.prepare('INSERT INTO perfil (id, datos, actualizado_en) VALUES (1, ?, ?)').run(JSON.stringify(s.perfil), ahora.toISOString());
     const org = db.prepare("INSERT OR IGNORE INTO organizaciones_parecidas (nif, nombre, origen) VALUES (?, ?, 'semilla')");
     for (const o of s.organizacionesParecidas) org.run(o.nif, o.nombre);
-    const fun = db.prepare('INSERT OR IGNORE INTO fundaciones (nombre, url, notas) VALUES (?, ?, ?)');
-    for (const f of s.fundaciones) fun.run(f.nombre, f.url, f.notas);
+    const fun = db.prepare('INSERT OR IGNORE INTO fundaciones (nombre, url, notas, tipo, activa) VALUES (?, ?, ?, ?, ?)');
+    for (const f of s.fundaciones) fun.run(f.nombre, f.url, f.notas, f.tipo ?? 'fundacion', f.activa === false || !f.url ? 0 : 1);
   });
 }
 

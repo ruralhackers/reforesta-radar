@@ -21,6 +21,8 @@ function clasificarAmbito(c: Convocatoria, p: Perfil): Ambito {
   const n1 = normalizar(nivel1);
   // Programas de la UE (fuente Funding & Tenders): sin límite territorial; si exigen entidades de ciertos países lo decide el análisis.
   if (n1 === 'UE') return 'dentro';
+  // Fundaciones privadas y agregadores: donaciones y ayudas sin límite territorial en el sentido administrativo; lo decide la criba y el análisis por el texto.
+  if (n1 === 'FUNDACION') return 'dentro';
   if (p.ambito.nivelesSiempre.some((n) => normalizar(n) === n1)) return 'dentro';
   if (n1 === 'AUTONOMICA' && nivel2 && p.ambito.comunidades.some((x) => normalizar(x) === normalizar(nivel2))) return 'dentro';
   if (c.regiones.some((r) => p.ambito.regiones.includes(r))) return 'dentro';

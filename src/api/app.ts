@@ -14,6 +14,7 @@ import { calcularRanking } from '../semana.ts';
 import { infoParecidas } from '../parecidas.ts';
 import { activarParecida, altaParecidaManual, leerParecidasConAportes, NIF_ENTIDAD_VALIDO, quitarParecidaManual } from '../db/ganadores.ts';
 import { anadirNota, borrarNota, decidir, deshacerDecision, ErrorDecision, leerDecision, leerDecisiones, leerNotas, MOTIVOS_DESCARTE, nosInteresa } from '../db/decisiones.ts';
+import { activarFuente, altaFuente, ErrorFundacion, leerFuentesVigiladas, quitarFuente } from '../db/fundaciones.ts';
 import { config } from '../config.ts';
 import { crearAcceso, type OpcionesEquipo } from './equipo.ts';
 import { fuentePorNombre } from '../sources/index.ts';
@@ -61,6 +62,50 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
       ultimaEjecucion: ultimasEjecuciones(db, 1)[0] ?? null,
     });
   });
+
+  // --- Fundaciones y agregadores vigilados ---
+  // GET público (nombre, URL, última revisión, último cambio y último error: nada del equipo). Altas, bajas y activación en `privadaFundaciones`.
+  // Lo que se añade o quita cuenta desde la siguiente ejecución del radar (la fuente lee la tabla en cada pasada).
+  api.get('/fundaciones', (c) => c.json({ fundaciones: leerFuentesVigiladas(db).map(({ huella: _huella, ...f }) => f) }));
+
+  const privadaFundaciones = new Hono();
+  privadaFundaciones.use('*', acceso.requiereEquipo);
+  const idDe = (c: { req: { param: (k: string) => string } }) => Number(c.req.param('id'));
+  const fallo = (e: unknown) => {
+    if (e instanceof ErrorFundacion) return { cuerpo: { error: e.message }, estado: e.estado };
+    throw e;
+  };
+  privadaFundaciones.post('/', async (c) => {
+    const cuerpo = await c.req.json().catch(() => null) as { nombre?: unknown; url?: unknown; tipo?: unknown } | null;
+    try {
+      const { huella: _h, ...f } = altaFuente(db, { nombre: cuerpo?.nombre, url: cuerpo?.url, tipo: cuerpo?.tipo });
+      return c.json(f, 201);
+    } catch (e) {
+      const r = fallo(e);
+      return c.json(r.cuerpo, r.estado);
+    }
+  });
+  privadaFundaciones.patch('/:id', async (c) => {
+    const cuerpo = await c.req.json().catch(() => null) as { activa?: unknown } | null;
+    if (typeof cuerpo?.activa !== 'boolean') return c.json({ error: 'Falta "activa" (true o false)' }, 400);
+    try {
+      activarFuente(db, idDe(c), cuerpo.activa);
+      return c.json({ id: idDe(c), activa: cuerpo.activa });
+    } catch (e) {
+      const r = fallo(e);
+      return c.json(r.cuerpo, r.estado);
+    }
+  });
+  privadaFundaciones.delete('/:id', (c) => {
+    try {
+      quitarFuente(db, idDe(c));
+      return c.json({ quitada: true });
+    } catch (e) {
+      const r = fallo(e);
+      return c.json(r.cuerpo, r.estado);
+    }
+  });
+  api.route('/fundaciones', privadaFundaciones);
 
   // --- Organizaciones parecidas (ajuste desde la web) ---
   // GET es de lectura. Las escrituras (PATCH/POST/DELETE) van en `privada`, un sub-router aparte: Task 9 le pone el middleware de

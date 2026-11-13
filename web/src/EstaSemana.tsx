@@ -56,7 +56,7 @@ export function EstaSemana() {
       <header className="mb-6">
         <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">Radar de convocatorias</p>
         <h1 className="text-2xl font-bold sm:text-3xl">Esta semana</h1>
-        <p className="mt-1 text-sm"><a href="/parecidas" className="text-emerald-800 hover:underline">Ajustar las organizaciones parecidas</a> · <a href="/perfil" className="text-emerald-800 hover:underline">Perfil</a>{puedeEditar && <> · <a href="/nos-interesa" className="text-emerald-800 hover:underline">Nos interesa</a></>}</p>
+        <p className="mt-1 text-sm"><a href="/parecidas" className="text-emerald-800 hover:underline">Ajustar las organizaciones parecidas</a> · <a href="/fundaciones" className="text-emerald-800 hover:underline">Fundaciones</a> · <a href="/perfil" className="text-emerald-800 hover:underline">Perfil</a>{puedeEditar && <> · <a href="/nos-interesa" className="text-emerald-800 hover:underline">Nos interesa</a></>}</p>
         {semana && (
           <p className="mt-1 text-sm text-stone-600">
             Del {fecha(semana.desde)} al {fecha(semana.hasta)} · {semana.convocatorias.length} candidatas, abiertas, ordenadas por puntuación

@@ -10,9 +10,11 @@ export const RUTA_FESTIVOS = join(import.meta.dirname, '..', '..', 'seed', 'fest
 
 export const RUTA_PUNTUACION = join(import.meta.dirname, '..', '..', 'seed', 'puntuacion.json');
 
+/** BD con la semilla cargada. Las fundaciones vigiladas de la semilla se desactivan (los tests no hacen red hacia ellas); los tests de fundaciones añaden las suyas. */
 export function bdSembrada(): DatabaseSync {
   const db = abrirBd(':memory:');
   sembrarSiVacia(db, RUTA_SEMILLA, new Date('2026-01-01T00:00:00Z'));
+  db.exec('UPDATE fundaciones SET activa = 0');
   return db;
 }
 

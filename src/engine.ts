@@ -58,6 +58,8 @@ export interface DependenciasMotor {
 export interface ResumenFuente extends ContadoresFuente {
   fuente: string;
   errores: string[];
+  /** Avisos que no son fallos (p. ej. una fuente que necesita LLM y no lo hay). */
+  avisos: string[];
 }
 
 export interface ResumenEjecucion {
@@ -91,6 +93,7 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
   const ejecucionId = empezarEjecucion(db, inicio);
   const resumen: ResumenFuente[] = [];
   let fases: RegistroFase[] = [];
+  const fasesDeFuentes: RegistroFase[] = []; // llamadas LLM propias de las fuentes (extracción de fundaciones)
   let plazos: ResumenPlazos | null = null;
   let puntuacion: ResumenPuntuacion | null = null;
   let ganadores = null as ResumenGanadores | null;
@@ -100,7 +103,7 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
 
   try {
     for (const fuente of deps.fuentes ?? FUENTES) {
-      resumen.push(await recorrerFuente(deps, ejecucionId, fuente, perfil, opciones.diasAtras ?? 7));
+      resumen.push(await recorrerFuente(deps, ejecucionId, fuente, perfil, opciones.diasAtras ?? 7, fasesDeFuentes));
     }
     // La misma convocatoria por dos fuentes (mismo título): se conserva la de BDNS. Antes de la criba, para no pagarla dos veces.
     duplicadas = marcarDuplicadas(db, reloj);
@@ -124,7 +127,7 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
       log(`ganadores: ${ganadores.consultas} consultas, ${ganadores.peticiones} peticiones a BDNS (${ganadores.desdeCache} consultas en caché, ${ganadores.omitidasPorTope} sin hacer por el tope), ${ganadores.concesiones} concesiones, ${ganadores.parecidas} organizaciones parecidas, ${ganadores.errores.length} errores`);
       for (const e of ganadores.errores) log(`  ! ${e}`);
     };
-    fases = await fasesLlm(deps, ejecucionId, perfil, inicio, pedirGanadores);
+    fases = [...fasesDeFuentes, ...(await fasesLlm(deps, ejecucionId, perfil, inicio, pedirGanadores))];
     plazos = calcularPlazos(db, reloj, perfil, deps.festivos ?? leerFestivos(config.rutaFestivos), deps.fuentes);
     log(`plazos: ${plazos.total} candidatas, ${plazos.literales} literales, ${plazos.calculadas} calculadas, ${plazos.desconocidas} desconocidas, ${plazos.errores.length} errores`);
     for (const e of plazos.errores) log(`  ! ${e}`);
@@ -184,16 +187,24 @@ async function fasesLlm(deps: DependenciasMotor, ejecucionId: number, perfil: Pe
 
 /** Recoge una fuente y guarda lo cribado. Los fallos de la fuente quedan en sus errores, no se lanzan. */
 async function recorrerFuente(
-  deps: DependenciasMotor, ejecucionId: number, fuente: Fuente, perfil: Perfil, diasAtras: number,
+  deps: DependenciasMotor, ejecucionId: number, fuente: Fuente, perfil: Perfil, diasAtras: number, fasesDeFuentes: RegistroFase[],
 ): Promise<ResumenFuente> {
   const { db, reloj } = deps;
   const log = deps.log ?? (() => {});
   empezarFuente(db, ejecucionId, fuente.nombre, reloj.now());
   const n: ContadoresFuente = { recibidas: 0, nuevas: 0, candidatas: 0, descartadas: 0 };
   let errores: string[] = [];
+  let avisos: string[] = [];
   try {
-    const r = await fuente.recoger({ fetch: deps.fetch, ahora: reloj.now(), perfil, diasAtras, dormir: deps.dormir, cribar: (c) => cribar(c, perfil) });
+    const modeloLlm = { ...CONFIG_LLM_POR_DEFECTO, ...deps.configLlm }.modeloCriba;
+    const r = await fuente.recoger({ fetch: deps.fetch, ahora: reloj.now(), perfil, diasAtras, dormir: deps.dormir, cribar: (c) => cribar(c, perfil), db, llm: deps.llm, modeloLlm });
     errores = r.errores;
+    avisos = r.avisos ?? [];
+    if (r.fase) {
+      guardarRegistroFase(db, ejecucionId, r.fase);
+      fasesDeFuentes.push(r.fase);
+      log(`${r.fase.fase}: ${r.fase.procesadas} páginas leídas, ${r.fase.llamadas} llamadas (${r.fase.desdeCache} de caché), ${r.fase.costeUsd.toFixed(4)} USD, ${r.fase.errores.length} errores`);
+    }
     transaccion(db, () => {
       for (const cribada of r.cribadas) {
         n.recibidas++;
@@ -210,7 +221,8 @@ async function recorrerFuente(
   terminarFuente(db, ejecucionId, fuente.nombre, reloj.now(), n, errores);
   log(`${fuente.nombre}: ${n.recibidas} recibidas, ${n.nuevas} nuevas, ${n.candidatas} candidatas, ${n.descartadas} descartadas, ${errores.length} errores`);
   for (const e of errores) log(`  ! ${e}`);
-  return { fuente: fuente.nombre, ...n, errores };
+  for (const a of avisos) log(`  · ${a}`);
+  return { fuente: fuente.nombre, ...n, errores, avisos };
 }
 
 // Correo del lunes: otra operación del motor, con su propio emisor inyectado.

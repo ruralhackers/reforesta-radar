@@ -1,6 +1,9 @@
 // Contrato de una fuente de convocatorias. Cada fuente nueva (UE, fundaciones…) implementa `Fuente`
 // y se añade a la lista del motor.
+import type { DatabaseSync } from 'node:sqlite';
+import type { Llm } from '../llm/llm.ts';
 import type { DatosPlazo } from '../plazos.ts';
+import type { RegistroFase } from '../db/repo.ts';
 import type { Convocatoria, Cribada, Descarte, Perfil } from '../types.ts';
 
 export interface ContextoFuente {
@@ -9,6 +12,10 @@ export interface ContextoFuente {
   perfil: Perfil;
   /** Espera entre peticiones (los tests la inyectan para no esperar de verdad). */
   dormir?: (ms: number) => Promise<void>;
+  /** BD, LLM y modelo de la criba (Haiku): solo las fuentes que vigilan páginas (fundaciones) los usan. */
+  db?: DatabaseSync;
+  llm?: Llm | null;
+  modeloLlm?: string;
   /** Días hacia atrás (incluido hoy) que se revisan. */
   diasAtras: number;
   /** Reglas deterministas; la fuente las aplica para no pedir detalle de lo que ya está descartado. */
@@ -19,6 +26,10 @@ export interface ResultadoFuente {
   cribadas: Cribada[];
   /** Fallos parciales (p. ej. un detalle que no se pudo leer). Un fallo total se lanza como excepción. */
   errores: string[];
+  /** Avisos que no son fallos (p. ej. sin LLM no se puede extraer): van al registro, no marcan la ejecución con errores. */
+  avisos?: string[];
+  /** Registro de la llamada LLM propia de la fuente (extracción), para el coste de la ejecución. */
+  fase?: RegistroFase | null;
 }
 
 /** Un texto que las fases LLM pueden leer: ya disponible (`texto`) o por descargar (`url`, PDF o HTML). */

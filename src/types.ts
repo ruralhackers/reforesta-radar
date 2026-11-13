@@ -34,8 +34,13 @@ export interface OrganizacionParecida {
 
 export interface Fundacion {
   nombre: string;
+  /** Página de convocatorias que se vigila; null = sin página conocida (no se puede vigilar). */
   url: string | null;
   notas: string | null;
+  /** Fundación con convocatorias propias o agregador de convocatorias del tercer sector. Por defecto, fundación. */
+  tipo?: 'fundacion' | 'agregador';
+  /** false = no se vigila (p. ej. la web bloquea clientes automáticos). Por defecto, activa. */
+  activa?: boolean;
 }
 
 export interface Semilla {

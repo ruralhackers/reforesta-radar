@@ -272,6 +272,15 @@ const MIGRACIONES: string[] = [
   );
   CREATE INDEX envios_resumen_por_semana ON envios_resumen (semana);
   `,
+  `
+  -- Fundaciones y agregadores vigilados: tipo, huella del último texto principal leído (si no cambia, no hay llamada al LLM),
+  -- cuándo cambió, cuándo se revisó por última vez y el último error (NULL = la última lectura fue bien).
+  ALTER TABLE fundaciones ADD COLUMN tipo TEXT NOT NULL DEFAULT 'fundacion' CHECK (tipo IN ('fundacion', 'agregador'));
+  ALTER TABLE fundaciones ADD COLUMN huella TEXT;
+  ALTER TABLE fundaciones ADD COLUMN ultimo_cambio TEXT;
+  ALTER TABLE fundaciones ADD COLUMN ultima_revision TEXT;
+  ALTER TABLE fundaciones ADD COLUMN ultimo_error TEXT;
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

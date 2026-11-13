@@ -1,6 +1,7 @@
 // Etiqueta de la fuente de una convocatoria (BDNS, UE · Funding & Tenders…), enlazada a la ficha original.
 const FUENTES: Record<string, { etiqueta: string; clase: string }> = {
   bdns: { etiqueta: 'BDNS', clase: 'bg-stone-100 text-stone-700 ring-stone-200' },
+  fundacion: { etiqueta: 'Fundación', clase: 'bg-amber-50 text-amber-800 ring-amber-200' },
   eu_ft: { etiqueta: 'UE · Funding & Tenders', clase: 'bg-blue-50 text-blue-800 ring-blue-200' },
 };
 

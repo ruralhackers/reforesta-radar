@@ -13,7 +13,7 @@ export function crearLlmAnthropic(opciones: { apiKey: string }): Llm {
         system: p.sistema,
         messages: [{ role: 'user', content: p.mensaje }],
         // Criba: decisión corta, poco razonamiento. Análisis: lectura atenta de bases largas.
-        output_config: { effort: p.tarea === 'criba' ? 'low' : 'medium', format: { type: 'json_schema', schema: p.esquema } },
+        output_config: { effort: p.tarea === 'analisis' ? 'medium' : 'low', format: { type: 'json_schema', schema: p.esquema } },
         // Si el modelo de análisis rechaza por un falso positivo de seguridad, la API reintenta con el de reserva.
         ...(p.tarea === 'analisis' ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const } : {}),
       });

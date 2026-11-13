@@ -267,3 +267,23 @@ export interface EstadoSesion { modoPrivado: boolean; autenticado: boolean }
 export const leerSesion = () => pedir<EstadoSesion>('/api/sesion');
 export const entrarEquipo = (password: string) => pedir<EstadoSesion>('/api/sesion', 'POST', { password });
 export const salirEquipo = () => pedir<EstadoSesion>('/api/sesion', 'DELETE');
+
+// --- Fundaciones y agregadores vigilados (GET público; el resto, del equipo) ---
+export interface FuenteVigilada {
+  id: number;
+  nombre: string;
+  url: string | null;
+  tipo: 'fundacion' | 'agregador';
+  activa: boolean;
+  notas: string | null;
+  /** Cuándo cambió por última vez el texto de la página (null = aún no se ha leído). */
+  ultimoCambio: string | null;
+  ultimaRevision: string | null;
+  /** Error de la última revisión (null = fue bien). */
+  ultimoError: string | null;
+}
+
+export const leerFundaciones = async () => (await pedir<{ fundaciones: FuenteVigilada[] }>('/api/fundaciones')).fundaciones;
+export const anadirFundacion = (f: { nombre: string; url: string; tipo: 'fundacion' | 'agregador' }) => pedir<FuenteVigilada>('/api/fundaciones', 'POST', f);
+export const activarFundacion = (id: number, activa: boolean) => pedir<object>(`/api/fundaciones/${id}`, 'PATCH', { activa });
+export const quitarFundacion = (id: number) => pedir<object>(`/api/fundaciones/${id}`, 'DELETE');
