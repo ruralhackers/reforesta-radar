@@ -67,7 +67,7 @@ export interface Convocatoria {
   datos: unknown;
 }
 
-export type ReglaDescarte = 'nominativa' | 'ambito' | 'finalidad';
+export type ReglaDescarte = 'nominativa' | 'ambito' | 'finalidad' | 'tema';
 
 export interface Descarte {
   regla: ReglaDescarte;

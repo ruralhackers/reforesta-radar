@@ -27,6 +27,11 @@ export const config = {
     desdeAnio: Number(process.env.RADAR_DESDE_ANIO_PARECIDAS ?? 2022),
     diasEdicion: Number(process.env.RADAR_DIAS_EDICION_PARECIDAS ?? 400),
   },
+  /** Fuente EU Funding & Tenders: pausa entre páginas y tope de peticiones por ejecución (50 resultados por página). */
+  euFt: {
+    pausaMs: Number(process.env.RADAR_PAUSA_FT_MS ?? 500),
+    maxPeticiones: Number(process.env.RADAR_MAX_PETICIONES_FT ?? 8),
+  },
   /** Aprendizaje ligero: cuántas de las últimas decisiones del equipo se pasan como ejemplos a la criba y el análisis de lo nuevo. */
   decisiones: {
     maxEjemplos: Number(process.env.RADAR_EJEMPLOS_DECISIONES ?? 20),

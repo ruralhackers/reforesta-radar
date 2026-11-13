@@ -7,6 +7,8 @@ export interface ContextoFuente {
   fetch: typeof globalThis.fetch;
   ahora: Date;
   perfil: Perfil;
+  /** Espera entre peticiones (los tests la inyectan para no esperar de verdad). */
+  dormir?: (ms: number) => Promise<void>;
   /** Días hacia atrás (incluido hoy) que se revisan. */
   diasAtras: number;
   /** Reglas deterministas; la fuente las aplica para no pedir detalle de lo que ya está descartado. */

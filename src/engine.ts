@@ -13,6 +13,7 @@ import { CONFIG_PARECIDAS_POR_DEFECTO, type ConfigParecidas, descubrirParecidas,
 import { ejemplosDecisiones } from './db/decisiones.ts';
 import { quitarMarcaDescubierta } from './db/ganadores.ts';
 import { crearProbabilidad } from './ganadores.ts';
+import { marcarDuplicadas, type ResumenDuplicadas } from './fases/duplicadas.ts';
 import { calcularPlazos, type ResumenPlazos } from './fases/plazo.ts';
 import { puntuarCandidatas, type ResumenPuntuacion } from './fases/puntuacion.ts';
 import { type ConfigPuntuacion, leerConfigPuntuacion, type ProveedorProbabilidad } from './puntuacion.ts';
@@ -73,6 +74,8 @@ export interface ResumenEjecucion {
   ganadores: ResumenGanadores | null;
   /** Descubrimiento por organizaciones parecidas; null si se saltó la fase. */
   parecidas: ResumenParecidas | null;
+  /** Convocatorias de otras fuentes marcadas como duplicadas de una de BDNS (mismo título). */
+  duplicadas: ResumenDuplicadas;
 }
 
 export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtras?: number } = {}): Promise<ResumenEjecucion> {
@@ -92,12 +95,16 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
   let puntuacion: ResumenPuntuacion | null = null;
   let ganadores = null as ResumenGanadores | null;
   let parecidas = null as ResumenParecidas | null;
+  let duplicadas: ResumenDuplicadas = { marcadas: 0 };
   let errorGeneral: string | null = null;
 
   try {
     for (const fuente of deps.fuentes ?? FUENTES) {
       resumen.push(await recorrerFuente(deps, ejecucionId, fuente, perfil, opciones.diasAtras ?? 7));
     }
+    // La misma convocatoria por dos fuentes (mismo título): se conserva la de BDNS. Antes de la criba, para no pagarla dos veces.
+    duplicadas = marcarDuplicadas(db, reloj);
+    if (duplicadas.marcadas) log(`duplicadas: ${duplicadas.marcadas} convocatorias de otras fuentes ya están en BDNS (mismo título)`);
     // Descubrimiento por parecidas: antes de la criba, para que lo descubierto pase por ella. Usa las parecidas ya guardadas
     // (semilla, manuales y las calculadas en la ejecución anterior) y comparte con los ganadores el tope de peticiones a BDNS.
     const hayBdns = (deps.fuentes ?? FUENTES).some((f) => f.nombre === 'bdns');
@@ -139,7 +146,7 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
   }
 
   const conErrores = resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0 || (parecidas?.errores.length ?? 0) > 0;
-  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, parecidas };
+  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, parecidas, duplicadas };
 }
 
 /**
@@ -185,7 +192,7 @@ async function recorrerFuente(
   const n: ContadoresFuente = { recibidas: 0, nuevas: 0, candidatas: 0, descartadas: 0 };
   let errores: string[] = [];
   try {
-    const r = await fuente.recoger({ fetch: deps.fetch, ahora: reloj.now(), perfil, diasAtras, cribar: (c) => cribar(c, perfil) });
+    const r = await fuente.recoger({ fetch: deps.fetch, ahora: reloj.now(), perfil, diasAtras, dormir: deps.dormir, cribar: (c) => cribar(c, perfil) });
     errores = r.errores;
     transaccion(db, () => {
       for (const cribada of r.cribadas) {

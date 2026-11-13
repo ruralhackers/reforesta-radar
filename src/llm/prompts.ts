@@ -45,6 +45,19 @@ function bloqueDocumentos(textos: TextoParaLlm[], max: number | null): string {
   }).join('\n\n');
 }
 
+/**
+ * Convocatorias de la UE (fuente eu_ft): los textos vienen en inglés y la respuesta sigue siendo en castellano.
+ * Solo se añade para esas convocatorias, así el prompt de las demás (y su caché) no cambia.
+ */
+function notaIdioma(c: Convocatoria, citas: boolean): string[] {
+  if (c.fuente !== 'eu_ft') return [];
+  return [
+    '- Los documentos de esta convocatoria de la UE están en inglés. Responde en castellano'
+    + (citas ? ' salvo las citas, que se copian literalmente en inglés tal como aparecen (no las traduzcas).' : '.'),
+    '  En el portal, "topic" es la convocatoria concreta, "RIA/IA/CSA" son tipos de acción y "LIFE", "Horizon Europe" etc. son programas.',
+  ];
+}
+
 function cabecera(c: Convocatoria): string {
   return [
     `Convocatoria ${c.id}: ${c.titulo}`,
@@ -81,6 +94,7 @@ export function promptCriba(perfil: Perfil, c: Convocatoria, condicion: string |
     '  delegación o actividad en esa comunidad; "no" si consta que no; "no_consta" si el texto no lo dice; si no hay condición, "no_aplica".',
     '  Si exige sede o actividad allí, la decisión es "descartar".',
     '- El motivo, en castellano, en una frase concreta (qué dice la convocatoria que te lleva a decidir).',
+    ...notaIdioma(c, false),
     ...bloqueEjemplos(ejemplos),
   ].join('\n');
   const mensaje = [
@@ -121,6 +135,7 @@ export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoPar
     ...(ganadores ? ['  Si se te dan ganadores de ediciones anteriores, úsalos solo como contexto (qué tipo de entidades suelen ganarla); no son parte de los documentos: no los cites ni copies sus importes.'] : []),
     '- En importes, porcentajes y plazos, el valor debe usar las mismas cifras que la cita.',
     '- Escribe en castellano.',
+    ...notaIdioma(c, true),
     ...bloqueEjemplos(ejemplos),
   ].join('\n');
   const contexto = ganadores ? ['', 'Contexto (BDNS; no forma parte de los documentos y no es citable). Ganadores de ediciones anteriores:', ganadores] : [];

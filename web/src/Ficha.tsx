@@ -1,3 +1,4 @@
+import { OrigenFuente } from './Origen.tsx';
 import { useEffect, useState } from 'react';
 import { type CampoCitado, type DecisionEquipo, type Ficha as TFicha, type NotaEquipo, leerEquipoFicha, leerFicha } from './api.ts';
 import { BotonesDecision, Notas } from './Decision.tsx';
@@ -75,7 +76,7 @@ export function Ficha({ id }: { id: string }) {
             <p className="mt-1 text-sm text-stone-600">{ficha.organo}</p>
             <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-stone-500">
               <span>{fecha(ficha.fechaPublicacion)}</span>
-              <span className="uppercase">{ficha.fuente}</span>
+              <OrigenFuente fuente={ficha.fuente} url={ficha.enlaces.find((e) => e.tipo === "ficha")?.url} />
               {ficha.tipo && <span>{ficha.tipo}</span>}
             </p>
             <nav className="mt-3 flex flex-wrap gap-2">

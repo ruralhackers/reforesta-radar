@@ -19,6 +19,8 @@ type Ambito = 'dentro' | 'otra_comunidad' | 'fuera';
 function clasificarAmbito(c: Convocatoria, p: Perfil): Ambito {
   const { nivel1, nivel2 } = c.organo;
   const n1 = normalizar(nivel1);
+  // Programas de la UE (fuente Funding & Tenders): sin límite territorial; si exigen entidades de ciertos países lo decide el análisis.
+  if (n1 === 'UE') return 'dentro';
   if (p.ambito.nivelesSiempre.some((n) => normalizar(n) === n1)) return 'dentro';
   if (n1 === 'AUTONOMICA' && nivel2 && p.ambito.comunidades.some((x) => normalizar(x) === normalizar(nivel2))) return 'dentro';
   if (c.regiones.some((r) => p.ambito.regiones.includes(r))) return 'dentro';

@@ -7,6 +7,10 @@ import { join } from 'node:path';
 export const DIR_GRABACIONES = join(import.meta.dirname, '..', 'fixtures', 'bdns');
 /** Concesiones (ganadores) y búsquedas de ediciones grabadas: solo las sirve `fetchGrabado({ concesiones: true })`. */
 export const DIR_CONCESIONES = join(import.meta.dirname, '..', 'fixtures', 'bdns-concesiones');
+/** Respuestas de la búsqueda SEDIA de EU Funding & Tenders (ver scripts/record-eu-ft.ts). */
+export const DIR_EU_FT = join(import.meta.dirname, '..', 'fixtures', 'eu-ft');
+/** Reloj con el que se grabó EU F&T: la consulta lleva la fecha de hoy (deadlineDate >= hoy), así que las grabaciones valen para este día. */
+export const AHORA_EU_FT = new Date('2026-11-13T09:00:00Z');
 /** Documentos descargados (PDF de BDNS, bases en BOE…), tal cual llegan. */
 export const DIR_DOCUMENTOS = join(import.meta.dirname, '..', 'fixtures', 'documentos');
 
@@ -37,6 +41,17 @@ export function claveGrabacion(url: string): string {
   return (base.length > 180 ? `${base.slice(0, 140)}__${createHash('sha1').update(base).digest('hex').slice(0, 16)}` : base) + '.json';
 }
 
+export const esSedia = (url: string) => new URL(url).host === 'api.tech.ec.europa.eu';
+
+/** Nombre de fichero de una página SEDIA: número de página + hash del texto y de la consulta (el cuerpo multipart). */
+export async function claveSedia(url: string, init?: RequestInit): Promise<string> {
+  const u = new URL(url);
+  const parte = init?.body instanceof FormData ? init.body.get('query') : null;
+  const consulta = parte && typeof parte !== 'string' ? await parte.text() : String(parte ?? '');
+  const hash = createHash('sha1').update(`${u.searchParams.get('text')}|${consulta}`).digest('hex').slice(0, 10);
+  return `sedia_p${u.searchParams.get('pageNumber')}_${hash}.json`;
+}
+
 const paginaVacia = () => new Response(JSON.stringify({ content: [], last: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
 /** ¿Es una consulta de la fase de ganadores (concesiones o búsqueda de ediciones por título)? */
@@ -50,9 +65,16 @@ export function esConsultaDeGanadores(url: string): boolean {
  * para que los tests que no tratan de ellas no dependan de las grabaciones de concesiones; con `concesiones: true` se sirven
  * las grabadas en DIR_CONCESIONES (y una sin grabar falla).
  */
-export function fetchGrabado({ concesiones = false }: { concesiones?: boolean } = {}): typeof fetch {
-  return (async (entrada: string | URL | Request) => {
+export function fetchGrabado({ concesiones = false, euFt = false }: { concesiones?: boolean; euFt?: boolean } = {}): typeof fetch {
+  return (async (entrada: string | URL | Request, init?: RequestInit) => {
     const url = entrada instanceof Request ? entrada.url : String(entrada);
+    if (esSedia(url)) {
+      // EU Funding & Tenders: sin `euFt`, una página vacía (los tests de BDNS no dependen de esta fuente).
+      if (!euFt) return new Response(JSON.stringify({ totalResults: 0, results: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      const f = join(DIR_EU_FT, await claveSedia(url, init));
+      if (!existsSync(f)) throw new Error(`Sin grabación de EU F&T para ${url} (${f})`);
+      return new Response(readFileSync(f), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
     if (esConsultaDeGanadores(url)) {
       if (!concesiones) return paginaVacia();
       const f = join(DIR_CONCESIONES, claveGrabacion(url));
