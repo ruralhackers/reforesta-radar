@@ -9,7 +9,7 @@ import {
 import { cribar } from './rules.ts';
 import { bdns } from './sources/bdns.ts';
 import type { Fuente } from './sources/source.ts';
-import type { Reloj } from './types.ts';
+import type { Perfil, Reloj } from './types.ts';
 
 export interface DependenciasMotor {
   db: DatabaseSync;
@@ -41,38 +41,54 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
 
   const ejecucionId = empezarEjecucion(db, reloj.now());
   const resumen: ResumenFuente[] = [];
+  let errorGeneral: string | null = null;
 
-  for (const fuente of deps.fuentes ?? FUENTES) {
-    empezarFuente(db, ejecucionId, fuente.nombre, reloj.now());
-    const n: ContadoresFuente = { recibidas: 0, nuevas: 0, candidatas: 0, descartadas: 0 };
-    let errores: string[] = [];
-    try {
-      const r = await fuente.recoger({
-        fetch: deps.fetch,
-        ahora: reloj.now(),
-        perfil,
-        diasAtras: opciones.diasAtras ?? 7,
-        cribar: (c) => cribar(c, perfil),
-      });
-      errores = r.errores;
-      transaccion(db, () => {
-        for (const cribada of r.cribadas) {
-          n.recibidas++;
-          if (guardarConvocatoria(db, cribada, reloj.now())) n.nuevas++;
-          if (cribada.descarte) n.descartadas++;
-          else n.candidatas++;
-        }
-      });
-    } catch (e) {
-      errores = [...errores, `Fallo de la fuente: ${(e as Error).message}`];
+  try {
+    for (const fuente of deps.fuentes ?? FUENTES) {
+      resumen.push(await recorrerFuente(deps, ejecucionId, fuente, perfil, opciones.diasAtras ?? 7));
     }
-    terminarFuente(db, ejecucionId, fuente.nombre, reloj.now(), n, errores);
-    resumen.push({ fuente: fuente.nombre, ...n, errores });
-    log(`${fuente.nombre}: ${n.recibidas} recibidas, ${n.nuevas} nuevas, ${n.candidatas} candidatas, ${n.descartadas} descartadas, ${errores.length} errores`);
-    for (const e of errores) log(`  ! ${e}`);
+  } catch (e) {
+    // Fallo fuera de una fuente (BD bloqueada, disco lleno, configuración…): se registra y se relanza.
+    errorGeneral = (e as Error).message;
+    throw e;
+  } finally {
+    const conErrores = errorGeneral !== null || resumen.some((f) => f.errores.length > 0);
+    try {
+      terminarEjecucion(db, ejecucionId, reloj.now(), conErrores, errorGeneral);
+    } catch (e) {
+      log(`! No se pudo cerrar la ejecución ${ejecucionId}: ${(e as Error).message}`);
+      if (errorGeneral === null) throw e; // si ya había un fallo, ese es el que se relanza
+    }
   }
 
-  const conErrores = resumen.some((f) => f.errores.length > 0);
-  terminarEjecucion(db, ejecucionId, reloj.now(), conErrores);
-  return { ejecucionId, conErrores, fuentes: resumen };
+  return { ejecucionId, conErrores: resumen.some((f) => f.errores.length > 0), fuentes: resumen };
+}
+
+/** Recoge una fuente y guarda lo cribado. Los fallos de la fuente quedan en sus errores, no se lanzan. */
+async function recorrerFuente(
+  deps: DependenciasMotor, ejecucionId: number, fuente: Fuente, perfil: Perfil, diasAtras: number,
+): Promise<ResumenFuente> {
+  const { db, reloj } = deps;
+  const log = deps.log ?? (() => {});
+  empezarFuente(db, ejecucionId, fuente.nombre, reloj.now());
+  const n: ContadoresFuente = { recibidas: 0, nuevas: 0, candidatas: 0, descartadas: 0 };
+  let errores: string[] = [];
+  try {
+    const r = await fuente.recoger({ fetch: deps.fetch, ahora: reloj.now(), perfil, diasAtras, cribar: (c) => cribar(c, perfil) });
+    errores = r.errores;
+    transaccion(db, () => {
+      for (const cribada of r.cribadas) {
+        n.recibidas++;
+        if (guardarConvocatoria(db, cribada, reloj.now())) n.nuevas++;
+        if (cribada.descarte) n.descartadas++;
+        else n.candidatas++;
+      }
+    });
+  } catch (e) {
+    errores = [...errores, `Fallo de la fuente: ${(e as Error).message}`];
+  }
+  terminarFuente(db, ejecucionId, fuente.nombre, reloj.now(), n, errores);
+  log(`${fuente.nombre}: ${n.recibidas} recibidas, ${n.nuevas} nuevas, ${n.candidatas} candidatas, ${n.descartadas} descartadas, ${errores.length} errores`);
+  for (const e of errores) log(`  ! ${e}`);
+  return { fuente: fuente.nombre, ...n, errores };
 }

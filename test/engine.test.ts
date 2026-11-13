@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import type { DatabaseSync } from 'node:sqlite';
-import { ultimasEjecuciones } from '../src/db/repo.ts';
+import { candidatasEntre, guardarFase, leerFases, ultimasEjecuciones } from '../src/db/repo.ts';
 import { ejecutarRadar } from '../src/engine.ts';
+import type { Fuente } from '../src/sources/source.ts';
 import { bdSembrada, relojFijo } from './support/bd.ts';
 import { ESCENARIOS, fetchGrabado } from './support/grabaciones.ts';
 
@@ -103,5 +104,41 @@ describe('motor con respuestas grabadas de BDNS', () => {
     assert.deepEqual(r.fuentes[0].errores, ['Detalle 923290: fetch failed']);
     assert.equal(fila(db, '923290'), undefined, 'sin detalle no se guarda: se reintentará en la próxima ejecución');
     assert.ok(fila(db, '923289'));
+  });
+
+  test('re-ejecutar no borra el veredicto de fases posteriores (criba LLM, equipo…)', async () => {
+    const db = bdSembrada();
+    const reloj = relojFijo(ESCENARIOS.agosto2026.ahora);
+    const deps = { db, fetch: fetchGrabado(), reloj };
+    await ejecutarRadar(deps, { diasAtras: 2 });
+    const enLista = () => candidatasEntre(db, '2026-08-03', '2026-08-04').map((c) => c.id);
+    assert.ok(enLista().includes('bdns:923290'));
+
+    guardarFase(db, { convocatoriaId: 'bdns:923290', fase: 'criba_llm', descarta: true, motivo: 'No encaja', datos: { modelo: 'falso' } }, reloj.now());
+    assert.ok(!enLista().includes('bdns:923290'));
+
+    reloj.adelantar(24 * 60 * 60 * 1000);
+    await ejecutarRadar(deps, { diasAtras: 2 });
+
+    assert.deepEqual(leerFases(db, 'bdns:923290'), [
+      { convocatoriaId: 'bdns:923290', fase: 'criba_llm', descarta: true, motivo: 'No encaja', datos: { modelo: 'falso' } },
+    ]);
+    assert.ok(!enLista().includes('bdns:923290'), 'sigue fuera de la lista tras la nueva pasada');
+    assert.equal(fila(db, '923290')?.descarte_regla, null, 'el veredicto de las reglas se sigue refrescando aparte');
+  });
+
+  test('un fallo fuera de las fuentes cierra la ejecución con el error y se relanza', async () => {
+    const db = bdSembrada();
+    const vacia: Fuente = { nombre: 'repetida', recoger: async () => ({ cribadas: [], errores: [] }) };
+    // Dos fuentes con el mismo nombre: el registro de la segunda viola la clave primaria (fallo de BD, no de la fuente).
+    await assert.rejects(
+      ejecutarRadar({ db, fetch: fetchGrabado(), reloj: relojFijo(ESCENARIOS.agosto2026.ahora), fuentes: [vacia, vacia] }),
+      /UNIQUE constraint failed/,
+    );
+    const [ejecucion] = ultimasEjecuciones(db, 1);
+    assert.equal(ejecucion.estado, 'con_errores');
+    assert.ok(ejecucion.fin, 'la ejecución queda cerrada, no en_curso');
+    assert.match(ejecucion.error ?? '', /UNIQUE constraint failed/);
+    assert.equal(ejecucion.fuentes.length, 1);
   });
 });

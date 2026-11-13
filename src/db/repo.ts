@@ -33,7 +33,10 @@ export function guardarSemilla(db: DatabaseSync, s: Semilla, ahora: Date): void 
 
 // --- Convocatorias ---
 
-/** Inserta o actualiza. Devuelve true si era nueva. Conserva `primera_vez`. */
+/**
+ * Inserta o actualiza lo que dicen la fuente y las reglas deterministas. Devuelve true si era nueva.
+ * Conserva `primera_vez` y no toca el estado de fases posteriores (`convocatoria_fases`).
+ */
 export function guardarConvocatoria(db: DatabaseSync, { convocatoria: c, descarte }: Cribada, ahora: Date): boolean {
   const existe = db.prepare('SELECT 1 FROM convocatorias WHERE id = ?').get(c.id) !== undefined;
   const t = ahora.toISOString();
@@ -55,6 +58,31 @@ export function guardarConvocatoria(db: DatabaseSync, { convocatoria: c, descart
   return !existe;
 }
 
+// --- Fases posteriores (criba LLM, análisis, decisión del equipo…) ---
+
+export interface VeredictoFase {
+  convocatoriaId: string;
+  fase: string;
+  /** true = esta fase la saca de las candidatas. */
+  descarta: boolean;
+  motivo: string | null;
+  datos?: unknown;
+}
+
+export function guardarFase(db: DatabaseSync, v: VeredictoFase, ahora: Date): void {
+  db.prepare(`
+    INSERT INTO convocatoria_fases (convocatoria_id, fase, descarta, motivo, datos, actualizado_en) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT (convocatoria_id, fase) DO UPDATE SET
+      descarta = excluded.descarta, motivo = excluded.motivo, datos = excluded.datos, actualizado_en = excluded.actualizado_en
+  `).run(v.convocatoriaId, v.fase, Number(v.descarta), v.motivo, JSON.stringify(v.datos ?? {}), ahora.toISOString());
+}
+
+export function leerFases(db: DatabaseSync, convocatoriaId: string): VeredictoFase[] {
+  const filas = db.prepare('SELECT fase, descarta, motivo, datos FROM convocatoria_fases WHERE convocatoria_id = ? ORDER BY fase')
+    .all(convocatoriaId) as { fase: string; descarta: number; motivo: string | null; datos: string }[];
+  return filas.map((f) => ({ convocatoriaId, fase: f.fase, descarta: f.descarta === 1, motivo: f.motivo, datos: JSON.parse(f.datos) }));
+}
+
 export interface FilaConvocatoria {
   id: string;
   fuente: string;
@@ -64,12 +92,13 @@ export interface FilaConvocatoria {
   url: string;
 }
 
-/** Candidatas (no descartadas) publicadas entre dos días incluidos, más recientes primero. */
+/** Candidatas (sin descarte de reglas ni de ninguna fase) publicadas entre dos días incluidos, más recientes primero. */
 export function candidatasEntre(db: DatabaseSync, desde: string, hasta: string): FilaConvocatoria[] {
   const filas = db.prepare(`
     SELECT id, fuente, titulo, organo_nivel1, organo_nivel2, organo_nivel3, fecha_publicacion, url
-    FROM convocatorias
+    FROM convocatorias c
     WHERE descarte_regla IS NULL AND fecha_publicacion BETWEEN ? AND ?
+      AND NOT EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND f.descarta = 1)
     ORDER BY fecha_publicacion DESC, id DESC
   `).all(desde, hasta) as Record<string, string | null>[];
   return filas.map((f) => ({
@@ -109,8 +138,9 @@ export function terminarFuente(
   `).run(ahora.toISOString(), n.recibidas, n.nuevas, n.candidatas, n.descartadas, JSON.stringify(errores), ejecucionId, fuente);
 }
 
-export function terminarEjecucion(db: DatabaseSync, ejecucionId: number, ahora: Date, conErrores: boolean): void {
-  db.prepare('UPDATE ejecuciones SET fin = ?, estado = ? WHERE id = ?').run(ahora.toISOString(), conErrores ? 'con_errores' : 'ok', ejecucionId);
+export function terminarEjecucion(db: DatabaseSync, ejecucionId: number, ahora: Date, conErrores: boolean, error: string | null = null): void {
+  db.prepare('UPDATE ejecuciones SET fin = ?, estado = ?, error = ? WHERE id = ?')
+    .run(ahora.toISOString(), conErrores || error ? 'con_errores' : 'ok', error, ejecucionId);
 }
 
 export interface Ejecucion {
@@ -118,11 +148,13 @@ export interface Ejecucion {
   inicio: string;
   fin: string | null;
   estado: string;
+  /** Fallo general que cortó la ejecución (no de una fuente concreta). */
+  error: string | null;
   fuentes: (ContadoresFuente & { fuente: string; inicio: string; fin: string | null; errores: string[] })[];
 }
 
 export function ultimasEjecuciones(db: DatabaseSync, limite: number): Ejecucion[] {
-  const ejecuciones = db.prepare('SELECT id, inicio, fin, estado FROM ejecuciones ORDER BY id DESC LIMIT ?').all(limite) as unknown as Omit<Ejecucion, 'fuentes'>[];
+  const ejecuciones = db.prepare('SELECT id, inicio, fin, estado, error FROM ejecuciones ORDER BY id DESC LIMIT ?').all(limite) as unknown as Omit<Ejecucion, 'fuentes'>[];
   const fuentes = db.prepare(`
     SELECT fuente, inicio, fin, recibidas, nuevas, candidatas, descartadas, errores
     FROM ejecucion_fuentes WHERE ejecucion_id = ? ORDER BY fuente

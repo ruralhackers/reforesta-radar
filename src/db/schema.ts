@@ -1,5 +1,12 @@
 // Esquema SQLite (node:sqlite). Migraciones en orden; PRAGMA user_version guarda cuántas se aplicaron.
 // Para cambiar el esquema, añade una migración al final: nunca edites una ya publicada.
+//
+// Quién escribe qué en una convocatoria:
+// - `convocatorias`: lo que dicen la fuente y las reglas deterministas. Cada pasada del radar lo refresca
+//   (guardarConvocatoria lista sus columnas una a una; nunca toca otras).
+// - `convocatoria_fases`: el veredicto de cada fase posterior (criba LLM, análisis, decisión del equipo…),
+//   una fila por convocatoria y fase. Ninguna pasada del radar la toca. Una fase nueva no necesita migración;
+//   si necesita columnas propias, que cree su tabla con FK a convocatorias(id), no columnas en `convocatorias`.
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -62,6 +69,18 @@ const MIGRACIONES: string[] = [
     descartadas INTEGER NOT NULL DEFAULT 0,
     errores TEXT NOT NULL DEFAULT '[]', -- JSON string[]
     PRIMARY KEY (ejecucion_id, fuente)
+  );
+  `,
+  `
+  ALTER TABLE ejecuciones ADD COLUMN error TEXT; -- fallo general (no de una fuente) que cortó la ejecución
+  CREATE TABLE convocatoria_fases (
+    convocatoria_id TEXT NOT NULL REFERENCES convocatorias (id),
+    fase TEXT NOT NULL,                 -- criba_llm | analisis | equipo | …
+    descarta INTEGER NOT NULL DEFAULT 0, -- 1 = esta fase la saca de las candidatas
+    motivo TEXT,
+    datos TEXT NOT NULL DEFAULT '{}',   -- JSON propio de la fase
+    actualizado_en TEXT NOT NULL,
+    PRIMARY KEY (convocatoria_id, fase)
   );
   `,
 ];
