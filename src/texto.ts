@@ -90,12 +90,15 @@ function cifraEn(token: string): number {
  * en castellano y 3000 en inglés), así que se guardan las dos. También: millares con espacio ("3 000 000"), "3 million" / "3 millones" /
  * "€3.5M" (×10⁶) y las partes de una fecha.
  */
-function cifrasDe(s: string): number[][] {
+function cifrasDe(s: string, comoValor = false): number[][] {
   const grupos: number[][] = [];
   const re = /(\d{1,3}(?:[  ]\d{3})+(?:[.,]\d+)?|\d[\d.,]*\d|\d)(\s*(?:million|millones|millon|mn|m)(?![a-z\p{L}]))?/giu;
   for (const m of s.matchAll(re)) {
     const t = m[1].replace(/[  ]/g, '');
-    const lecturas = [cifraEs(t), cifraEn(t)].filter(Number.isFinite);
+    // En la cita valen las dos lecturas. En el VALOR solo la castellana, salvo si el formato es imposible en castellano (varias comas de
+    // millares, o comas de millares con punto decimal): si no, "50.000 €" se leería como 50 y colaría un importe inventado contra "50 personas".
+    const soloIngles = /^\d{1,3}(,\d{3}){2,}(\.\d+)?$/.test(t) || /^\d{1,3}(,\d{3})+\.\d+$/.test(t);
+    const lecturas = (comoValor ? [soloIngles ? cifraEn(t) : cifraEs(t)] : [cifraEs(t), cifraEn(t)]).filter(Number.isFinite);
     const alts = m[2] ? lecturas.map((v) => v * 1e6) : lecturas;
     if (alts.length) grupos.push([...new Set(alts)]);
   }
@@ -140,5 +143,5 @@ export function numerosDe(s: string): Set<number> {
 export function valorEnCita(valor: string, cita: string): boolean {
   const enCita = [...numerosDe(cita)];
   const esta = (v: number) => enCita.some((c) => Math.abs(c - v) < 1e-9 * Math.max(1, Math.abs(v)));
-  return cifrasDe(valor).every((alts) => alts.some(esta)) && palabrasNumericas(valor).every(esta);
+  return cifrasDe(valor, true).every((alts) => alts.some(esta)) && palabrasNumericas(valor).every(esta);
 }

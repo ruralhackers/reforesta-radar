@@ -58,3 +58,15 @@ test('el formato español sigue leyéndose igual: 1.500 = 1500, 60.000,00 = 6000
   assert.ok(!valorEnCita('15 €', 'hasta 1.500 euros'));
   assert.ok(!valorEnCita('6.000 €', 'un máximo de 60.000,00 euros'));
 });
+
+test('un importe del valor no se cuela por leerlo en el formato equivocado (50.000 no es 50)', () => {
+  assert.ok(!valorEnCita('50.000 €', 'para 50 personas y 3.000 euros'));
+  assert.ok(!valorEnCita('50.000 €', 'for 50 participants and EUR 3,000'));
+  assert.ok(!valorEnCita('3.000 €', 'for 3 partners'));
+  assert.ok(!valorEnCita('2.500.000 €', 'EUR 2.5 and 500 partners'));
+  // El valor en inglés solo se lee así cuando el formato es imposible en castellano.
+  assert.ok(valorEnCita('3,000,000 €', 'EUR 3,000,000'));
+  assert.ok(valorEnCita('2,500,000.50', 'EUR 2,500,000.50'));
+  assert.ok(valorEnCita('3.5 million', 'EUR 3,500,000'));
+  assert.ok(valorEnCita('50.000 €', 'EUR 50,000 per project'), 'la cita sí admite las dos lecturas');
+});
