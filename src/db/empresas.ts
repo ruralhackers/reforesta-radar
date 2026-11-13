@@ -48,20 +48,33 @@ export interface Empresa {
   senales: SenalEmpresa[];
 }
 
-const FORMAS = /\b(?:sociedad limitada unipersonal|sociedad anonima unipersonal|sociedad limitada|sociedad anonima|sociedad cooperativa|s ?l ?u|s ?a ?u|s ?l ?l|s ?l|s ?a|s ?coop|slu|sau|sl|sa)$/;
-
 /**
- * Forma canónica del nombre de una empresa para unir duplicados: minúsculas, sin acentos ni puntuación y sin la forma
- * societaria final ("Antila Solar, S.L." y "ANTILA SOLAR SL" → "antila solar").
+ * Forma canónica del nombre de una empresa para unir duplicados: minúsculas, sin acentos, sin puntos ni comas y con una sola separación.
+ * La forma societaria SE CONSERVA (SL y SA son sociedades distintas); solo se unifican sus grafías ("S.L.U." = "SLU" = "sociedad limitada
+ * unipersonal"). Dos nombres iguales salvo la forma societaria no se unen por nombre.
  */
 export function claveEmpresa(nombre: string): string {
-  let s = nombre.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9ñ]+/g, ' ').trim();
-  for (let i = 0; i < 3; i++) {
-    const t = s.replace(FORMAS, '').trim();
-    if (t === s || !t) break;
-    s = t;
-  }
-  return s;
+  return nombre.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+    .replace(/[.,]/g, '')
+    .replace(/[^a-z0-9ñ]+/g, ' ').trim()
+    .replace(/\bsociedad limitada unipersonal\b/g, 'slu').replace(/\bsociedad anonima unipersonal\b/g, 'sau')
+    .replace(/\bsociedad limitada\b/g, 'sl').replace(/\bsociedad anonima\b/g, 'sa')
+    .replace(/\bs l u\b/g, 'slu').replace(/\bs a u\b/g, 'sau').replace(/\bs l\b/g, 'sl').replace(/\bs a\b/g, 'sa')
+    .replace(/\s+/g, ' ');
+}
+
+const MARCA_ENTIDAD = /(^| )(sl|slu|sa|sau|sll|scoop|s coop|aie|ute|sociedad|fundacion|asociacion|cooperativa|ayuntamiento)( |$)/;
+const DNI_NIE = /\b(?:\d{8}[a-z]|[xyz]\d{7}[a-z])\b/i;
+const CIF_ENTIDAD = /^[A-HJNP-SU-W]\d{7}[0-9A-J]$/;
+
+/**
+ * ¿Es una persona jurídica? Solo se guardan empresas: se acepta con CIF de entidad (letra A–H, J, N, P–S, U–W) o con una forma societaria
+ * en el nombre (SL, SLU, SA, SAU, SLL, SCoop, AIE, UTE, Fundación, Asociación…), y nunca con un DNI/NIE. Un nombre de persona queda fuera.
+ */
+export function esEntidadJuridica(nombre: string, cif: string | null): boolean {
+  if (DNI_NIE.test(nombre) || (cif && !CIF_ENTIDAD.test(cif))) return false;
+  if (cif && CIF_ENTIDAD.test(cif)) return true;
+  return MARCA_ENTIDAD.test(claveEmpresa(nombre));
 }
 
 export interface NuevaSenal {
@@ -80,7 +93,9 @@ export function registrarSenal(db: DatabaseSync, n: NuevaSenal, ahora: Date): { 
   if (!clave) throw new Error('Nombre de empresa vacío');
   return transaccion(db, () => {
     const porCif = n.cif ? (db.prepare('SELECT id, cif FROM empresas WHERE cif = ?').get(n.cif) as { id: number; cif: string | null } | undefined) : undefined;
-    const existente = porCif ?? (db.prepare('SELECT id, cif FROM empresas WHERE clave = ?').get(clave) as { id: number; cif: string | null } | undefined);
+    const porClave = db.prepare('SELECT id, cif FROM empresas WHERE clave = ?').get(clave) as { id: number; cif: string | null } | undefined;
+    // Por nombre solo se une si no hay CIF que lo contradiga: dos CIF distintos son dos empresas aunque se llamen igual.
+    const existente = porCif ?? (porClave && (!n.cif || !porClave.cif || porClave.cif === n.cif) ? porClave : undefined);
     let empresaId: number;
     let nueva = false;
     if (existente) {
@@ -92,7 +107,7 @@ export function registrarSenal(db: DatabaseSync, n: NuevaSenal, ahora: Date): { 
       empresaId = Number(db.prepare(`
         INSERT INTO empresas (clave, nombre, cif, origen, motivo, cita, enlace, provincia, primera_vez_vista, actualizada_en)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(clave, n.nombre, n.cif, n.origen, n.motivo, n.cita, n.senal.enlace, n.provincia, ahora.toISOString(), ahora.toISOString()).lastInsertRowid);
+      `).run(porClave && n.cif ? `${clave} ${n.cif.toLowerCase()}` : clave, n.nombre, n.cif, n.origen, n.motivo, n.cita, n.senal.enlace, n.provincia, ahora.toISOString(), ahora.toISOString()).lastInsertRowid);
     }
     db.prepare(`
       INSERT OR IGNORE INTO empresa_senales (empresa_id, tipo, boe_id, titulo, proyecto, provincia, motivo, medidas, enlace, fecha_publicacion, vista_en)

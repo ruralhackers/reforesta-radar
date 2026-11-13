@@ -56,7 +56,7 @@ export function itemsDia(sumario: unknown): ItemBoe[] {
 }
 
 async function leer(f: typeof fetch, url: string, accept: string, timeoutMs: number): Promise<Response> {
-  return f(url, { headers: { 'User-Agent': USER_AGENT, Accept: accept }, signal: AbortSignal.timeout(timeoutMs) });
+  return f(url, { headers: { 'User-Agent': USER_AGENT, Accept: accept }, signal: AbortSignal.timeout(timeoutMs), redirect: 'manual' }); // una redirección es un error: no se sale de boe.es
 }
 
 async function cuerpo(res: Response): Promise<string> {

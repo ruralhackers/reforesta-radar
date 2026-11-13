@@ -11,7 +11,7 @@
 // revisado si todas sus resoluciones se leyeron. No se leen webs de empresas ni se guardan personas de contacto.
 import type { DatabaseSync } from 'node:sqlite';
 import { diaLocal, sumarDias } from '../dates.ts';
-import { diaRevisado, marcarDiaRevisado, marcarResolucion, registrarSenal, resolucionProcesada } from '../db/empresas.ts';
+import { diaRevisado, esEntidadJuridica, marcarDiaRevisado, marcarResolucion, registrarSenal, resolucionProcesada } from '../db/empresas.ts';
 import { type RegistroFase, registroFaseVacio } from '../db/repo.ts';
 import type { Llm } from '../llm/llm.ts';
 import { ESQUEMA_DIA, ETIQUETA_MEDIDA_DIA, promptDia, TIPOS_MEDIDA_DIA, type TipoMedidaDia } from '../llm/prompts.ts';
@@ -106,10 +106,12 @@ export function validarDia(datos: unknown, texto: string): DatosDia | 'sin_medid
   if (medidas.length === 0) return 'sin_medidas';
   const promotor = s('promotor');
   if (!promotor || promotor.length > MAX_NOMBRE || NO_EMPRESA.test(promotor) || !aparece(promotor)) return 'sin_promotor';
-  // Orden de importancia para el motivo y la cita de la empresa: la primera es la más cercana a lo que hace Reforesta.
-  medidas.sort((a, b) => TIPOS_MEDIDA_DIA.indexOf(a.tipo) - TIPOS_MEDIDA_DIA.indexOf(b.tipo));
   const cifBruto = s('cif').replace(/[\s.-]/g, '').toUpperCase();
   const cif = CIF.test(cifBruto) && norm.replace(/[\s.-]/g, '').toUpperCase().includes(cifBruto) ? cifBruto : null;
+  // Solo personas jurídicas: ni un nombre de persona ni un DNI/NIE llegan a la BD, a la web pública ni al correo.
+  if (!esEntidadJuridica(promotor, cif)) return 'sin_promotor';
+  // Orden de importancia para el motivo y la cita de la empresa: la primera es la más cercana a lo que hace Reforesta.
+  medidas.sort((a, b) => TIPOS_MEDIDA_DIA.indexOf(a.tipo) - TIPOS_MEDIDA_DIA.indexOf(b.tipo));
   const proyecto = s('proyecto');
   const provincia = s('provincia');
   return {

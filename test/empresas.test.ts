@@ -9,11 +9,11 @@ import type { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
 import { crearApi } from '../src/api/app.ts';
 import { seccionEmpresasNuevas } from '../src/correo-empresas.ts';
-import { claveEmpresa, leerEmpresas, registrarSenal } from '../src/db/empresas.ts';
+import { claveEmpresa, esEntidadJuridica, leerEmpresas, registrarSenal } from '../src/db/empresas.ts';
 import { enviarResumen, ejecutarRadar } from '../src/engine.ts';
 import type { Llm, PeticionLlm } from '../src/llm/llm.ts';
-import { type ConfigEmpresas } from '../src/fases/empresas.ts';
-import { esTituloDia, itemsDia } from '../src/sources/boe.ts';
+import { type ConfigEmpresas, validarDia } from '../src/fases/empresas.ts';
+import { esTituloDia, itemsDia, sumarioDia, textoResolucion } from '../src/sources/boe.ts';
 import { bdSembrada, relojFijo } from './support/bd.ts';
 import { fetchBoe, resolucionGrabada, sumarioGrabado, urlResolucion, urlSumario } from './support/boe.ts';
 
@@ -402,18 +402,57 @@ function registrarSenalPrueba(db: DatabaseSync, nombre: string, boe: string, vis
 }
 
 describe('registro de empresas: unión por CIF o nombre normalizado', () => {
-  test('claveEmpresa ignora acentos, puntuación, mayúsculas y la forma societaria', () => {
-    for (const n of ['Antila Solar, SL', 'ANTILA SOLAR S.L.', 'Antila  Solar S.L.U.']) assert.equal(claveEmpresa(n), 'antila solar', n);
-    assert.equal(claveEmpresa('Iberdrola Renovables Energía, S.A.U.'), 'iberdrola renovables energia');
+  test('claveEmpresa ignora acentos, puntuación y mayúsculas y unifica la grafía de la forma societaria, pero la conserva', () => {
+    for (const n of ['Antila Solar, SL', 'ANTILA SOLAR S.L.', 'Antila  Solar, Sociedad Limitada']) assert.equal(claveEmpresa(n), 'antila solar sl', n);
+    for (const n of ['Antila Solar S.L.U.', 'ANTILA SOLAR, SLU']) assert.equal(claveEmpresa(n), 'antila solar slu', n);
+    assert.equal(claveEmpresa('Iberdrola Renovables Energía, S.A.U.'), 'iberdrola renovables energia sau');
     assert.notEqual(claveEmpresa('Solar Norte SL'), claveEmpresa('Solar Sur SL'));
-    assert.equal(claveEmpresa('SA'), 'sa', 'un nombre que es solo la forma societaria no se vacía');
+    assert.notEqual(claveEmpresa('Eólica del Norte SL'), claveEmpresa('Eólica del Norte SA'), 'SL y SA son sociedades distintas');
+  });
+
+  test('nunca se unen filas con CIF distinto, aunque el nombre sea igual; sin CIF contradictorio sí se une por nombre', () => {
+    const db = bdSembrada();
+    const a = registrarSenalPrueba2(db, 'Eólica del Norte SL', 'B11111111', 'BOE-A-2026-1');
+    const b = registrarSenalPrueba2(db, 'Eólica del Norte, S.L.', 'B22222222', 'BOE-A-2026-2');
+    assert.deepEqual([a.nueva, b.nueva], [true, true]);
+    assert.notEqual(a.empresaId, b.empresaId);
+    assert.deepEqual(leerEmpresas(db).map((e) => e.cif).sort(), ['B11111111', 'B22222222']);
+    // Una mención sin CIF se une a la primera por nombre (no crea una tercera) y el CIF de las otras no se toca
+    const c = registrarSenalPrueba2(db, 'Eólica del Norte SL', null, 'BOE-A-2026-3');
+    assert.equal(c.nueva, false);
+    assert.equal(leerEmpresas(db).length, 2);
+    // SL y SA con el mismo nombre y sin CIF: dos empresas
+    registrarSenalPrueba2(db, 'Solar Sur SL', null, 'BOE-A-2026-4');
+    registrarSenalPrueba2(db, 'Solar Sur SA', null, 'BOE-A-2026-5');
+    assert.equal(leerEmpresas(db).length, 4);
+    db.close();
+  });
+
+  test('solo personas jurídicas: un nombre de persona o un DNI/NIE se rechaza en el código', () => {
+    const d = (promotor: string, cif = '') => validarDia({ sentido: 'favorable', promotor, cif, proyecto: '', provincia: '', medidas: [{ tipo: 'compensacion_habitat', cita: CITA }] }, `${CITA}. El promotor es ${promotor} ${cif}.`);
+    assert.equal(d('Juan Pérez García'), 'sin_promotor');
+    assert.equal(d('12345678Z'), 'sin_promotor');
+    assert.equal(d('X1234567L'), 'sin_promotor');
+    assert.equal(d('Juan Pérez García, con DNI 12345678Z'), 'sin_promotor');
+    for (const ok of ['Parque eólico de Coll del Moro, SLU', 'Red Eléctrica de España, SAU', 'Cooperativa Agraria S. Coop.', 'Fundación Verde', 'Obras Norte UTE', 'Sol y Viento, S.A.']) {
+      assert.notEqual(d(ok), 'sin_promotor', ok);
+    }
+    assert.equal(esEntidadJuridica('Melilla Geothermal Energy', null), false, 'sin forma societaria ni CIF no se acepta');
+    assert.equal(esEntidadJuridica('Melilla Geothermal Energy', 'B12345678'), true);
+    assert.equal(esEntidadJuridica('Juan Pérez', '12345678Z'), false);
+  });
+
+  test('el BOE no puede sacar la descarga de boe.es: una redirección es un error', async () => {
+    const redir = (async () => new Response(null, { status: 302, headers: { Location: 'http://169.254.169.254/' } })) as unknown as typeof fetch;
+    await assert.rejects(sumarioDia(redir, '2026-10-12'), /HTTP 302/);
+    await assert.rejects(textoResolucion(redir, 'BOE-A-2026-22067'), /HTTP 302/);
   });
 
   test('se une por CIF aunque el nombre cambie; un CIF que antes no constaba se completa', () => {
     const db = bdSembrada();
     const base = (nombre: string, cif: string | null, boe: string) => registrarSenalPrueba2(db, nombre, cif, boe);
     const a = base('Eólica del Norte SL', null, 'BOE-A-2026-1');
-    const b = base('Eólica del Norte, S.L.', 'B12345678', 'BOE-A-2026-2'); // mismo nombre normalizado: se une y se completa el CIF
+    const b = base('Eólica del Norte, S.L.', 'B12345678', 'BOE-A-2026-2'); // misma grafía normalizada y sin CIF previo: se une y se completa el CIF
     const c = base('Parques Norte Renovables SA', 'B12345678', 'BOE-A-2026-3'); // otro nombre, mismo CIF: se une
     assert.deepEqual([a.nueva, b.nueva, c.nueva], [true, false, false]);
     assert.equal(new Set([a.empresaId, b.empresaId, c.empresaId]).size, 1);
