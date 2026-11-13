@@ -8,6 +8,9 @@ import {
 } from './db/repo.ts';
 import { analizarConLlm, FASE_ANALISIS } from './fases/analisis.ts';
 import { cribarConLlm, FASE_CRIBA } from './fases/criba.ts';
+import { calcularPlazos, type ResumenPlazos } from './fases/plazo.ts';
+import { leerFestivos, type TablaFestivos } from './festivos.ts';
+import { config } from './config.ts';
 import { diaLocal, sumarDias } from './dates.ts';
 import { CONFIG_LLM_POR_DEFECTO, type ConfigLlm, type Llm } from './llm/llm.ts';
 import { condicionAmbito, cribar } from './rules.ts';
@@ -26,6 +29,8 @@ export interface DependenciasMotor {
   /** LLM para la criba y el análisis. null/ausente = se saltan esas fases con un aviso en el registro (sin clave de API). */
   llm?: Llm | null;
   configLlm?: Partial<ConfigLlm>;
+  /** Calendario de festivos para los plazos en días hábiles; por defecto, seed/festivos.json (o FESTIVOS_FILE). */
+  festivos?: TablaFestivos;
   log?: (mensaje: string) => void;
 }
 
@@ -40,6 +45,8 @@ export interface ResumenEjecucion {
   fuentes: ResumenFuente[];
   /** Criba LLM y análisis: contadores, tokens, coste, avisos y errores. */
   fases: RegistroFase[];
+  /** Plazos de cierre (literal / calculada / desconocida) recalculados sobre las candidatas en juego. */
+  plazos: ResumenPlazos | null;
 }
 
 export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtras?: number } = {}): Promise<ResumenEjecucion> {
@@ -52,6 +59,7 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
   const ejecucionId = empezarEjecucion(db, inicio);
   const resumen: ResumenFuente[] = [];
   let fases: RegistroFase[] = [];
+  let plazos: ResumenPlazos | null = null;
   let errorGeneral: string | null = null;
 
   try {
@@ -59,12 +67,15 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
       resumen.push(await recorrerFuente(deps, ejecucionId, fuente, perfil, opciones.diasAtras ?? 7));
     }
     fases = await fasesLlm(deps, ejecucionId, perfil, inicio);
+    plazos = calcularPlazos(db, reloj, perfil, deps.festivos ?? leerFestivos(config.rutaFestivos), deps.fuentes);
+    log(`plazos: ${plazos.total} candidatas, ${plazos.literales} literales, ${plazos.calculadas} calculadas, ${plazos.desconocidas} desconocidas, ${plazos.errores.length} errores`);
+    for (const e of plazos.errores) log(`  ! ${e}`);
   } catch (e) {
     // Fallo fuera de una fuente (BD bloqueada, disco lleno, configuración…): se registra y se relanza.
     errorGeneral = (e as Error).message;
     throw e;
   } finally {
-    const conErrores = errorGeneral !== null || resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0);
+    const conErrores = errorGeneral !== null || resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0;
     try {
       terminarEjecucion(db, ejecucionId, reloj.now(), conErrores, errorGeneral);
     } catch (e) {
@@ -73,8 +84,8 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
     }
   }
 
-  const conErrores = resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0);
-  return { ejecucionId, conErrores, fuentes: resumen, fases };
+  const conErrores = resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0;
+  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos };
 }
 
 /**

@@ -2,7 +2,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { Hono } from 'hono';
 import { diaLocal, sumarDias } from '../dates.ts';
-import { candidatasEntre, descartesEntre, leerConvocatoria, ultimasEjecuciones, type VeredictoFase } from '../db/repo.ts';
+import { candidatasEntre, descartesEntre, leerConvocatoria, leerPlazo, leerPlazos, ultimasEjecuciones, type VeredictoFase } from '../db/repo.ts';
 import { FASE_ANALISIS } from '../fases/analisis.ts';
 import type { Analisis } from '../fases/analisis-esquema.ts';
 import { FASE_CRIBA } from '../fases/criba.ts';
@@ -21,10 +21,13 @@ export function crearApi({ db, reloj, fuentes }: { db: DatabaseSync; reloj: Relo
   api.get('/semana', (c) => {
     const hasta = diaLocal(reloj.now());
     const desde = sumarDias(hasta, -6);
+    const filas = candidatasEntre(db, desde, hasta);
+    const plazos = leerPlazos(db, filas.map((f) => f.id), hasta);
     return c.json({
       desde,
       hasta,
-      convocatorias: candidatasEntre(db, desde, hasta),
+      // plazo: { fechaCierre, tipo (literal|calculada|desconocida), textoOriginal, fechaBase, baseOrigen, aproximada, detalle, diasHastaCierre }
+      convocatorias: filas.map((f) => ({ ...f, plazo: plazos.get(f.id) ?? null })),
       ultimaEjecucion: ultimasEjecuciones(db, 1)[0] ?? null,
     });
   });
@@ -75,6 +78,7 @@ export function crearApi({ db, reloj, fuentes }: { db: DatabaseSync; reloj: Relo
           documentosConError: datosAnalisis.documentosConError,
         }
         : null,
+      plazo: leerPlazo(db, conv.id, diaLocal(reloj.now())),
       enlaces: fuentePorNombre(conv.fuente, fuentes)?.enlaces?.(conv) ?? [{ tipo: 'ficha', titulo: 'Ficha en la fuente', url: conv.url }],
     });
   });

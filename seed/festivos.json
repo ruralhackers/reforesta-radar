@@ -1,0 +1,171 @@
+{
+ "_comentario": "Fiestas laborales para el cómputo de días hábiles. Fuente: resoluciones de la Dirección General de Trabajo (BOE) con la relación anual de fiestas laborales; 'nacional' = las que figuran en las 19 comunidades y ciudades autónomas; cada región añade las suyas (Comunidad de Madrid = ES30: Jueves Santo, 2 de mayo y los traslados a lunes). No incluye fiestas locales (p. ej. San Isidro, 15 de mayo, en el municipio de Madrid). Para añadir un año: copiar la tabla de la resolución del BOE de octubre del año anterior.",
+ "fuentes": {
+  "2025": "BOE-A-2024-21316",
+  "2026": "BOE-A-2025-21667",
+  "2027": "BOE-A-2026-21254"
+ },
+ "nacional": {
+  "2025": [
+   {
+    "dia": "2025-01-01",
+    "nombre": "Año Nuevo"
+   },
+   {
+    "dia": "2025-01-06",
+    "nombre": "Epifanía del Señor"
+   },
+   {
+    "dia": "2025-04-18",
+    "nombre": "Viernes Santo"
+   },
+   {
+    "dia": "2025-05-01",
+    "nombre": "Fiesta del Trabajo"
+   },
+   {
+    "dia": "2025-08-15",
+    "nombre": "Asunción de la Virgen"
+   },
+   {
+    "dia": "2025-11-01",
+    "nombre": "Todos los Santos"
+   },
+   {
+    "dia": "2025-12-06",
+    "nombre": "Día de la Constitución Española"
+   },
+   {
+    "dia": "2025-12-08",
+    "nombre": "Inmaculada Concepción"
+   },
+   {
+    "dia": "2025-12-25",
+    "nombre": "Natividad del Señor"
+   }
+  ],
+  "2026": [
+   {
+    "dia": "2026-01-01",
+    "nombre": "Año Nuevo"
+   },
+   {
+    "dia": "2026-01-06",
+    "nombre": "Epifanía del Señor"
+   },
+   {
+    "dia": "2026-04-03",
+    "nombre": "Viernes Santo"
+   },
+   {
+    "dia": "2026-05-01",
+    "nombre": "Fiesta del Trabajo"
+   },
+   {
+    "dia": "2026-08-15",
+    "nombre": "Asunción de la Virgen"
+   },
+   {
+    "dia": "2026-10-12",
+    "nombre": "Fiesta Nacional de España"
+   },
+   {
+    "dia": "2026-12-08",
+    "nombre": "Inmaculada Concepción"
+   },
+   {
+    "dia": "2026-12-25",
+    "nombre": "Natividad del Señor"
+   }
+  ],
+  "2027": [
+   {
+    "dia": "2027-01-01",
+    "nombre": "Año Nuevo"
+   },
+   {
+    "dia": "2027-01-06",
+    "nombre": "Epifanía del Señor"
+   },
+   {
+    "dia": "2027-03-26",
+    "nombre": "Viernes Santo"
+   },
+   {
+    "dia": "2027-05-01",
+    "nombre": "Fiesta del Trabajo"
+   },
+   {
+    "dia": "2027-10-12",
+    "nombre": "Fiesta Nacional de España"
+   },
+   {
+    "dia": "2027-11-01",
+    "nombre": "Todos los Santos"
+   },
+   {
+    "dia": "2027-12-06",
+    "nombre": "Día de la Constitución Española"
+   },
+   {
+    "dia": "2027-12-08",
+    "nombre": "Inmaculada Concepción"
+   },
+   {
+    "dia": "2027-12-25",
+    "nombre": "Natividad del Señor"
+   }
+  ]
+ },
+ "regiones": {
+  "ES30": {
+   "nombre": "Comunidad de Madrid",
+   "2025": [
+    {
+     "dia": "2025-04-17",
+     "nombre": "Jueves Santo"
+    },
+    {
+     "dia": "2025-05-02",
+     "nombre": "Fiesta de la Comunidad de Madrid"
+    },
+    {
+     "dia": "2025-07-25",
+     "nombre": "Santiago Apóstol/Día Nacional de Galicia"
+    }
+   ],
+   "2026": [
+    {
+     "dia": "2026-04-02",
+     "nombre": "Jueves Santo"
+    },
+    {
+     "dia": "2026-05-02",
+     "nombre": "Fiesta de la Comunidad de Madrid"
+    },
+    {
+     "dia": "2026-11-02",
+     "nombre": "Día siguiente a Todos los Santos"
+    },
+    {
+     "dia": "2026-12-07",
+     "nombre": "Lunes siguiente al Día de la Constitución Española"
+    }
+   ],
+   "2027": [
+    {
+     "dia": "2027-03-19",
+     "nombre": "San José"
+    },
+    {
+     "dia": "2027-03-25",
+     "nombre": "Jueves Santo"
+    },
+    {
+     "dia": "2027-08-16",
+     "nombre": "Lunes siguiente a asunción de la Virgen"
+    }
+   ]
+  }
+ }
+}

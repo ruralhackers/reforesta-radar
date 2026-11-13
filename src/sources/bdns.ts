@@ -4,6 +4,7 @@
 //    (el listado no trae región y pedir el detalle de todas sería caro).
 // 3. Criba con lo que trae el listado; solo de lo que sobrevive se pide el detalle, y se vuelve a cribar.
 import { aFechaBdns, diaLocal, sumarDias } from '../dates.ts';
+import type { DatosPlazo } from '../plazos.ts';
 import type { Convocatoria, Cribada } from '../types.ts';
 import { htmlATexto } from '../texto.ts';
 import type { ContextoFuente, DocumentoFuente, Enlace, Fuente, ResultadoFuente } from './source.ts';
@@ -251,4 +252,20 @@ function enlaces(c: Convocatoria): Enlace[] {
   return r;
 }
 
-export const bdns: Fuente = { nombre: 'bdns', recoger, documentos, enlaces };
+const soloDia = (f: string | null | undefined): string | null => (f && /^\d{4}-\d{2}-\d{2}/.test(f) ? f.slice(0, 10) : null);
+
+function datosPlazo(c: Convocatoria): DatosPlazo {
+  const d = detalleDe(c);
+  return {
+    fechaFin: soloDia(d?.fechaFinSolicitud),
+    textoFin: d?.textFin?.trim() || null,
+    textoInicio: d?.textInicio?.trim() || null,
+    publicaciones: (d?.anuncios ?? []).flatMap((a) => {
+      const dia = soloDia(a.datPublicacion);
+      return dia ? [{ dia, diario: a.desDiarioOficial }] : [];
+    }),
+    registro: c.fechaPublicacion,
+  };
+}
+
+export const bdns: Fuente = { nombre: 'bdns', recoger, documentos, enlaces, datosPlazo };

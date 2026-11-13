@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { type CampoCitado, type Ficha as TFicha, leerFicha } from './api.ts';
+import { SeccionPlazo } from './Plazo.tsx';
 
 const fecha = (dia: string) =>
   new Date(`${dia}T12:00:00Z`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -87,6 +88,8 @@ export function Ficha({ id }: { id: string }) {
           {ficha.criba && !ficha.criba.descarta && (
             <p className="mb-4 text-sm text-stone-600"><span className="font-medium">Criba:</span> {ficha.criba.motivo}</p>
           )}
+
+          <SeccionPlazo plazo={ficha.plazo} />
 
           {!a && <p className="rounded-md bg-white p-4 text-stone-600 shadow-sm">Aún sin analizar.</p>}
           {a && (

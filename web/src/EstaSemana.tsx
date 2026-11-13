@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { type Semana, leerSemana, rutaFicha } from './api.ts';
+import { Cierre } from './Plazo.tsx';
 
 const fecha = (dia: string) =>
   new Date(`${dia}T12:00:00Z`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -44,6 +45,7 @@ export function EstaSemana() {
             <p className="mt-2 flex flex-wrap gap-x-3 text-xs text-stone-500">
               <span>{fecha(c.fechaPublicacion)}</span>
               <a href={c.url} target="_blank" rel="noreferrer" className="uppercase hover:underline">{c.fuente}</a>
+              <Cierre plazo={c.plazo} />
             </p>
           </li>
         ))}

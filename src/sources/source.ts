@@ -1,5 +1,6 @@
 // Contrato de una fuente de convocatorias. Cada fuente nueva (UE, fundaciones…) implementa `Fuente`
 // y se añade a la lista del motor.
+import type { DatosPlazo } from '../plazos.ts';
 import type { Convocatoria, Cribada, Descarte, Perfil } from '../types.ts';
 
 export interface ContextoFuente {
@@ -43,4 +44,6 @@ export interface Fuente {
   documentos?(c: Convocatoria): DocumentoFuente[];
   /** Enlaces para la ficha: bases, extracto, sede electrónica… */
   enlaces?(c: Convocatoria): Enlace[];
+  /** Lo que la fuente sabe del plazo de solicitud (fecha explícita, textos, publicaciones del extracto) para calcular el cierre. */
+  datosPlazo?(c: Convocatoria): DatosPlazo;
 }

@@ -1,4 +1,18 @@
 // Tipos de las respuestas de /api (espejo de src/api/app.ts).
+/** Plazo de solicitud: fecha literal (la da la fuente), calculada (en días hábiles desde la publicación) o desconocida. */
+export interface Plazo {
+  fechaCierre: string | null;
+  tipo: 'literal' | 'calculada' | 'desconocida';
+  textoOriginal: string | null;
+  fechaBase: string | null;
+  baseOrigen: 'extracto' | 'registro' | null;
+  /** La base es solo el registro en la fuente: el cierre real puede ser posterior. */
+  aproximada: boolean;
+  detalle: string;
+  /** Días que faltan (negativo = cerrada); null si desconocida. */
+  diasHastaCierre: number | null;
+}
+
 export interface ConvocatoriaSemana {
   id: string;
   fuente: string;
@@ -6,6 +20,7 @@ export interface ConvocatoriaSemana {
   organo: string;
   fechaPublicacion: string;
   url: string;
+  plazo: Plazo | null;
 }
 
 export interface Ejecucion {
@@ -64,6 +79,7 @@ export interface Ficha {
   descarte: { regla: string; motivo: string | null } | null;
   condicion: string | null;
   enJuego: boolean;
+  plazo: Plazo | null;
   criba: { descarta: boolean; motivo: string | null; modelo?: string } | null;
   analisis: {
     descarta: boolean;

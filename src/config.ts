@@ -1,9 +1,12 @@
 // Configuración por variables de entorno (ver .env.example).
+import { fileURLToPath } from 'node:url';
 import { CONFIG_LLM_POR_DEFECTO } from './llm/llm.ts';
 
 export const config = {
   rutaBd: process.env.DB_PATH ?? 'data/radar.sqlite',
   rutaSemilla: process.env.SEED_FILE ?? 'seed/perfil.json',
+  /** Festivos (nacionales y regionales) para contar días hábiles. */
+  rutaFestivos: process.env.FESTIVOS_FILE ?? fileURLToPath(new URL('../seed/festivos.json', import.meta.url)),
   puerto: Number(process.env.PORT ?? 8116),
   host: process.env.HOST ?? '127.0.0.1',
   diasAtras: Number(process.env.LOOKBACK_DAYS ?? 7),

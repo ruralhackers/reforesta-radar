@@ -1,5 +1,7 @@
 // Acceso a datos. Funciones pequeñas sobre DatabaseSync; nada de lógica de negocio.
 import type { DatabaseSync } from 'node:sqlite';
+import { diasEntre } from '../dates.ts';
+import type { Plazo } from '../plazos.ts';
 import type { Convocatoria, Cribada, Perfil, Semilla } from '../types.ts';
 
 export function transaccion<T>(db: DatabaseSync, fn: () => T): T {
@@ -356,4 +358,73 @@ export function ultimasEjecuciones(db: DatabaseSync, limite: number): Ejecucion[
     })),
     };
   });
+}
+
+
+// --- Plazos (fase determinista) ---
+
+/** Plazo guardado más los días que faltan para el cierre desde `hoy` (negativo = ya cerrada; null = desconocida). */
+export interface PlazoGuardado extends Plazo {
+  diasHastaCierre: number | null;
+}
+
+export function conDiasHastaCierre(p: Plazo, hoy: string): PlazoGuardado {
+  return { ...p, diasHastaCierre: p.fechaCierre ? diasEntre(hoy, p.fechaCierre) : null };
+}
+
+export function guardarPlazo(db: DatabaseSync, convocatoriaId: string, p: Plazo, ahora: Date): void {
+  db.prepare(`
+    INSERT INTO plazos (convocatoria_id, fecha_cierre, tipo, texto_original, fecha_base, base_origen, aproximada, detalle, calculado_en)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT (convocatoria_id) DO UPDATE SET fecha_cierre = excluded.fecha_cierre, tipo = excluded.tipo,
+      texto_original = excluded.texto_original, fecha_base = excluded.fecha_base, base_origen = excluded.base_origen,
+      aproximada = excluded.aproximada, detalle = excluded.detalle, calculado_en = excluded.calculado_en
+  `).run(convocatoriaId, p.fechaCierre, p.tipo, p.textoOriginal, p.fechaBase, p.baseOrigen, Number(p.aproximada), p.detalle, ahora.toISOString());
+}
+
+function filaAPlazo(f: Record<string, unknown>): Plazo {
+  return {
+    fechaCierre: (f.fecha_cierre as string | null) ?? null, tipo: f.tipo as Plazo['tipo'],
+    textoOriginal: (f.texto_original as string | null) ?? null, fechaBase: (f.fecha_base as string | null) ?? null,
+    baseOrigen: (f.base_origen as Plazo['baseOrigen']) ?? null, aproximada: f.aproximada === 1, detalle: String(f.detalle),
+  };
+}
+
+export function leerPlazo(db: DatabaseSync, convocatoriaId: string, hoy: string): PlazoGuardado | null {
+  const f = db.prepare('SELECT * FROM plazos WHERE convocatoria_id = ?').get(convocatoriaId) as Record<string, unknown> | undefined;
+  return f ? conDiasHastaCierre(filaAPlazo(f), hoy) : null;
+}
+
+/** Plazos de varias convocatorias a la vez (id → plazo). */
+export function leerPlazos(db: DatabaseSync, ids: string[], hoy: string): Map<string, PlazoGuardado> {
+  const r = new Map<string, PlazoGuardado>();
+  const q = db.prepare('SELECT * FROM plazos WHERE convocatoria_id = ?');
+  for (const id of ids) {
+    const f = q.get(id) as Record<string, unknown> | undefined;
+    if (f) r.set(id, conDiasHastaCierre(filaAPlazo(f), hoy));
+  }
+  return r;
+}
+
+/**
+ * Candidatas en juego con fecha de cierre conocida entre `desde` y `hasta` (YYYY-MM-DD, incluidos), por cierre más próximo:
+ * base de "cierran pronto" (Task 4). Las ya cerradas quedan fuera si `desde` es hoy.
+ */
+export function cierresEntre(db: DatabaseSync, desde: string, hasta: string, hoy: string): (FilaConvocatoria & { plazo: PlazoGuardado })[] {
+  const filas = db.prepare(`
+    SELECT c.id, c.fuente, c.titulo, c.organo_nivel1, c.organo_nivel2, c.organo_nivel3, c.fecha_publicacion, c.url, p.*
+    FROM convocatorias c JOIN plazos p ON p.convocatoria_id = c.id
+    WHERE p.fecha_cierre BETWEEN ? AND ? AND ${EN_JUEGO}
+    ORDER BY p.fecha_cierre, c.id
+  `).all(desde, hasta) as Record<string, string | null>[];
+  return filas.map((f) => ({
+    id: f.id!, fuente: f.fuente!, titulo: f.titulo!, organo: organoLegible(f), fechaPublicacion: f.fecha_publicacion!, url: f.url!,
+    plazo: conDiasHastaCierre(filaAPlazo(f), hoy),
+  }));
+}
+
+/** Candidatas en juego (reglas y fases) de cualquier fecha de publicación, para recalcular su plazo. */
+export function enJuegoTodas(db: DatabaseSync): Convocatoria[] {
+  const filas = db.prepare(`SELECT * FROM convocatorias c WHERE ${EN_JUEGO} ORDER BY c.fecha_publicacion DESC, c.id`).all() as Record<string, unknown>[];
+  return filas.map(filaAConvocatoria);
 }

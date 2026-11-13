@@ -136,6 +136,21 @@ const MIGRACIONES: string[] = [
   -- el fallo cuenta como definitivo y el análisis sigue sin ese documento.
   ALTER TABLE documentos ADD COLUMN fallos INTEGER NOT NULL DEFAULT 0;
   `,
+  `
+  -- Plazo de solicitud (fase determinista, sin LLM; se recalcula en cada ejecución). Una fila por convocatoria.
+  CREATE TABLE plazos (
+    convocatoria_id TEXT PRIMARY KEY REFERENCES convocatorias (id),
+    fecha_cierre TEXT,                  -- YYYY-MM-DD; null = desconocida
+    tipo TEXT NOT NULL,                 -- literal | calculada | desconocida
+    texto_original TEXT,
+    fecha_base TEXT,                    -- día de publicación desde el que se contó (calculada)
+    base_origen TEXT,                   -- extracto | registro
+    aproximada INTEGER NOT NULL DEFAULT 0,
+    detalle TEXT NOT NULL,
+    calculado_en TEXT NOT NULL
+  );
+  CREATE INDEX plazos_cierre ON plazos (fecha_cierre);
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {
