@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { type Semana, leerSemana, rutaFicha } from './api.ts';
+import { type ConvocatoriaSemana, type Semana, leerSemana, rutaFicha } from './api.ts';
 import { Nota } from './Puntuacion.tsx';
 import { Cierre } from './Plazo.tsx';
 
@@ -15,6 +15,19 @@ const SECCIONES: { id: 'cierran_pronto' | 'nuevas' | 'abiertas'; titulo: string;
   { id: 'abiertas', titulo: 'Abiertas', ayuda: () => 'El resto de convocatorias abiertas que encajan, con cierre lejano o desconocido, por puntuación.' },
 ];
 
+const nombresParecidas = (c: ConvocatoriaSemana) => c.parecidas?.organizaciones.map((o) => o.nombre).join(', ') ?? '';
+
+/** Etiqueta de las convocatorias que ganan organizaciones parecidas (en cualquier sección). */
+function Parecidas({ c }: { c: ConvocatoriaSemana }) {
+  if (!c.parecidas) return null;
+  return (
+    <p className="mt-2 text-xs text-amber-900">
+      <span className="rounded bg-amber-100 px-2 py-0.5 font-medium">La ganan organizaciones como vosotros</span>{' '}
+      {c.parecidas.descubierta ? 'La hemos encontrado por ' : 'Entre los ganadores previos: '}{nombresParecidas(c)}
+    </p>
+  );
+}
+
 export function EstaSemana() {
   const [semana, setSemana] = useState<Semana | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +41,7 @@ export function EstaSemana() {
       <header className="mb-6">
         <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">Radar de convocatorias</p>
         <h1 className="text-2xl font-bold sm:text-3xl">Esta semana</h1>
+        <p className="mt-1 text-sm"><a href="/parecidas" className="text-emerald-800 hover:underline">Ajustar las organizaciones parecidas</a></p>
         {semana && (
           <p className="mt-1 text-sm text-stone-600">
             Del {fecha(semana.desde)} al {fecha(semana.hasta)} · {semana.convocatorias.length} candidatas, abiertas, ordenadas por puntuación
@@ -40,6 +54,24 @@ export function EstaSemana() {
 
       {semana && semana.convocatorias.length === 0 && (
         <p className="rounded-md bg-white p-4 text-stone-600 shadow-sm">No hay convocatorias candidatas esta semana.</p>
+      )}
+
+      {semana && semana.lasGananParecidas.length > 0 && (
+        <section className="mb-8 rounded-lg bg-amber-50 p-4 ring-1 ring-amber-200">
+          <h2 className="text-lg font-semibold">Las ganan organizaciones como vosotros <span className="text-sm font-normal text-stone-500">({semana.lasGananParecidas.length})</span></h2>
+          <p className="mb-3 text-sm text-stone-600">Convocatorias abiertas que han ganado organizaciones parecidas (o que hemos encontrado por ellas). Aparecen también en su sección de abajo.</p>
+          <ul className="space-y-2">
+            {semana.lasGananParecidas.map((id) => semana.convocatorias.find((c) => c.id === id)).filter((c): c is ConvocatoriaSemana => !!c).map((c) => (
+              <li key={c.id} className="rounded-md bg-white p-3 ring-1 ring-stone-200">
+                <div className="flex items-start justify-between gap-3">
+                  <a href={rutaFicha(c.id)} className="font-semibold leading-snug text-emerald-800 hover:underline [overflow-wrap:anywhere]">{c.titulo}</a>
+                  <Nota puntuacion={c.puntuacion} />
+                </div>
+                <p className="mt-1 text-xs text-stone-600">{c.parecidas?.descubierta ? 'Encontrada por' : 'Ganadores previos:'} {nombresParecidas(c)} · <Cierre plazo={c.plazo} /></p>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {semana && SECCIONES.map(({ id, titulo, ayuda }) => {
@@ -64,6 +96,7 @@ export function EstaSemana() {
                     <a href={c.url} target="_blank" rel="noreferrer" className="uppercase hover:underline">{c.fuente}</a>
                     <Cierre plazo={c.plazo} />
                   </p>
+                  <Parecidas c={c} />
                 </li>
               ))}
             </ul>

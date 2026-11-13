@@ -3,7 +3,7 @@
 // convocatorias que gana Reforesta). Cada consulta se cachea `diasCache` días y hay un tope de consultas por ejecución:
 // lo que pase se queda para la siguiente.
 import type { DatabaseSync } from 'node:sqlite';
-import { anioEdicion, claveSerie, edicionesComparables, tituloSinAnio } from '../concesiones.ts';
+import { anioEdicion, claveSerie, edicionesComparables, textoBusquedaSerie } from '../concesiones.ts';
 import { diaLocal } from '../dates.ts';
 import {
   concesionesDe, consultaReciente, convocatoriasGanadasPor, edicionesDeSerie, guardarConcesionesDeConvocatoria,
@@ -95,16 +95,10 @@ export async function recogerGanadores(
   for (const c of candidatas) {
     registrarEdicion(db, c.fuenteId, c.titulo, c.organo, c.fechaPublicacion);
     const s = claveSerie(c.titulo, c.organo);
-    if (s) series.set(s, tituloSinAnio(c.titulo));
+    if (s) series.set(s, textoBusquedaSerie(c.titulo));
   }
   for (const [serie, texto] of series) {
-    await pedir(`serie:${serie}`, async () => {
-      const hits = await buscarConvocatoriasPorTitulo(f, texto, hoy);
-      for (const h of hits) {
-        if (claveSerie(h.descripcion, h) === serie) registrarEdicion(db, String(h.numeroConvocatoria), h.descripcion, h, h.fechaRecepcion);
-      }
-      marcarConsulta(db, `serie:${serie}`, hits.length, ahora);
-    });
+    await pedir(`serie:${serie}`, () => buscarEdiciones(db, f, serie, texto, hoy, ahora));
   }
 
   // 3. Ganadores de las candidatas y de las ediciones con las que se pueden enlazar.
@@ -120,6 +114,15 @@ export async function recogerGanadores(
   r.parecidas = recalcularParecidas(db, perfil, ahora);
   r.concesiones = Number((db.prepare('SELECT COUNT(*) AS n FROM concesiones').get() as { n: number }).n);
   return r;
+}
+
+/** Busca en BDNS las convocatorias con el título de la serie y registra las que de verdad son de ella (mismo órgano). Cuenta como consulta `serie:<clave>`. */
+export async function buscarEdiciones(db: DatabaseSync, f: typeof fetch, serie: string, texto: string, hoy: string, ahora: Date): Promise<void> {
+  const hits = await buscarConvocatoriasPorTitulo(f, texto, hoy);
+  for (const h of hits) {
+    if (claveSerie(h.descripcion, h) === serie) registrarEdicion(db, String(h.numeroConvocatoria), h.descripcion, h, h.fechaRecepcion);
+  }
+  marcarConsulta(db, `serie:${serie}`, hits.length, ahora);
 }
 
 /**

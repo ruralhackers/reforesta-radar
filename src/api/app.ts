@@ -9,7 +9,9 @@ import type { Analisis } from '../fases/analisis-esquema.ts';
 import { FASE_CRIBA } from '../fases/criba.ts';
 import { puntuarConvocatoria } from '../fases/puntuacion.ts';
 import { type ConfigPuntuacion, leerConfigPuntuacion, type ProveedorProbabilidad } from '../puntuacion.ts';
-import { construirRanking } from '../ranking.ts';
+import { construirRanking, seccionParecidas } from '../ranking.ts';
+import { infoParecidas } from '../parecidas.ts';
+import { activarParecida, altaParecidaManual, leerParecidasConAportes, NIF_ENTIDAD_VALIDO, quitarParecidaManual } from '../db/ganadores.ts';
 import { config } from '../config.ts';
 import { fuentePorNombre } from '../sources/index.ts';
 import type { Fuente } from '../sources/source.ts';
@@ -36,7 +38,10 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
     const { nuevasDias, cierranProntoDias } = cfg;
     const importeMinimo = leerPerfil(db)?.importeMinimo ?? null;
     // La puntuación se calcula aquí, con el reloj de la petición (función pura y barata): total, explicación de cierre y secciones coherentes.
-    const filas = construirRanking(filasRanking(db, hasta, (conv, plazo) => puntuarConvocatoria(db, conv, plazo, importeMinimo, cfg, probabilidad), reloj.now()), hasta, { nuevasDias, cierranProntoDias });
+    const perfil = leerPerfil(db);
+    const conParecidas = filasRanking(db, hasta, (conv, plazo) => puntuarConvocatoria(db, conv, plazo, importeMinimo, cfg, probabilidad), reloj.now())
+      .map((f) => ({ ...f, parecidas: infoParecidas(db, leerConvocatoria(db, f.id)!.convocatoria, perfil) }));
+    const filas = construirRanking(conParecidas, hasta, { nuevasDias, cierranProntoDias });
     return c.json({
       desde: sumarDias(hasta, -(nuevasDias - 1)),
       hasta,
@@ -49,9 +54,40 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
         primeraVez,
         puntuacion: puntuacion && { total: puntuacion.total, analizada: puntuacion.analizada, factores: puntuacion.factores, calculadoEn: puntuacion.calculadoEn },
       })),
+      // Ids (ya en orden por puntuación) de la lista "las ganan organizaciones como vosotros": paralela, repite convocatorias de las secciones de arriba.
+      lasGananParecidas: seccionParecidas(filas).map((f) => f.id),
       ultimaEjecucion: ultimasEjecuciones(db, 1)[0] ?? null,
     });
   });
+
+  // --- Organizaciones parecidas (ajuste desde la web) ---
+  // GET es de lectura. Las escrituras (PATCH/POST/DELETE) van en `privada`, un sub-router aparte: Task 9 le pone el middleware de
+  // TEAM_PASSWORD con una sola línea (`privada.use('*', ...)`) sin tocar las rutas.
+  api.get('/parecidas', (c) => c.json({ parecidas: leerParecidasConAportes(db) }));
+
+  const privada = new Hono();
+  privada.patch('/:nif', async (c) => {
+    const cuerpo = await c.req.json().catch(() => null) as { activa?: unknown } | null;
+    if (typeof cuerpo?.activa !== 'boolean') return c.json({ error: 'Falta "activa" (true o false)' }, 400);
+    if (!activarParecida(db, c.req.param('nif').toUpperCase(), cuerpo.activa, reloj.now())) return c.json({ error: 'No existe esa organización' }, 404);
+    return c.json({ nif: c.req.param('nif').toUpperCase(), activa: cuerpo.activa });
+  });
+  privada.post('/', async (c) => {
+    const cuerpo = await c.req.json().catch(() => null) as { nif?: unknown; nombre?: unknown } | null;
+    const nif = typeof cuerpo?.nif === 'string' ? cuerpo.nif.replace(/[\s.-]/g, '').toUpperCase() : '';
+    if (!NIF_ENTIDAD_VALIDO.test(nif)) return c.json({ error: 'NIF/CIF de entidad no válido (una letra, siete cifras y un control, p. ej. G78456118)' }, 400);
+    const nombre = typeof cuerpo?.nombre === 'string' && cuerpo.nombre.trim() ? cuerpo.nombre.trim().slice(0, 120) : null;
+    if (!altaParecidaManual(db, nif, nombre, reloj.now())) return c.json({ error: 'Ya está en la lista (puedes activarla)' }, 409);
+    return c.json({ nif, nombre: nombre ?? nif, origen: 'manual', activa: true }, 201);
+  });
+  privada.delete('/:nif', (c) => {
+    const nif = c.req.param('nif').toUpperCase();
+    const r = quitarParecidaManual(db, nif);
+    if (r === 'no_existe') return c.json({ error: 'No existe esa organización' }, 404);
+    if (r === 'no_manual') return c.json({ error: 'Solo se pueden quitar las añadidas a mano; las demás se desactivan' }, 409);
+    return c.json({ nif, quitada: true });
+  });
+  api.route('/parecidas', privada);
 
   /**
    * Descartadas con su motivo (reglas y fases). Por defecto, los últimos 7 días.
@@ -115,6 +151,8 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
         reforestaGano: historial.ganadasPorReforesta.map((e) => ({ numeroConvocatoria: e.numeroConvocatoria, anio: e.anio, importe: e.importeReforesta })),
         parecidas: historial.parecidas,
       },
+      // Las parecidas activas relacionadas (origen del descubrimiento y/o entre los ganadores previos); null si ninguna.
+      parecidas: infoParecidas(db, conv, perfil),
       enlaces: fuentePorNombre(conv.fuente, fuentes)?.enlaces?.(conv) ?? [{ tipo: 'ficha', titulo: 'Ficha en la fuente', url: conv.url }],
     });
   });

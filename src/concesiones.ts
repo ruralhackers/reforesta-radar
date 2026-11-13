@@ -33,6 +33,19 @@ export function tituloSinAnio(titulo: string): string {
   return titulo.replace(ANIO, ' ').replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Texto con el que buscar en BDNS las otras ediciones de una convocatoria. La búsqueda por descripción es de frase: un año quitado del
+ * medio ("… ESTATAL. ANUALIDAD 2026.") deja un hueco que no encuentra nada, así que se busca el principio del título hasta el primer
+ * año ("… ESTATAL. ANUALIDAD"). Si ese principio es demasiado corto (el año va al comienzo) se cae a `tituloSinAnio`, que puede no encontrar nada.
+ */
+export function textoBusquedaSerie(titulo: string): string {
+  const limpiar = (t: string) => t.replace(/[\s.,;:\-–]+$/, '').trim();
+  const i = titulo.search(/\b(19|20)\d{2}\b/);
+  const prefijo = i > 0 ? limpiar(titulo.slice(0, i)) : '';
+  const significativas = (t: string) => normalizar(t).split(' ').filter((w) => w && !PALABRAS_VACIAS.has(w)).length;
+  return prefijo && significativas(prefijo) >= MIN_PALABRAS_SERIE ? prefijo : limpiar(tituloSinAnio(titulo));
+}
+
 /** Año que lleva el título (el último), si lo lleva. */
 export function anioDelTitulo(titulo: string): number | null {
   const m = titulo.match(ANIO);

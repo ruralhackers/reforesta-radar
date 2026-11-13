@@ -79,12 +79,14 @@ export interface Edicion {
   numeroConvocatoria: string;
   titulo: string;
   anio: number | null;
+  /** Fecha de registro (YYYY-MM-DD) si se conoce. */
+  fecha: string | null;
 }
 
 export function edicionesDeSerie(db: DatabaseSync, serie: string): Edicion[] {
-  const filas = db.prepare('SELECT numero_convocatoria, titulo, anio FROM ediciones_serie WHERE serie = ? ORDER BY anio DESC, numero_convocatoria DESC')
-    .all(serie) as { numero_convocatoria: string; titulo: string; anio: number | null }[];
-  return filas.map((f) => ({ numeroConvocatoria: f.numero_convocatoria, titulo: f.titulo, anio: f.anio }));
+  const filas = db.prepare('SELECT numero_convocatoria, titulo, anio, fecha FROM ediciones_serie WHERE serie = ? ORDER BY anio DESC, numero_convocatoria DESC')
+    .all(serie) as { numero_convocatoria: string; titulo: string; anio: number | null; fecha: string | null }[];
+  return filas.map((f) => ({ numeroConvocatoria: f.numero_convocatoria, titulo: f.titulo, anio: f.anio, fecha: f.fecha }));
 }
 
 export function concesionesDe(db: DatabaseSync, numero: string): Concesion[] {
@@ -161,3 +163,115 @@ export function guardarParecidasCalculadas(db: DatabaseSync, calculadas: Parecid
     }
   });
 }
+
+// --- Ajuste de la lista desde la web (API /parecidas) ---
+
+export const NIF_ENTIDAD_VALIDO = /^[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J]$/;
+
+/** Parecidas con cuántas convocatorias candidatas han aportado (etiquetas de origen vigentes). */
+export function leerParecidasConAportes(db: DatabaseSync): (Parecida & { convocatorias: number })[] {
+  const cuenta = new Map((db.prepare("SELECT nif, COUNT(DISTINCT convocatoria_id) AS n FROM origenes_convocatoria WHERE origen = 'parecidas' GROUP BY nif").all() as { nif: string; n: number }[]).map((r) => [r.nif, Number(r.n)]));
+  return leerParecidas(db).map((p) => ({ ...p, convocatorias: cuenta.get(p.nif) ?? 0 }));
+}
+
+export function activarParecida(db: DatabaseSync, nif: string, activa: boolean, ahora: Date): boolean {
+  return Number(db.prepare('UPDATE organizaciones_parecidas SET activa = ?, actualizado_en = ? WHERE nif = ?').run(Number(activa), ahora.toISOString(), nif).changes) > 0;
+}
+
+/** Alta manual por NIF (sin nombre se usa el NIF hasta que BDNS dé el nombre). false si ya existe (de cualquier origen). */
+export function altaParecidaManual(db: DatabaseSync, nif: string, nombre: string | null, ahora: Date): boolean {
+  if (db.prepare('SELECT 1 FROM organizaciones_parecidas WHERE nif = ?').get(nif)) return false;
+  db.prepare("INSERT INTO organizaciones_parecidas (nif, nombre, origen, activa, actualizado_en) VALUES (?, ?, 'manual', 1, ?)").run(nif, nombre?.trim() || nif, ahora.toISOString());
+  return true;
+}
+
+/** Quita una organización manual. 'no_existe' | 'no_manual' (las calculadas y de semilla solo se desactivan) | 'ok'. */
+export function quitarParecidaManual(db: DatabaseSync, nif: string): 'no_existe' | 'no_manual' | 'ok' {
+  const f = db.prepare('SELECT origen FROM organizaciones_parecidas WHERE nif = ?').get(nif) as { origen: string } | undefined;
+  if (!f) return 'no_existe';
+  if (f.origen !== 'manual') return 'no_manual';
+  transaccion(db, () => {
+    db.prepare('DELETE FROM organizaciones_parecidas WHERE nif = ?').run(nif);
+    db.prepare('DELETE FROM ganadas_parecidas WHERE nif = ?').run(nif);
+    db.prepare('DELETE FROM origenes_convocatoria WHERE nif = ?').run(nif);
+    db.prepare('DELETE FROM consultas_concesiones WHERE clave = ?').run(`parecida:${nif}`);
+  });
+  return 'ok';
+}
+
+// --- Descubrimiento por parecidas: lo que ganaron y de dónde viene cada candidata ---
+
+export interface GanadaDeParecida {
+  nif: string;
+  nombre: string;
+  numeroConvocatoria: string;
+  titulo: string;
+  organo: { nivel1: string | null; nivel2: string | null; nivel3: string | null };
+  fechaConcesion: string | null;
+}
+
+/** Sustituye lo que se sabe que ha ganado `nif` (una fila por convocatoria) y apunta la consulta; si su nombre era el NIF, adopta el de BDNS. */
+export function guardarGanadasDeParecida(db: DatabaseSync, nif: string, filas: ConcesionBdns[], ahora: Date): void {
+  transaccion(db, () => {
+    db.prepare('DELETE FROM ganadas_parecidas WHERE nif = ?').run(nif);
+    const porNumero = new Map<string, ConcesionBdns>();
+    const nombres = new Map<string, number>();
+    for (const c of filas) {
+      const b = leerBeneficiario(c.beneficiario);
+      if (b.nif !== nif) continue; // la búsqueda por NIF puede devolver otras filas parecidas: solo las de esta entidad
+      nombres.set(b.nombre, (nombres.get(b.nombre) ?? 0) + 1);
+      const previa = porNumero.get(String(c.numeroConvocatoria));
+      if (!previa || (c.fechaConcesion ?? '') > (previa.fechaConcesion ?? '')) porNumero.set(String(c.numeroConvocatoria), c);
+    }
+    const q = db.prepare(`INSERT INTO ganadas_parecidas (nif, numero_convocatoria, titulo, organo_nivel1, organo_nivel2, organo_nivel3, fecha_concesion, importe)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+    for (const [numero, c] of porNumero) {
+      q.run(nif, numero, c.convocatoria.trim(), c.nivel1 ?? null, c.nivel2 ?? null, c.nivel3 ?? null, c.fechaConcesion ?? null, c.importe ?? null);
+      registrarEdicion(db, numero, c.convocatoria, { nivel1: c.nivel1, nivel2: c.nivel2, nivel3: c.nivel3 }, c.fechaConcesion);
+    }
+    const nombre = [...nombres].sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (nombre) db.prepare('UPDATE organizaciones_parecidas SET nombre = ? WHERE nif = ? AND nombre = nif').run(nombre, nif);
+    marcarConsulta(db, `parecida:${nif}`, porNumero.size, ahora);
+  });
+}
+
+/** Lo ganado por las parecidas ACTIVAS. */
+export function ganadasDeParecidasActivas(db: DatabaseSync): GanadaDeParecida[] {
+  const filas = db.prepare(`SELECT g.*, p.nombre FROM ganadas_parecidas g JOIN organizaciones_parecidas p ON p.nif = g.nif
+    WHERE p.activa = 1 ORDER BY g.nif, g.numero_convocatoria`).all() as Record<string, string | null>[];
+  return filas.map((f) => ({
+    nif: f.nif!, nombre: f.nombre!, numeroConvocatoria: f.numero_convocatoria!, titulo: f.titulo!, fechaConcesion: f.fecha_concesion ?? null,
+    organo: { nivel1: f.organo_nivel1 ?? null, nivel2: f.organo_nivel2 ?? null, nivel3: f.organo_nivel3 ?? null },
+  }));
+}
+
+export function borrarGanadasHuerfanas(db: DatabaseSync): void {
+  db.prepare('DELETE FROM ganadas_parecidas WHERE nif NOT IN (SELECT nif FROM organizaciones_parecidas)').run();
+}
+
+export interface OrigenDescubierta {
+  nif: string;
+  nombre: string;
+  numeroPrevio: string;
+  anioPrevio: number | null;
+}
+
+/** Reconstruye todas las etiquetas 'parecidas' con lo calculado en esta ejecución (las de organizaciones desactivadas desaparecen). */
+export function reemplazarOrigenesParecidas(db: DatabaseSync, origenes: Map<string, OrigenDescubierta[]>): void {
+  transaccion(db, () => {
+    db.prepare("DELETE FROM origenes_convocatoria WHERE origen = 'parecidas'").run();
+    const q = db.prepare("INSERT OR IGNORE INTO origenes_convocatoria (convocatoria_id, origen, nif, nombre, numero_previo, anio_previo) VALUES (?, 'parecidas', ?, ?, ?, ?)");
+    for (const [id, lista] of origenes) for (const o of lista) q.run(id, o.nif, o.nombre, o.numeroPrevio, o.anioPrevio);
+  });
+}
+
+/** Etiquetas de origen 'parecidas' de una convocatoria. */
+export function origenesDe(db: DatabaseSync, convocatoriaId: string): OrigenDescubierta[] {
+  return (db.prepare("SELECT nif, nombre, numero_previo, anio_previo FROM origenes_convocatoria WHERE convocatoria_id = ? AND origen = 'parecidas' ORDER BY anio_previo DESC, nombre").all(convocatoriaId) as
+    { nif: string; nombre: string; numero_previo: string; anio_previo: number | null }[])
+    .map((f) => ({ nif: f.nif, nombre: f.nombre, numeroPrevio: f.numero_previo, anioPrevio: f.anio_previo }));
+}
+
+export const marcarDescubierta = (db: DatabaseSync, id: string): void => { db.prepare('INSERT OR IGNORE INTO descubiertas_parecidas (convocatoria_id) VALUES (?)').run(id); };
+export const quitarMarcaDescubierta = (db: DatabaseSync, id: string): void => { db.prepare('DELETE FROM descubiertas_parecidas WHERE convocatoria_id = ?').run(id); };
+export const existeConvocatoria = (db: DatabaseSync, id: string): boolean => db.prepare('SELECT 1 FROM convocatorias WHERE id = ?').get(id) !== undefined;

@@ -93,6 +93,14 @@ export function Ficha({ id }: { id: string }) {
 
           <SeccionPuntuacion puntuacion={ficha.puntuacion} />
           <SeccionPlazo plazo={ficha.plazo} />
+          {ficha.parecidas && (
+            <p className="mb-4 rounded-md bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200">
+              <strong>La ganan organizaciones como vosotros.</strong>{' '}
+              {ficha.parecidas.descubierta ? 'La hemos encontrado porque ' : 'Entre los ganadores previos figuran '}
+              {ficha.parecidas.organizaciones.map((o) => `${o.nombre}${o.anios.length ? ` (${o.anios.join(', ')})` : ''}`).join(', ')}
+              {ficha.parecidas.descubierta ? ' ganaron una edición anterior.' : '.'}
+            </p>
+          )}
           <SeccionGanadores ganadores={ficha.ganadoresPrevios} />
 
           {!a && <p className="rounded-md bg-white p-4 text-stone-600 shadow-sm">Aún sin analizar.</p>}

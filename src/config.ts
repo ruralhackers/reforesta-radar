@@ -21,6 +21,12 @@ export const config = {
     maxPeticiones: Number(process.env.RADAR_MAX_PETICIONES_GANADORES ?? 200),
     pausaMs: Number(process.env.RADAR_PAUSA_BDNS_MS ?? 250),
   },
+  /** Descubrimiento por organizaciones parecidas (comparte caché y pausa con los ganadores; su tope sale del tope total de peticiones). */
+  parecidas: {
+    maxPeticiones: Number(process.env.RADAR_MAX_PETICIONES_PARECIDAS ?? 100),
+    aniosVentana: Number(process.env.RADAR_ANIOS_PARECIDAS ?? 2),
+    diasEdicion: Number(process.env.RADAR_DIAS_EDICION_PARECIDAS ?? 400),
+  },
   llm: {
     modeloCriba: process.env.RADAR_MODELO_CRIBA || CONFIG_LLM_POR_DEFECTO.modeloCriba,
     modeloAnalisis: process.env.RADAR_MODELO_ANALISIS || CONFIG_LLM_POR_DEFECTO.modeloAnalisis,

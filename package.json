@@ -16,7 +16,8 @@
     "test": "RADAR_PAUSA_BDNS_MS=0 node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json",
     "record:bdns": "node scripts/record-bdns-fixtures.ts",
-    "record:concesiones": "node scripts/record-bdns-concesiones.ts"
+    "record:concesiones": "node scripts/record-bdns-concesiones.ts",
+    "record:parecidas": "node scripts/record-bdns-parecidas.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

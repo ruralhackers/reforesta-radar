@@ -1,5 +1,6 @@
 // Respuestas reales de BDNS grabadas en test/fixtures/bdns (ver scripts/record-bdns-fixtures.ts).
 // `fetchGrabado` las sirve como un fetch falso; una URL sin grabar falla, para que el test lo note.
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -31,7 +32,9 @@ export function claveGrabacion(url: string): string {
   const u = new URL(url);
   const ruta = u.pathname.replace(/^\/bdnstrans\/api\//, '');
   const params = [...u.searchParams].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join('&');
-  return `${ruta}${params ? `__${params}` : ''}`.replace(/[^\w=.-]+/g, '_') + '.json';
+  const base = `${ruta}${params ? `__${params}` : ''}`.replace(/[^\w=.-]+/g, '_');
+  // Los nombres de fichero tienen tope (255): las búsquedas por títulos largos se acortan con un hash para seguir siendo únicas.
+  return (base.length > 180 ? `${base.slice(0, 140)}__${createHash('sha1').update(base).digest('hex').slice(0, 16)}` : base) + '.json';
 }
 
 const paginaVacia = () => new Response(JSON.stringify({ content: [], last: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });

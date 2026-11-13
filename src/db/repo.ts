@@ -101,11 +101,16 @@ export interface FilaConvocatoria {
 const organoLegible = (f: Record<string, unknown>) =>
   [f.organo_nivel2, f.organo_nivel3].filter(Boolean).join(' · ') || String(f.organo_nivel1);
 
-/** SQL: la fila `c` sigue en juego (sin descarte de reglas ni de fases; si tiene condición, la criba LLM la aceptó). */
+/**
+ * SQL: la fila `c` sigue en juego (sin descarte de reglas ni de fases; si tiene condición, la criba LLM la aceptó).
+ * Una descubierta SOLO por organizaciones parecidas deja de estar en juego si ya no le queda ninguna etiqueta (se desactivó la organización).
+ */
 const EN_JUEGO = `
   c.descarte_regla IS NULL
   AND NOT EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND f.descarta = 1)
   AND (c.condicion IS NULL OR EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND f.fase = 'criba_llm' AND f.descarta = 0))
+  AND (NOT EXISTS (SELECT 1 FROM descubiertas_parecidas d WHERE d.convocatoria_id = c.id)
+    OR EXISTS (SELECT 1 FROM origenes_convocatoria o WHERE o.convocatoria_id = c.id))
 `;
 
 /**
@@ -173,7 +178,7 @@ export function pendientesDeFase(
 ): { convocatoria: Convocatoria; condicion: string | null }[] {
   const filas = db.prepare(`
     SELECT * FROM convocatorias c
-    WHERE c.fecha_publicacion >= ? AND c.descarte_regla IS NULL
+    WHERE (c.fecha_publicacion >= ? OR EXISTS (SELECT 1 FROM origenes_convocatoria o WHERE o.convocatoria_id = c.id)) AND c.descarte_regla IS NULL
       AND NOT EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND (f.fase = ? OR f.descarta = 1))
       AND (? IS NULL OR EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND f.fase = ? AND f.descarta = 0))
     ORDER BY c.fecha_publicacion DESC, c.id

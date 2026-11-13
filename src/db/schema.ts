@@ -205,6 +205,35 @@ const MIGRACIONES: string[] = [
   ALTER TABLE organizaciones_parecidas ADD COLUMN evidencia TEXT NOT NULL DEFAULT '[]';  -- JSON: números de convocatoria ganados junto a Reforesta
   ALTER TABLE organizaciones_parecidas ADD COLUMN actualizado_en TEXT;
   `,
+  `
+  -- Descubrimiento por organizaciones parecidas. Lo que han ganado las parecidas activas (una fila por organización y
+  -- convocatoria; se reemplaza al reconsultar su NIF), de qué parecida viene cada candidata (se reconstruye en cada
+  -- ejecución desde lo guardado, así desactivar una organización retira sus etiquetas) y qué candidatas se guardaron
+  -- SOLO por este camino (la fuente directa las desmarca si luego las trae).
+  CREATE TABLE ganadas_parecidas (
+    nif TEXT NOT NULL,
+    numero_convocatoria TEXT NOT NULL,
+    titulo TEXT NOT NULL,
+    organo_nivel1 TEXT,
+    organo_nivel2 TEXT,
+    organo_nivel3 TEXT,
+    fecha_concesion TEXT,
+    importe REAL,
+    PRIMARY KEY (nif, numero_convocatoria)
+  );
+  CREATE TABLE origenes_convocatoria (
+    convocatoria_id TEXT NOT NULL REFERENCES convocatorias (id),
+    origen TEXT NOT NULL,                -- 'parecidas'
+    nif TEXT NOT NULL,                   -- la parecida que ganó la edición anterior
+    nombre TEXT NOT NULL,
+    numero_previo TEXT NOT NULL,         -- número BDNS de esa edición anterior
+    anio_previo INTEGER,
+    PRIMARY KEY (convocatoria_id, origen, nif, numero_previo)
+  );
+  CREATE TABLE descubiertas_parecidas (
+    convocatoria_id TEXT PRIMARY KEY REFERENCES convocatorias (id)
+  );
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

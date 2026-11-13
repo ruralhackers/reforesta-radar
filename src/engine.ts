@@ -9,6 +9,8 @@ import {
 import { analizarConLlm, FASE_ANALISIS } from './fases/analisis.ts';
 import { cribarConLlm, FASE_CRIBA } from './fases/criba.ts';
 import { CONFIG_GANADORES_POR_DEFECTO, type ConfigGanadores, recogerGanadores, type ResumenGanadores } from './fases/ganadores.ts';
+import { CONFIG_PARECIDAS_POR_DEFECTO, type ConfigParecidas, descubrirParecidas, type ResumenParecidas } from './fases/parecidas.ts';
+import { quitarMarcaDescubierta } from './db/ganadores.ts';
 import { crearProbabilidad } from './ganadores.ts';
 import { calcularPlazos, type ResumenPlazos } from './fases/plazo.ts';
 import { puntuarCandidatas, type ResumenPuntuacion } from './fases/puntuacion.ts';
@@ -41,6 +43,8 @@ export interface DependenciasMotor {
   probabilidad?: ProveedorProbabilidad;
   /** Concesiones de BDNS: false = se salta la fase (sin red); objeto = caché y tope de consultas. Por defecto, activa. */
   ganadores?: boolean | Partial<ConfigGanadores>;
+  /** Descubrimiento por organizaciones parecidas: false = se salta (sin red); objeto = caché, tope y ventanas. Por defecto, activo. */
+  parecidas?: boolean | Partial<ConfigParecidas>;
   /** Espera entre peticiones a BDNS (por defecto setTimeout); los tests la inyectan. */
   dormir?: (ms: number) => Promise<void>;
   log?: (mensaje: string) => void;
@@ -63,6 +67,8 @@ export interface ResumenEjecucion {
   puntuacion: ResumenPuntuacion | null;
   /** Concesiones de BDNS y organizaciones parecidas; null si se saltó la fase. */
   ganadores: ResumenGanadores | null;
+  /** Descubrimiento por organizaciones parecidas; null si se saltó la fase. */
+  parecidas: ResumenParecidas | null;
 }
 
 export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtras?: number } = {}): Promise<ResumenEjecucion> {
@@ -78,16 +84,28 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
   let plazos: ResumenPlazos | null = null;
   let puntuacion: ResumenPuntuacion | null = null;
   let ganadores = null as ResumenGanadores | null;
+  let parecidas = null as ResumenParecidas | null;
   let errorGeneral: string | null = null;
 
   try {
     for (const fuente of deps.fuentes ?? FUENTES) {
       resumen.push(await recorrerFuente(deps, ejecucionId, fuente, perfil, opciones.diasAtras ?? 7));
     }
+    // Descubrimiento por parecidas: antes de la criba, para que lo descubierto pase por ella. Usa las parecidas ya guardadas
+    // (semilla, manuales y las calculadas en la ejecución anterior) y comparte con los ganadores el tope de peticiones a BDNS.
+    const hayBdns = (deps.fuentes ?? FUENTES).some((f) => f.nombre === 'bdns');
+    const cfgGan = { ...CONFIG_GANADORES_POR_DEFECTO, ...(typeof deps.ganadores === 'object' ? deps.ganadores : config.ganadores) };
+    if (deps.parecidas !== false && hayBdns) {
+      const cfgP: ConfigParecidas = { ...CONFIG_PARECIDAS_POR_DEFECTO, diasCache: cfgGan.diasCache, pausaMs: cfgGan.pausaMs, ...(typeof deps.parecidas === 'object' ? deps.parecidas : config.parecidas) };
+      cfgP.maxPeticiones = Math.min(cfgP.maxPeticiones, cfgGan.maxPeticiones);
+      parecidas = await descubrirParecidas({ db, fetch: deps.fetch, reloj, dormir: deps.dormir }, perfil, cfgP);
+      log(`parecidas: ${parecidas.organizaciones} organizaciones, ${parecidas.series} series, ${parecidas.consultas} consultas, ${parecidas.peticiones} peticiones a BDNS (${parecidas.desdeCache} en caché, ${parecidas.omitidasPorTope} sin hacer por el tope), ${parecidas.etiquetadas} candidatas con origen (${parecidas.nuevas} nuevas, ${parecidas.yaConocidas} ya conocidas), ${parecidas.errores.length} errores`);
+      for (const e of parecidas.errores) log(`  ! ${e}`);
+    }
     // Los ganadores se piden tras la criba (solo de lo que sigue en juego) y antes del análisis (que los usa como contexto).
     const pedirGanadores = async () => {
       if (deps.ganadores === false || !(deps.fuentes ?? FUENTES).some((f) => f.nombre === 'bdns')) return;
-      const cfgG = { ...CONFIG_GANADORES_POR_DEFECTO, ...(typeof deps.ganadores === 'object' ? deps.ganadores : config.ganadores) };
+      const cfgG = { ...cfgGan, maxPeticiones: Math.max(0, cfgGan.maxPeticiones - (parecidas?.peticiones ?? 0)) };
       ganadores = await recogerGanadores({ db, fetch: deps.fetch, reloj, dormir: deps.dormir }, perfil, cfgG);
       log(`ganadores: ${ganadores.consultas} consultas, ${ganadores.peticiones} peticiones a BDNS (${ganadores.desdeCache} consultas en caché, ${ganadores.omitidasPorTope} sin hacer por el tope), ${ganadores.concesiones} concesiones, ${ganadores.parecidas} organizaciones parecidas, ${ganadores.errores.length} errores`);
       for (const e of ganadores.errores) log(`  ! ${e}`);
@@ -104,7 +122,7 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
     errorGeneral = (e as Error).message;
     throw e;
   } finally {
-    const conErrores = errorGeneral !== null || resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0;
+    const conErrores = errorGeneral !== null || resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0 || (parecidas?.errores.length ?? 0) > 0;
     try {
       terminarEjecucion(db, ejecucionId, reloj.now(), conErrores, errorGeneral);
     } catch (e) {
@@ -113,8 +131,8 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
     }
   }
 
-  const conErrores = resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0;
-  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores };
+  const conErrores = resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0 || (parecidas?.errores.length ?? 0) > 0;
+  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, parecidas };
 }
 
 /**
@@ -167,6 +185,7 @@ async function recorrerFuente(
         n.recibidas++;
         const condicion = cribada.descarte ? null : condicionAmbito(cribada.convocatoria, perfil);
         if (guardarConvocatoria(db, { ...cribada, condicion }, reloj.now())) n.nuevas++;
+        quitarMarcaDescubierta(db, cribada.convocatoria.id); // si antes solo la había descubierto "parecidas", ahora viene directa
         if (cribada.descarte) n.descartadas++;
         else n.candidatas++;
       }

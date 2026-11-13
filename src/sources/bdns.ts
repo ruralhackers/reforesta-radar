@@ -135,6 +135,14 @@ function conDetalle(c: Convocatoria, d: Detalle): Convocatoria {
   };
 }
 
+/** Una convocatoria conocida solo por su número y datos de listado/búsqueda, completada con su detalle (como hace la fuente con las candidatas). */
+export async function convocatoriaConDetalle(
+  f: typeof fetch, item: { numeroConvocatoria: string; descripcion: string; fechaRecepcion: string; nivel1: string | null; nivel2: string | null; nivel3: string | null },
+): Promise<Convocatoria> {
+  const c = desdeListado({ id: 0, ...item, nivel1: item.nivel1 ?? '' }, []);
+  return conDetalle(c, await getJson<Detalle>(f, '/convocatorias', { numConv: item.numeroConvocatoria }));
+}
+
 async function enParalelo<T>(items: T[], n: number, tarea: (item: T) => Promise<void>): Promise<void> {
   let i = 0;
   const trabajador = async () => {

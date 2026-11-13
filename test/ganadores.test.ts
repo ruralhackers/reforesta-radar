@@ -39,7 +39,7 @@ function bdConCandidata(fechaPublicacion = CONV_2026.fechaPublicacion): Database
   return db;
 }
 
-const deps = (db: DatabaseSync, extra: object = {}) => ({ db, fetch: fetchGrabado({ concesiones: true }), reloj: relojFijo(AHORA), fuentes: [fuente], dormir: async () => {}, ...extra });
+const deps = (db: DatabaseSync, extra: object = {}) => ({ db, fetch: fetchGrabado({ concesiones: true }), reloj: relojFijo(AHORA), fuentes: [fuente], dormir: async () => {}, parecidas: false, ...extra });
 
 describe('piezas puras', () => {
   test('beneficiario: entidades con NIF, personas anonimizadas sin él', () => {

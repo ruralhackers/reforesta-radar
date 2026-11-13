@@ -32,6 +32,12 @@ export interface Puntuacion {
   calculadoEn: string;
 }
 
+/** Parecidas activas detrás de una convocatoria: la descubrió una de ellas y/o figuran entre sus ganadores previos. */
+export interface InfoParecidas {
+  descubierta: boolean;
+  organizaciones: { nif: string; nombre: string; anios: number[] }[];
+}
+
 export interface ConvocatoriaSemana {
   id: string;
   fuente: string;
@@ -44,6 +50,8 @@ export interface ConvocatoriaSemana {
   seccion: 'cierran_pronto' | 'nuevas' | 'abiertas';
   /** null = todavía no hubo ninguna pasada tras guardarla. */
   puntuacion: Puntuacion | null;
+  /** null = ninguna parecida activa tiene que ver con ella. */
+  parecidas: InfoParecidas | null;
 }
 
 export interface Ejecucion {
@@ -61,6 +69,8 @@ export interface Semana {
   cierranProntoDias: number;
   /** Ya en orden: cierran pronto, nuevas y abiertas; cada sección por puntuación. */
   convocatorias: ConvocatoriaSemana[];
+  /** Ids de "las ganan organizaciones como vosotros", por puntuación. Lista paralela: repite convocatorias de las secciones de arriba. */
+  lasGananParecidas: string[];
   ultimaEjecucion: Ejecucion | null;
 }
 
@@ -148,6 +158,7 @@ export interface Ficha {
     documentosConError: string[];
   } | null;
   ganadoresPrevios: GanadoresPrevios;
+  parecidas: InfoParecidas | null;
   enlaces: { tipo: 'ficha' | 'bases' | 'extracto' | 'sede' | 'documento'; titulo: string; url: string }[];
 }
 
@@ -159,3 +170,34 @@ export async function leerFicha(id: string): Promise<Ficha> {
 }
 
 export const rutaFicha = (id: string) => `/convocatoria/${encodeURIComponent(id)}`;
+
+// --- Organizaciones parecidas (GET/PATCH/POST/DELETE /api/parecidas) ---
+
+export interface Parecida {
+  nif: string;
+  nombre: string;
+  /** calculada = sale de los datos de BDNS; semilla = de partida; manual = añadida a mano. */
+  origen: 'calculada' | 'semilla' | 'manual' | 'derivada';
+  activa: boolean;
+  /** Convocatorias que Reforesta ganó y esta organización también. */
+  coincidencias: number;
+  /** Convocatorias candidatas que ha aportado esta organización. */
+  convocatorias: number;
+}
+
+async function pedirParecidas(ruta: string, metodo: string, cuerpo?: object): Promise<unknown> {
+  const res = await fetch(`/api/parecidas${ruta}`, {
+    method: metodo,
+    ...(cuerpo ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) } : {}),
+  });
+  const datos = await res.json().catch(() => ({})) as { error?: string };
+  if (!res.ok) throw new Error(datos.error ?? `Error ${res.status}`);
+  return datos;
+}
+
+export async function leerParecidas(): Promise<Parecida[]> {
+  return ((await pedirParecidas('', 'GET')) as { parecidas: Parecida[] }).parecidas;
+}
+export const activarParecida = (nif: string, activa: boolean) => pedirParecidas(`/${encodeURIComponent(nif)}`, 'PATCH', { activa });
+export const anadirParecida = (nif: string, nombre: string) => pedirParecidas('', 'POST', { nif, nombre: nombre || undefined });
+export const quitarParecida = (nif: string) => pedirParecidas(`/${encodeURIComponent(nif)}`, 'DELETE');
