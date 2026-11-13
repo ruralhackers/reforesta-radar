@@ -38,7 +38,7 @@ como *aproximada*):
   "N días" sin calificar se entienden hábiles (art. 30.2 Ley 39/2015).
 - "N días naturales" y "un mes / N meses" (de fecha a fecha; si el mes no tiene ese día, el último): si el último día es inhábil,
   pasa al primer hábil siguiente.
-- Desconocido: "desde el inicio del plazo", notificación, aprobación, apertura; semanas; "días laborables"; varios plazos en el
+- Desconocido: "desde el inicio del plazo" si el texto de inicio no es "día siguiente a la publicación"; notificación, aprobación, apertura; semanas; "días laborables"; varios plazos en el
   mismo texto; sin referencia a la publicación; años sin festivos en el fichero.
 
 Los festivos viven en `seed/festivos.json` (2025–2027: nacionales y Comunidad de Madrid, de las resoluciones de la Dirección General

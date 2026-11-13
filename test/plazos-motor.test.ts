@@ -32,7 +32,7 @@ describe('plazos en el motor', () => {
     assert.deepEqual(cierresEntre(db, '2026-08-04', '2026-08-20', '2026-08-04'), []);
   });
 
-  test('abril 2025: literal de la fuente, cálculo con Semana Santa y festivos de mayo, y desconocida con su texto', async () => {
+  test('abril 2025: literal de la fuente, cálculo con Semana Santa y festivos de mayo, y 825309 (desde el inicio del plazo) calculada', async () => {
     const db = bdSembrada();
     const e = ESCENARIOS.abril2025;
     await ejecutarRadar({ db, fetch: fetchGrabado(), reloj: relojFijo(e.ahora) }, { diasAtras: e.diasAtras });
@@ -47,10 +47,11 @@ describe('plazos en el motor', () => {
     assert.match(calculada.detalle, /Jueves Santo/);
     assert.match(calculada.detalle, /Fiesta de la Comunidad de Madrid/);
 
-    // "10 DÍAS HÁBILES DESDE EL INICIO DEL PLAZO DE SOLICITUD": ambiguo → desconocida, con el texto original.
-    const desconocida = leerPlazo(db, 'bdns:825309', hoy)!;
-    assert.deepEqual([desconocida.tipo, desconocida.fechaCierre, desconocida.diasHastaCierre], ['desconocida', null, null]);
-    assert.equal(desconocida.textoOriginal, '10 DÍAS HÁBILES DESDE EL INICIO DEL PLAZO DE SOLICITUD');
+    // "10 DÍAS HÁBILES DESDE EL INICIO DEL PLAZO", con inicio "DÍA SIGUIENTE A LA PUBLICACIÓN … EXTRACTO" (BOCM 15/04).
+    const cam = leerPlazo(db, 'bdns:825309', hoy)!;
+    assert.deepEqual([cam.tipo, cam.fechaCierre, cam.fechaBase, cam.baseOrigen], ['calculada', '2025-05-05', '2025-04-15', 'extracto']);
+    assert.equal(cam.textoOriginal, '10 DÍAS HÁBILES DESDE EL INICIO DEL PLAZO DE SOLICITUD');
+
   });
 
   test('re-ejecutar recalcula sin duplicar filas', async () => {

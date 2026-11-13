@@ -94,6 +94,18 @@ describe('meses y días naturales', () => {
   });
 });
 
+describe('desde el inicio del plazo', () => {
+  test('con inicio = día siguiente a la publicación se calcula (caso 825309, BOCM 15/04/2025 → 05/05/2025)', () => {
+    const p = calcularPlazo(datos({
+      textoFin: '10 DÍAS HÁBILES DESDE EL INICIO DEL PLAZO DE SOLICITUD',
+      textoInicio: 'DÍA SIGUIENTE A LA PUBLICACIÓN DE LA CONVOCATORIA EN FORMA DE EXTRACTO',
+      publicaciones: [{ dia: '2025-04-15', diario: 'BOCM. B.O. DE LA COMUNIDAD DE MADRID' }],
+    }), null, madrid);
+    assert.equal(p.tipo, 'calculada');
+    assert.equal(p.fechaCierre, '2025-05-05'); // 16/04 es el día 1; salta 17, 18 de abril y 1, 2 de mayo
+  });
+});
+
 describe('fecha literal y desconocida', () => {
   test('la fecha explícita de la fuente manda sobre cualquier texto', () => {
     const p = calcularPlazo(datos({ fechaFin: '2025-09-15', textoFin: '15 de septiembre 2025' }), null, madrid);
@@ -121,7 +133,9 @@ describe('fecha literal y desconocida', () => {
     ['sin texto ni fecha', null, null],
     ['"No tiene"', 'No tiene', null],
     ['desde la apertura', 'Desde apertura de convocatoria', null],
-    ['desde el inicio del plazo (ambiguo: ¿incluye el primer día?)', '10 DÍAS HÁBILES DESDE EL INICIO DEL PLAZO DE SOLICITUD', 'DÍA SIGUIENTE A LA PUBLICACIÓN DE LA CONVOCATORIA EN FORMA DE EXTRACTO'],
+    ['desde el inicio del plazo sin texto de inicio', '10 DÍAS HÁBILES DESDE EL INICIO DEL PLAZO DE SOLICITUD', null],
+    ['desde el inicio del plazo con inicio ambiguo', '10 días hábiles desde el inicio del plazo', 'Desde apertura de convocatoria'],
+    ['desde el inicio del plazo con inicio en fecha', '10 días hábiles desde el inicio del plazo', '10/04/2025'],
     ['sin saber desde cuándo', '10 días hábiles', 'Desde su aprobación en JGL'],
     ['desde la notificación', '10 días hábiles desde la notificación de la publicación', null],
     ['semanas', '2 semanas desde la publicación', null],

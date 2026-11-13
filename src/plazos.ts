@@ -7,10 +7,12 @@
 //   · "N días hábiles" (N en cifras o en letra, con "(N)" opcional) y "décimo quinto día hábil": se cuentan a partir del
 //     día siguiente a la publicación, sin sábados, domingos ni festivos del calendario (seed/festivos.json).
 //   · "N días naturales": se suman al día de publicación; si el último día es inhábil, pasa al primer hábil siguiente.
+//   · "N días hábiles desde el inicio del plazo" solo si el texto de inicio dice "día siguiente a la publicación"
+//     (el inicio es entonces el día siguiente y se cuenta incluyéndolo: mismo resultado que desde la publicación).
 //   · "N días" sin calificar: se entienden hábiles (art. 30.2) y el detalle lo dice.
 //   · "un mes", "N meses": de fecha a fecha (mismo número de día que la publicación; si el mes de vencimiento no lo
 //     tiene, su último día); si cae en día inhábil, pasa al primer hábil siguiente.
-// No soportado → desconocida (con el motivo): "desde el inicio del plazo", "desde la notificación/aprobación/apertura",
+// No soportado → desconocida (con el motivo): "desde el inicio del plazo" con inicio ausente o distinto, notificación/aprobación/apertura,
 // semanas, "días laborables", varios plazos distintos en el mismo texto, plazos sin referencia a la publicación,
 // y cualquier cálculo que cruce un año sin festivos en el fichero.
 import { diaDeLaSemana, sumarDias, sumarMeses } from './dates.ts';
@@ -120,11 +122,17 @@ export function interpretarComputo(texto: string): { computo: Computo } | { moti
   return { computo: [...hallados.values()][0] };
 }
 
+/** El inicio del plazo es el día siguiente a la publicación (sin otras condiciones): entonces "desde el inicio" = desde la publicación. */
+const INICIO_DIA_SIGUIENTE_PUBLICACION = /^(desde )?(el )?(dia )?siguiente (al de |a )?(la |su )?publicacion\b[^,;]*$/;
+
 /** ¿Se cuenta desde la publicación? Mira el texto del plazo (y el de inicio, solo para encontrar la referencia). */
 function desdePublicacion(contar: string, inicio: string | null): string | null {
   const t = norm(contar);
-  if (/\binicio\b|notificacion|aprobacion|apertura|vencimiento|finalizacion/.test(t)) {
-    return 'No se cuenta desde la publicación (sino desde el inicio, la notificación, la aprobación o la apertura)';
+  if (/notificacion|aprobacion|apertura|vencimiento|finalizacion/.test(t)) {
+    return 'No se cuenta desde la publicación (sino desde la notificación, la aprobación o la apertura)';
+  }
+  if (/\binicio\b/.test(t) && !(inicio && INICIO_DIA_SIGUIENTE_PUBLICACION.test(norm(inicio)))) {
+    return 'Se cuenta desde el inicio del plazo y el texto de inicio no dice que sea el día siguiente a la publicación';
   }
   if (!/public/.test(t) && !(inicio && /public/.test(norm(inicio)))) return 'El texto no dice desde cuándo se cuenta (no menciona la publicación)';
   return null;
