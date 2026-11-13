@@ -8,6 +8,8 @@ import { ejecutarRadar } from '../src/engine.ts';
 import type { Analisis } from '../src/fases/analisis-esquema.ts';
 import type { Llm, PeticionLlm } from '../src/llm/llm.ts';
 import { leerSemilla } from '../src/seed.ts';
+import { bdns } from '../src/sources/bdns.ts';
+import type { Fuente } from '../src/sources/source.ts';
 import { bdSembrada, RUTA_SEMILLA, relojFijo } from './support/bd.ts';
 import { ESCENARIOS, fetchGrabado } from './support/grabaciones.ts';
 
@@ -42,16 +44,20 @@ function analisisFalso(p: PeticionLlm) {
       cita: 'destinadas a entidades del Tercer Sector u organizaciones no gubernamentales de ámbito estatal',
       documento: 'Extracto BOE-B-2026-26402',
     },
-    // Trampa: valor sin cita → desconocido.
-    importeMaximoProyecto: { valor: '100.000 €', cita: null, documento: null },
+    // Trampa: cita real pero de otro dato (el plazo): la cifra no está en la cita → desconocido.
+    importeMaximoProyecto: {
+      valor: '100.000 €',
+      cita: 'El plazo para la presentación de las solicitudes será de quince días hábiles',
+      documento: 'Extracto BOE-B-2026-26402',
+    },
     importeTotal: { valor: '17.389.322,52 €', cita: 'en una cuantía total de 17.389.322,52 €', documento: 'Extracto BOE-B-2026-26402' },
     plazo: {
       valor: '15 días hábiles desde el día siguiente a la publicación del extracto en el BOE',
       cita: 'El plazo para la presentación de las solicitudes será de quince días hábiles',
       documento: 'Extracto BOE-B-2026-26402',
     },
-    // Trampa: cita inventada (no aparece en ningún texto) → desconocido.
-    cofinanciacion: { valor: 'Sí, 20 %', cita: 'Se exige una cofinanciación mínima del 20 %', documento: 'Bases reguladoras' },
+    // Trampa: valor sin cita → desconocido.
+    cofinanciacion: { valor: 'Sí, 20 %', cita: null, documento: null },
     requisitos: [
       // Cita de las bases (PDF del BOE), partida en varias líneas en el texto extraído.
       {
@@ -66,6 +72,8 @@ function analisisFalso(p: PeticionLlm) {
         documento: null,
       },
       { valor: 'Requisito sin cita', cita: null, documento: null },
+      // Trampa: cita inventada (no aparece en ningún texto) → fuera.
+      { valor: 'Sede en Madrid', cita: 'Las entidades deberán tener su sede social en la Comunidad de Madrid', documento: 'Bases reguladoras' },
     ],
     lineas: [
       { linea: perfil.lineas[0].nombre, motivo: 'Protección del medio ambiente', cita: null, documento: null },
@@ -126,13 +134,14 @@ describe('criba LLM y análisis con citas (LLM falso)', () => {
     assert.equal(a.elegibilidadEsfl.documento, 'Extracto BOE-B-2026-26402');
     assert.match(a.elegibilidadEsfl.cita!, /Tercer Sector/);
 
-    assert.equal(a.importeMaximoProyecto.valor, null, 'valor sin cita → desconocido');
-    assert.equal(a.importeMaximoProyecto.motivo, 'sin cita literal');
-    assert.equal(a.cofinanciacion.valor, null, 'cita que no aparece en los textos → desconocido');
-    assert.equal(a.cofinanciacion.motivo, 'la cita no aparece en los textos leídos');
+    assert.equal(a.importeMaximoProyecto.valor, null, '"100.000 €" con la cita del plazo → desconocido');
+    assert.equal(a.importeMaximoProyecto.motivo, 'el valor no está en la cita');
+    assert.equal(a.cofinanciacion.valor, null, 'valor sin cita → desconocido');
+    assert.equal(a.cofinanciacion.motivo, 'sin cita literal');
+    assert.ok(a.correcciones.some((c) => /requisitos\[3\]: la cita no aparece en los textos/.test(c)), 'cita inventada → fuera');
 
     assert.equal(a.importeTotal.valor, '17.389.322,52 €');
-    assert.equal(a.plazo.documento, 'Extracto BOE-B-2026-26402');
+    assert.equal(a.plazo.documento, 'Extracto BOE-B-2026-26402', '"15 días" casa con "quince días" de la cita');
 
     // Requisitos: el de las bases (PDF del BOE) y el del PDF de la convocatoria se comprueban contra el texto extraído.
     assert.deepEqual(a.requisitos.map((q) => q.documento), ['Bases reguladoras', 'Documento: Texto en castellano de la convocatoria']);
@@ -250,5 +259,66 @@ describe('criba LLM y análisis con citas (LLM falso)', () => {
     assert.match(r.fases[0].errores[0], /decisión no válida/);
     assert.equal(fase(db, 'bdns:923290', 'criba_llm'), undefined);
     assert.equal(ultimasEjecuciones(db, 1)[0].estado, 'con_errores');
+  });
+  test('lo que dejó el tope se analiza en la siguiente ejecución aunque la fuente ya no lo devuelva', async () => {
+    const db = bdSembrada();
+    const reloj = relojFijo(e.ahora);
+    const { llm, llamadas } = llmFalso(['bdns:923289', 'bdns:923290', 'bdns:923292']);
+    await ejecutarRadar({ db, fetch: fetchGrabado(), reloj, llm, configLlm: { maxAnalisis: 2 } }, { diasAtras: e.diasAtras });
+    const ids = ['bdns:923289', 'bdns:923290', 'bdns:923292'];
+    const sinAnalisis = ids.filter((id) => !fase(db, id, 'analisis'));
+    assert.equal(sinAnalisis.length, 1);
+
+    // Cinco días después: la ventana de BDNS (2 días) ya no la incluye y la fuente no devuelve nada.
+    reloj.adelantar(5 * 24 * 60 * 60 * 1000);
+    const bdnsMuda: Fuente = { ...bdns, recoger: async () => ({ cribadas: [], errores: [] }) };
+    llamadas.length = 0;
+    const r = await ejecutarRadar({ db, fetch: fetchGrabado(), reloj, llm, configLlm: { maxAnalisis: 2 }, fuentes: [bdnsMuda] }, { diasAtras: e.diasAtras });
+    assert.equal(r.fuentes[0].recibidas, 0);
+    assert.deepEqual(llamadas.map((p) => [p.tarea, idDe(p)]), [['analisis', sinAnalisis[0]]]);
+    assert.ok(fase(db, sinAnalisis[0], 'analisis'), 'analizada sin que BDNS la haya vuelto a devolver');
+
+    // Fuera de los días de pendientes (30 por defecto) ya no se buscan.
+    db.prepare("DELETE FROM convocatoria_fases WHERE fase = 'analisis'").run();
+    db.prepare('DELETE FROM llm_cache').run();
+    reloj.adelantar(40 * 24 * 60 * 60 * 1000);
+    llamadas.length = 0;
+    await ejecutarRadar({ db, fetch: fetchGrabado(), reloj, llm, fuentes: [bdnsMuda] }, { diasAtras: e.diasAtras });
+    assert.equal(llamadas.length, 0);
+  });
+
+  test('si un documento falla por algo pasajero, no se llama a Sonnet ni se guarda veredicto: se reintenta', async () => {
+    const db = bdSembrada();
+    const reloj = relojFijo(e.ahora);
+    const { llm, llamadas } = llmFalso();
+    const grabado = fetchGrabado();
+    const basesCaidas = ((url: string, init?: RequestInit) =>
+      String(url).includes('BOE-A-2023-17623') ? Promise.resolve(new Response('', { status: 503 })) : grabado(url, init)) as typeof fetch;
+
+    const r1 = await ejecutarRadar({ db, fetch: basesCaidas, reloj, llm }, { diasAtras: e.diasAtras });
+    assert.equal(llamadas.filter((p) => p.tarea === 'analisis').length, 0, 'sin gasto en un análisis incompleto');
+    assert.equal(fase(db, 'bdns:923290', 'analisis'), undefined);
+    const analisis1 = r1.fases.find((f) => f.fase === 'analisis')!;
+    assert.match(analisis1.errores[0], /bdns:923290 aplazado.*Bases reguladoras.*HTTP 503/);
+    assert.equal(r1.conErrores, true);
+
+    reloj.adelantar(60 * 60 * 1000);
+    await ejecutarRadar({ db, fetch: grabado, reloj, llm }, { diasAtras: e.diasAtras });
+    assert.equal(llamadas.filter((p) => p.tarea === 'analisis').length, 1);
+    const a = (fase(db, 'bdns:923290', 'analisis')!.datos as { analisis: Analisis; documentosConError: string[] });
+    assert.deepEqual(a.documentosConError, []);
+    assert.equal(a.analisis.requisitos[0].documento, 'Bases reguladoras');
+  });
+
+  test('un documento ilegible de forma definitiva (404) no bloquea el análisis: se anota y se analiza con el resto', async () => {
+    const db = bdSembrada();
+    const { llm } = llmFalso();
+    const grabado = fetchGrabado();
+    const basesNoExisten = ((url: string, init?: RequestInit) =>
+      String(url).includes('BOE-A-2023-17623') ? Promise.resolve(new Response('', { status: 404 })) : grabado(url, init)) as typeof fetch;
+    const r = await ejecutarRadar({ db, fetch: basesNoExisten, reloj: relojFijo(e.ahora), llm }, { diasAtras: e.diasAtras });
+    const d = fase(db, 'bdns:923290', 'analisis')!.datos as { documentosConError: string[] };
+    assert.match(d.documentosConError[0], /Bases reguladoras.*HTTP 404/);
+    assert.match(r.fases.find((f) => f.fase === 'analisis')!.avisos.join('\n'), /Documento ilegible en bdns:923290/);
   });
 });

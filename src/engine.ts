@@ -8,6 +8,7 @@ import {
 } from './db/repo.ts';
 import { analizarConLlm, FASE_ANALISIS } from './fases/analisis.ts';
 import { cribarConLlm, FASE_CRIBA } from './fases/criba.ts';
+import { diaLocal, sumarDias } from './dates.ts';
 import { CONFIG_LLM_POR_DEFECTO, type ConfigLlm, type Llm } from './llm/llm.ts';
 import { condicionAmbito, cribar } from './rules.ts';
 import { FUENTES } from './sources/index.ts';
@@ -77,7 +78,8 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
 }
 
 /**
- * Criba LLM y análisis sobre lo que esta ejecución ha visto. Cada fase salta las convocatorias que ya tienen su
+ * Criba LLM y análisis sobre las candidatas publicadas en los últimos `diasPendientes` días (las haya devuelto o no
+ * la fuente en esta ejecución). Cada fase salta las convocatorias que ya tienen su
  * veredicto (no se repiten llamadas). Sin LLM, ambas se registran como omitidas con un aviso.
  */
 async function fasesLlm(deps: DependenciasMotor, ejecucionId: number, perfil: Perfil, inicio: Date): Promise<RegistroFase[]> {
@@ -90,9 +92,10 @@ async function fasesLlm(deps: DependenciasMotor, ejecucionId: number, perfil: Pe
     for (const f of fases) f.avisos.push(aviso);
   } else {
     const ctx = { db: deps.db, llm: deps.llm, reloj: deps.reloj, fetch: deps.fetch };
-    const criba = await cribarConLlm(ctx, perfil, cfg.modeloCriba, inicio, deps.fuentes);
+    const publicadasDesde = sumarDias(diaLocal(inicio), -(cfg.diasPendientes - 1));
+    const criba = await cribarConLlm(ctx, perfil, cfg.modeloCriba, publicadasDesde, deps.fuentes);
     guardarRegistroFase(deps.db, ejecucionId, criba);
-    const analisis = await analizarConLlm(ctx, perfil, cfg.modeloAnalisis, cfg.maxAnalisis, inicio, deps.fuentes);
+    const analisis = await analizarConLlm(ctx, perfil, cfg.modeloAnalisis, cfg.maxAnalisis, publicadasDesde, deps.fuentes);
     fases = [criba, analisis];
   }
   for (const f of fases) {

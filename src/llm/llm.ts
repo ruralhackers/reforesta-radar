@@ -37,10 +37,16 @@ export interface ConfigLlm {
   modeloAnalisis: string;
   /** Máximo de llamadas reales a Sonnet (análisis) por ejecución; las de caché no cuentan. */
   maxAnalisis: number;
+  /**
+   * Días hacia atrás (por fecha de publicación) en los que se buscan convocatorias aún sin criba o sin análisis,
+   * las haya devuelto o no la fuente en esta ejecución.
+   */
+  diasPendientes: number;
 }
 
 export const CONFIG_LLM_POR_DEFECTO: ConfigLlm = {
   modeloCriba: 'claude-haiku-5-5',
   modeloAnalisis: 'claude-sonnet-5-5',
   maxAnalisis: 20,
+  diasPendientes: 30,
 };

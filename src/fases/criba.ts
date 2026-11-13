@@ -33,10 +33,10 @@ export function textosSinDescarga(c: Convocatoria, fuentes?: Fuente[]) {
 }
 
 export async function cribarConLlm(
-  ctx: ContextoFase, perfil: Perfil, modelo: string, vistasDesde: Date, fuentes?: Fuente[],
+  ctx: ContextoFase, perfil: Perfil, modelo: string, publicadasDesde: string, fuentes?: Fuente[],
 ): Promise<RegistroFase> {
   const registro = registroFaseVacio(FASE_CRIBA, modelo);
-  const pendientes = pendientesDeFase(ctx.db, FASE_CRIBA, vistasDesde);
+  const pendientes = pendientesDeFase(ctx.db, FASE_CRIBA, publicadasDesde);
   await enParalelo(pendientes, EN_PARALELO, async ({ convocatoria: c, condicion }) => {
     try {
       const { sistema, mensaje } = promptCriba(perfil, c, condicion, textosSinDescarga(c, fuentes));

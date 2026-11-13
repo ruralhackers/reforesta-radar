@@ -16,10 +16,24 @@ const MAX_BYTES = 25 * 1024 * 1024;
 /** Unos 100k tokens por documento; lo que pase se recorta y se dice en el propio texto. */
 export const MAX_CARACTERES_DOCUMENTO = 400_000;
 
+/**
+ * Fallo al leer un documento. `transitorio` (red, tiempo agotado, 429/5xx): puede salir bien más tarde, así que el
+ * análisis no debe darse por terminado sin él. Si no (formato no soportado, PDF sin texto, 404…), es definitivo.
+ */
+export class ErrorDocumento extends Error {
+  transitorio: boolean;
+  constructor(mensaje: string, transitorio: boolean) {
+    super(mensaje);
+    this.transitorio = transitorio;
+  }
+}
+
 export interface Lectura {
   textos: TextoParaLlm[];
-  /** Documentos que no se pudieron leer (se sigue con el resto). */
+  /** Documentos que no se pudieron leer de forma definitiva (se analiza con el resto). */
   errores: string[];
+  /** Documentos que fallaron por algo pasajero: con alguno, el análisis se aplaza (sin llamar al LLM). */
+  erroresTransitorios: string[];
   /** Descargas reales hechas (las de caché no cuentan). */
   descargas: number;
 }
@@ -31,10 +45,17 @@ export async function extraerTextoPdf(bytes: Uint8Array): Promise<{ texto: strin
 }
 
 async function descargar(f: typeof fetch, url: string): Promise<{ bytes: Uint8Array; tipoContenido: string }> {
-  const res = await f(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  if (bytes.byteLength > MAX_BYTES) throw new Error(`demasiado grande (${bytes.byteLength} bytes)`);
+  let res: Response;
+  let bytes: Uint8Array;
+  try {
+    res = await f(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (!res.ok) throw new ErrorDocumento(`HTTP ${res.status}`, res.status === 408 || res.status === 429 || res.status >= 500);
+    bytes = new Uint8Array(await res.arrayBuffer());
+  } catch (e) {
+    if (e instanceof ErrorDocumento) throw e;
+    throw new ErrorDocumento((e as Error).message, true); // red, DNS, tiempo agotado
+  }
+  if (bytes.byteLength > MAX_BYTES) throw new ErrorDocumento(`demasiado grande (${bytes.byteLength} bytes)`, false);
   return { bytes, tipoContenido: res.headers.get('content-type') ?? '' };
 }
 
@@ -55,14 +76,14 @@ async function textoDeUrl(db: DatabaseSync, f: typeof fetch, url: string, ahora:
       tipo = 'pdf';
       if (!yaLeido) {
         const { texto, paginas } = await extraerTextoPdf(bytes);
-        if (!texto.trim()) throw new Error('PDF sin texto extraíble (¿escaneado?)');
+        if (!texto.trim()) throw new ErrorDocumento('PDF sin texto extraíble (¿escaneado?)', false);
         guardarTexto(db, hash, texto, paginas, ahora);
       }
     } else if (/html/i.test(tipoContenido) || /^\s*</.test(new TextDecoder().decode(bytes.slice(0, 64)))) {
       tipo = 'html';
       if (!yaLeido) guardarTexto(db, hash, htmlATexto(new TextDecoder().decode(bytes)), null, ahora);
     } else {
-      throw new Error(`formato no soportado (${tipoContenido || 'desconocido'})`);
+      throw new ErrorDocumento(`formato no soportado (${tipoContenido || 'desconocido'})`, false);
     }
     guardarDocumento(db, url, { hash, tipo, error: null }, ahora);
     return { texto: leerTexto(db, hash)!.texto, descargado: true };
@@ -74,7 +95,7 @@ async function textoDeUrl(db: DatabaseSync, f: typeof fetch, url: string, ahora:
 
 /** Lee los documentos de una convocatoria: los que traen texto se usan tal cual; los demás se descargan (o se sacan de la caché). */
 export async function leerDocumentos(db: DatabaseSync, f: typeof fetch, docs: DocumentoFuente[], ahora: Date): Promise<Lectura> {
-  const r: Lectura = { textos: [], errores: [], descargas: 0 };
+  const r: Lectura = { textos: [], errores: [], erroresTransitorios: [], descargas: 0 };
   for (const d of docs) {
     let texto: string;
     if (d.texto !== undefined) {
@@ -85,7 +106,10 @@ export async function leerDocumentos(db: DatabaseSync, f: typeof fetch, docs: Do
         texto = t.texto;
         if (t.descargado) r.descargas++;
       } catch (e) {
-        r.errores.push(`${d.titulo} (${d.url}): ${(e as Error).message}`);
+        const mensaje = `${d.titulo} (${d.url}): ${(e as Error).message}`;
+        // Un PDF que unpdf no puede abrir (corrupto) también es definitivo: solo lo de red es pasajero.
+        if (e instanceof ErrorDocumento && e.transitorio) r.erroresTransitorios.push(mensaje);
+        else r.errores.push(mensaje);
         continue;
       }
     } else continue;

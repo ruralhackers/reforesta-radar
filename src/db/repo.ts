@@ -160,19 +160,21 @@ export function leerConvocatoria(db: DatabaseSync, id: string): ConvocatoriaGuar
 }
 
 /**
- * Convocatorias que esta ejecución ha visto (ultima_vez >= desde), siguen en juego según las reglas y fases
- * anteriores, y aún no tienen veredicto de `fase`. `requiereFase` exige además un veredicto no descartante de otra fase.
+ * Convocatorias pendientes de `fase`: siguen en juego según las reglas y las fases anteriores, no tienen veredicto
+ * de `fase` y se publicaron desde `publicadasDesde` (YYYY-MM-DD) — da igual que la fuente las haya vuelto a devolver
+ * en esta ejecución: lo omitido por el tope o por un error se recupera en la siguiente aunque ya no esté en la ventana.
+ * `requiereFase` exige además un veredicto no descartante de otra fase. Más recientes primero.
  */
 export function pendientesDeFase(
-  db: DatabaseSync, fase: string, vistasDesde: Date, requiereFase: string | null = null,
+  db: DatabaseSync, fase: string, publicadasDesde: string, requiereFase: string | null = null,
 ): { convocatoria: Convocatoria; condicion: string | null }[] {
   const filas = db.prepare(`
     SELECT * FROM convocatorias c
-    WHERE c.ultima_vez >= ? AND c.descarte_regla IS NULL
+    WHERE c.fecha_publicacion >= ? AND c.descarte_regla IS NULL
       AND NOT EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND (f.fase = ? OR f.descarta = 1))
       AND (? IS NULL OR EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND f.fase = ? AND f.descarta = 0))
     ORDER BY c.fecha_publicacion DESC, c.id
-  `).all(vistasDesde.toISOString(), fase, requiereFase, requiereFase) as Record<string, unknown>[];
+  `).all(publicadasDesde, fase, requiereFase, requiereFase) as Record<string, unknown>[];
   return filas.map((f) => ({ convocatoria: filaAConvocatoria(f), condicion: (f.condicion as string | null) ?? null }));
 }
 

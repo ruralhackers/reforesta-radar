@@ -16,7 +16,7 @@ export const ESCENARIOS = {
 } as const;
 
 /** Convocatorias cuyos documentos (PDF, bases) están grabados para el análisis. */
-export const CON_DOCUMENTOS = ['923290'];
+export const CON_DOCUMENTOS = ['923290', '923289', '923292'];
 
 /** Nombre de fichero estable para un documento: host + ruta + consulta. */
 export function claveDocumento(url: string): string {

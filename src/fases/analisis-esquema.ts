@@ -1,7 +1,8 @@
-// Esquema del análisis (Sonnet) y la regla "cita o desconocido", aplicada en código: un campo sin cita, o con una
-// cita que no aparece en los textos leídos, se guarda como desconocido aunque el LLM haya dado un valor.
+// Esquema del análisis (Sonnet) y la regla "cita o desconocido", aplicada en código: un campo sin cita, con una
+// cita que no aparece en los textos leídos o (importes, plazo, cofinanciación) cuyas cifras no están en su cita,
+// se guarda como desconocido aunque el LLM haya dado un valor.
 import type { Perfil } from '../types.ts';
-import { citaEnTexto, normalizarParaCita } from '../texto.ts';
+import { citaEnTexto, normalizarParaCita, valorEnCita } from '../texto.ts';
 
 /** Campo extraído con su cita literal. `valor === null` ⇒ desconocido (y `motivo` dice por qué). */
 export interface CampoCitado<T extends string = string> {
@@ -104,7 +105,8 @@ export function aplicarCitas(bruto: unknown, textos: TextoLeido[], perfil: Perfi
     return orden.find((t) => citaEnTexto(cita, t.n))?.titulo ?? null;
   };
 
-  const campo = <T extends string>(nombre: string, v: unknown, validos?: readonly T[]): CampoCitado<T> => {
+  /** `numerico`: importes, porcentajes, plazos y fechas: las cifras del valor tienen que estar en la cita. */
+  const campo = <T extends string>(nombre: string, v: unknown, validos?: readonly T[], numerico = false): CampoCitado<T> => {
     const o = (v && typeof v === 'object' ? v : {}) as Bruto;
     const valor = str(o.valor);
     const cita = str(o.cita);
@@ -117,6 +119,7 @@ export function aplicarCitas(bruto: unknown, textos: TextoLeido[], perfil: Perfi
     if (!cita) return desconocido('sin cita literal');
     const documento = localizar(cita, str(o.documento));
     if (!documento) return desconocido('la cita no aparece en los textos leídos');
+    if (numerico && !valorEnCita(valor, cita)) return desconocido('el valor no está en la cita');
     return { valor: valor as T, cita, documento };
   };
 
@@ -143,10 +146,10 @@ export function aplicarCitas(bruto: unknown, textos: TextoLeido[], perfil: Perfi
 
   return {
     elegibilidadEsfl: campo('elegibilidadEsfl', r.elegibilidadEsfl, ['si', 'no'] as const),
-    importeMaximoProyecto: campo('importeMaximoProyecto', r.importeMaximoProyecto),
-    importeTotal: campo('importeTotal', r.importeTotal),
-    plazo: campo('plazo', r.plazo),
-    cofinanciacion: campo('cofinanciacion', r.cofinanciacion),
+    importeMaximoProyecto: campo('importeMaximoProyecto', r.importeMaximoProyecto, undefined, true),
+    importeTotal: campo('importeTotal', r.importeTotal, undefined, true),
+    plazo: campo('plazo', r.plazo, undefined, true),
+    cofinanciacion: campo('cofinanciacion', r.cofinanciacion, undefined, true),
     requisitos,
     lineas,
     ideaProyecto: limpiarIdea(str(r.ideaProyecto), normalizados.map((t) => t.n).join('\n'), correcciones),
