@@ -1,15 +1,20 @@
 // Motor del radar. Todo lo que toca el exterior entra por `DependenciasMotor`: es el punto de prueba.
-// Fases futuras (criba LLM, análisis, puntuación) se enganchan después de `recoger`, sobre las candidatas;
+// Orden: fuentes (recoger + reglas) → criba LLM (Haiku) → análisis (Sonnet). Fases futuras (puntuación) van detrás;
 // el envío del correo será otra operación de este módulo con su propio emisor inyectado.
 import type { DatabaseSync } from 'node:sqlite';
 import {
-  type ContadoresFuente, empezarEjecucion, empezarFuente, guardarConvocatoria, leerPerfil, terminarEjecucion,
-  terminarFuente, transaccion,
+  type ContadoresFuente, empezarEjecucion, empezarFuente, guardarConvocatoria, guardarRegistroFase, leerPerfil,
+  type RegistroFase, registroFaseVacio, terminarEjecucion, terminarFuente, transaccion,
 } from './db/repo.ts';
-import { cribar } from './rules.ts';
-import { bdns } from './sources/bdns.ts';
+import { analizarConLlm, FASE_ANALISIS } from './fases/analisis.ts';
+import { cribarConLlm, FASE_CRIBA } from './fases/criba.ts';
+import { CONFIG_LLM_POR_DEFECTO, type ConfigLlm, type Llm } from './llm/llm.ts';
+import { condicionAmbito, cribar } from './rules.ts';
+import { FUENTES } from './sources/index.ts';
 import type { Fuente } from './sources/source.ts';
 import type { Perfil, Reloj } from './types.ts';
+
+export { FUENTES };
 
 export interface DependenciasMotor {
   db: DatabaseSync;
@@ -17,10 +22,11 @@ export interface DependenciasMotor {
   reloj: Reloj;
   /** Fuentes a recorrer; por defecto todas las del radar. */
   fuentes?: Fuente[];
+  /** LLM para la criba y el análisis. null/ausente = se saltan esas fases con un aviso en el registro (sin clave de API). */
+  llm?: Llm | null;
+  configLlm?: Partial<ConfigLlm>;
   log?: (mensaje: string) => void;
 }
-
-export const FUENTES: Fuente[] = [bdns];
 
 export interface ResumenFuente extends ContadoresFuente {
   fuente: string;
@@ -31,6 +37,8 @@ export interface ResumenEjecucion {
   ejecucionId: number;
   conErrores: boolean;
   fuentes: ResumenFuente[];
+  /** Criba LLM y análisis: contadores, tokens, coste, avisos y errores. */
+  fases: RegistroFase[];
 }
 
 export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtras?: number } = {}): Promise<ResumenEjecucion> {
@@ -39,20 +47,23 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
   const perfil = leerPerfil(db);
   if (!perfil) throw new Error('La BD no tiene perfil: carga la semilla antes (npm run seed)');
 
-  const ejecucionId = empezarEjecucion(db, reloj.now());
+  const inicio = reloj.now();
+  const ejecucionId = empezarEjecucion(db, inicio);
   const resumen: ResumenFuente[] = [];
+  let fases: RegistroFase[] = [];
   let errorGeneral: string | null = null;
 
   try {
     for (const fuente of deps.fuentes ?? FUENTES) {
       resumen.push(await recorrerFuente(deps, ejecucionId, fuente, perfil, opciones.diasAtras ?? 7));
     }
+    fases = await fasesLlm(deps, ejecucionId, perfil, inicio);
   } catch (e) {
     // Fallo fuera de una fuente (BD bloqueada, disco lleno, configuración…): se registra y se relanza.
     errorGeneral = (e as Error).message;
     throw e;
   } finally {
-    const conErrores = errorGeneral !== null || resumen.some((f) => f.errores.length > 0);
+    const conErrores = errorGeneral !== null || resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0);
     try {
       terminarEjecucion(db, ejecucionId, reloj.now(), conErrores, errorGeneral);
     } catch (e) {
@@ -61,7 +72,37 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
     }
   }
 
-  return { ejecucionId, conErrores: resumen.some((f) => f.errores.length > 0), fuentes: resumen };
+  const conErrores = resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0);
+  return { ejecucionId, conErrores, fuentes: resumen, fases };
+}
+
+/**
+ * Criba LLM y análisis sobre lo que esta ejecución ha visto. Cada fase salta las convocatorias que ya tienen su
+ * veredicto (no se repiten llamadas). Sin LLM, ambas se registran como omitidas con un aviso.
+ */
+async function fasesLlm(deps: DependenciasMotor, ejecucionId: number, perfil: Perfil, inicio: Date): Promise<RegistroFase[]> {
+  const log = deps.log ?? (() => {});
+  const cfg = { ...CONFIG_LLM_POR_DEFECTO, ...deps.configLlm };
+  let fases: RegistroFase[];
+  if (!deps.llm) {
+    const aviso = 'Sin LLM configurado (falta ANTHROPIC_API_KEY): criba y análisis omitidos en esta ejecución';
+    fases = [registroFaseVacio(FASE_CRIBA, null), registroFaseVacio(FASE_ANALISIS, null)];
+    for (const f of fases) f.avisos.push(aviso);
+  } else {
+    const ctx = { db: deps.db, llm: deps.llm, reloj: deps.reloj, fetch: deps.fetch };
+    const criba = await cribarConLlm(ctx, perfil, cfg.modeloCriba, inicio, deps.fuentes);
+    guardarRegistroFase(deps.db, ejecucionId, criba);
+    const analisis = await analizarConLlm(ctx, perfil, cfg.modeloAnalisis, cfg.maxAnalisis, inicio, deps.fuentes);
+    fases = [criba, analisis];
+  }
+  for (const f of fases) {
+    guardarRegistroFase(deps.db, ejecucionId, f);
+    log(`${f.fase}: ${f.procesadas} procesadas, ${f.descartadas} descartadas, ${f.llamadas} llamadas (${f.desdeCache} de caché), `
+      + `${f.omitidasPorTope} sin hacer por el tope, ${f.costeUsd.toFixed(4)} USD, ${f.errores.length} errores`);
+    for (const a of f.avisos) log(`  · ${a}`);
+    for (const e of f.errores) log(`  ! ${e}`);
+  }
+  return fases;
 }
 
 /** Recoge una fuente y guarda lo cribado. Los fallos de la fuente quedan en sus errores, no se lanzan. */
@@ -79,7 +120,8 @@ async function recorrerFuente(
     transaccion(db, () => {
       for (const cribada of r.cribadas) {
         n.recibidas++;
-        if (guardarConvocatoria(db, cribada, reloj.now())) n.nuevas++;
+        const condicion = cribada.descarte ? null : condicionAmbito(cribada.convocatoria, perfil);
+        if (guardarConvocatoria(db, { ...cribada, condicion }, reloj.now())) n.nuevas++;
         if (cribada.descarte) n.descartadas++;
         else n.candidatas++;
       }

@@ -15,6 +15,11 @@ export interface Perfil {
     comunidades: string[];
     /** Códigos NUTS de las regiones admitidas (p. ej. "ES30"): admiten órganos locales de esa región. */
     regiones: string[];
+    /**
+     * Convocatorias autonómicas de otras comunidades: true = no se descartan por regla, pasan a la criba LLM
+     * con la condición de que no exijan sede o actividad en esa comunidad; false/ausente = se descartan.
+     */
+    otrasComunidadesSiNoExigenSede?: boolean;
   };
   /** Importe mínimo que merece el esfuerzo, en euros (null = sin mínimo). */
   importeMinimo: number | null;
@@ -72,6 +77,12 @@ export interface Descarte {
 export interface Cribada {
   convocatoria: Convocatoria;
   descarte: Descarte | null;
+}
+
+/** Cribada lista para guardar: si no se descarta, puede seguir en juego con una condición que decidirá la criba LLM. */
+export interface CribadaConCondicion extends Cribada {
+  /** p. ej. "Otra comunidad (GALICIA): solo si no exige sede o actividad allí". null = sin condición. */
+  condicion: string | null;
 }
 
 export interface Reloj {

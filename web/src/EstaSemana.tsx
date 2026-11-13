@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { type Semana, leerSemana } from './api.ts';
+import { type Semana, leerSemana, rutaFicha } from './api.ts';
 
 const fecha = (dia: string) =>
   new Date(`${dia}T12:00:00Z`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -37,13 +37,13 @@ export function EstaSemana() {
       <ul className="space-y-3">
         {semana?.convocatorias.map((c) => (
           <li key={c.id} className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-stone-200">
-            <a href={c.url} target="_blank" rel="noreferrer" className="font-semibold leading-snug text-emerald-800 hover:underline [overflow-wrap:anywhere]">
+            <a href={rutaFicha(c.id)} className="font-semibold leading-snug text-emerald-800 hover:underline [overflow-wrap:anywhere]">
               {c.titulo}
             </a>
             <p className="mt-1 text-sm text-stone-600">{c.organo}</p>
             <p className="mt-2 flex flex-wrap gap-x-3 text-xs text-stone-500">
               <span>{fecha(c.fechaPublicacion)}</span>
-              <span className="uppercase">{c.fuente}</span>
+              <a href={c.url} target="_blank" rel="noreferrer" className="uppercase hover:underline">{c.fuente}</a>
             </p>
           </li>
         ))}

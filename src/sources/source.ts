@@ -18,7 +18,29 @@ export interface ResultadoFuente {
   errores: string[];
 }
 
+/** Un texto que las fases LLM pueden leer: ya disponible (`texto`) o por descargar (`url`, PDF o HTML). */
+export interface DocumentoFuente {
+  /** Nombre con el que el LLM lo cita y la ficha lo muestra, p. ej. "Extracto BOE-B-2026-26402". */
+  titulo: string;
+  url: string | null;
+  /** Texto ya disponible sin descargar (extracto, ficha de metadatos…). */
+  texto?: string;
+}
+
+export interface Enlace {
+  tipo: 'ficha' | 'bases' | 'extracto' | 'sede' | 'documento';
+  titulo: string;
+  url: string;
+}
+
 export interface Fuente {
   nombre: string;
   recoger(ctx: ContextoFuente): Promise<ResultadoFuente>;
+  /**
+   * Textos de una convocatoria guardada para la criba y el análisis. Nunca incluye metadatos poco fiables
+   * (p. ej. tipos de beneficiario de BDNS): la elegibilidad se decide por el texto.
+   */
+  documentos?(c: Convocatoria): DocumentoFuente[];
+  /** Enlaces para la ficha: bases, extracto, sede electrónica… */
+  enlaces?(c: Convocatoria): Enlace[];
 }

@@ -2,10 +2,17 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { Hono } from 'hono';
 import { diaLocal, sumarDias } from '../dates.ts';
-import { candidatasEntre, ultimasEjecuciones } from '../db/repo.ts';
+import { candidatasEntre, descartesEntre, leerConvocatoria, ultimasEjecuciones, type VeredictoFase } from '../db/repo.ts';
+import { FASE_ANALISIS } from '../fases/analisis.ts';
+import type { Analisis } from '../fases/analisis-esquema.ts';
+import { FASE_CRIBA } from '../fases/criba.ts';
+import { fuentePorNombre } from '../sources/index.ts';
+import type { Fuente } from '../sources/source.ts';
 import type { Reloj } from '../types.ts';
 
-export function crearApi({ db, reloj }: { db: DatabaseSync; reloj: Reloj }): Hono {
+const DIA = /^\d{4}-\d{2}-\d{2}$/;
+
+export function crearApi({ db, reloj, fuentes }: { db: DatabaseSync; reloj: Reloj; fuentes?: Fuente[] }): Hono {
   const api = new Hono();
 
   api.get('/salud', (c) => c.json({ ok: true }));
@@ -19,6 +26,56 @@ export function crearApi({ db, reloj }: { db: DatabaseSync; reloj: Reloj }): Hon
       hasta,
       convocatorias: candidatasEntre(db, desde, hasta),
       ultimaEjecucion: ultimasEjecuciones(db, 1)[0] ?? null,
+    });
+  });
+
+  /**
+   * Descartadas con su motivo (reglas y fases). Por defecto, los últimos 7 días.
+   * `?por=criba_llm` (o `analisis`, `regla:ambito`…) filtra; `?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` cambia la ventana.
+   */
+  api.get('/descartes', (c) => {
+    const hoy = diaLocal(reloj.now());
+    const hasta = DIA.test(c.req.query('hasta') ?? '') ? c.req.query('hasta')! : hoy;
+    const desde = DIA.test(c.req.query('desde') ?? '') ? c.req.query('desde')! : sumarDias(hasta, -6);
+    const por = c.req.query('por') || null;
+    return c.json({ desde, hasta, por, convocatorias: descartesEntre(db, desde, hasta, por) });
+  });
+
+  /** Ficha de una convocatoria: datos de la fuente, veredictos de criba y análisis (campos con cita) y enlaces. */
+  api.get('/convocatorias/:id', (c) => {
+    const g = leerConvocatoria(db, c.req.param('id'));
+    if (!g) return c.json({ error: 'No existe' }, 404);
+    const conv = g.convocatoria;
+    const fase = (nombre: string): VeredictoFase | null => g.fases.find((f) => f.fase === nombre) ?? null;
+    const criba = fase(FASE_CRIBA);
+    const analisis = fase(FASE_ANALISIS);
+    const datosAnalisis = analisis?.datos as { analisis: Analisis; modelo: string; documentos: unknown; documentosConError: string[] } | undefined;
+    const enJuego = !g.descarte && !g.fases.some((f) => f.descarta) && (!g.condicion || (criba !== null && !criba.descarta));
+    return c.json({
+      id: conv.id,
+      fuente: conv.fuente,
+      titulo: conv.titulo,
+      organo: [conv.organo.nivel1, conv.organo.nivel2, conv.organo.nivel3].filter(Boolean).join(' · '),
+      fechaPublicacion: conv.fechaPublicacion,
+      url: conv.url,
+      tipo: conv.tipo,
+      finalidad: conv.finalidad,
+      abierto: conv.abierto,
+      descarte: g.descarte,
+      condicion: g.condicion,
+      enJuego,
+      criba: criba && { descarta: criba.descarta, motivo: criba.motivo, ...(criba.datos as object) },
+      analisis: analisis && datosAnalisis
+        ? {
+          descarta: analisis.descarta,
+          motivo: analisis.motivo,
+          modelo: datosAnalisis.modelo,
+          campos: datosAnalisis.analisis,
+          documentos: datosAnalisis.documentos,
+          documentosConError: datosAnalisis.documentosConError,
+        }
+        : null,
+      enlaces: fuentePorNombre(conv.fuente, fuentes)?.enlaces?.(conv) ?? [{ tipo: 'ficha', titulo: 'Ficha en la fuente', url: conv.url }],
     });
   });
 

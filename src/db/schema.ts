@@ -7,6 +7,8 @@
 // - `convocatoria_fases`: el veredicto de cada fase posterior (criba LLM, análisis, decisión del equipo…),
 //   una fila por convocatoria y fase. Ninguna pasada del radar la toca. Una fase nueva no necesita migración;
 //   si necesita columnas propias, que cree su tabla con FK a convocatorias(id), no columnas en `convocatorias`.
+//   Task 2 escribe `criba_llm` (Haiku: puede encajar / descartar + motivo) y `analisis` (Sonnet: campos con cita).
+// - `documentos`, `textos`, `llm_cache`: cachés (por url, por hash de contenido y por hash de petición).
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -81,6 +83,52 @@ const MIGRACIONES: string[] = [
     datos TEXT NOT NULL DEFAULT '{}',   -- JSON propio de la fase
     actualizado_en TEXT NOT NULL,
     PRIMARY KEY (convocatoria_id, fase)
+  );
+  `,
+  `
+  -- Condición de las reglas (p. ej. otra comunidad: solo si no exige sede). La refresca cada pasada, como descarte_*.
+  -- Una candidata con condición no sale en las listas hasta que la criba LLM la da por buena.
+  ALTER TABLE convocatorias ADD COLUMN condicion TEXT;
+  -- Caché de documentos: url → hash del contenido (no se vuelve a descargar) y hash → texto (no se vuelve a extraer).
+  CREATE TABLE documentos (
+    url TEXT PRIMARY KEY,
+    hash TEXT,                          -- sha256 del contenido; null si la descarga falló
+    tipo TEXT,                          -- pdf | html | texto
+    error TEXT,
+    descargado_en TEXT NOT NULL
+  );
+  CREATE TABLE textos (
+    hash TEXT PRIMARY KEY,
+    texto TEXT NOT NULL,
+    paginas INTEGER,
+    creado_en TEXT NOT NULL
+  );
+  -- Caché de respuestas del LLM por hash de la petición (modelo + prompt + esquema):
+  -- la misma entrada (mismos textos) no se vuelve a enviar.
+  CREATE TABLE llm_cache (
+    clave TEXT PRIMARY KEY,
+    modelo TEXT NOT NULL,
+    respuesta TEXT NOT NULL,            -- JSON
+    creado_en TEXT NOT NULL
+  );
+  -- Registro por ejecución de cada fase posterior (criba LLM, análisis): contadores, tokens, coste, avisos y errores.
+  CREATE TABLE ejecucion_fases (
+    ejecucion_id INTEGER NOT NULL REFERENCES ejecuciones (id),
+    fase TEXT NOT NULL,
+    modelo TEXT,
+    procesadas INTEGER NOT NULL DEFAULT 0,  -- con veredicto nuevo en esta ejecución
+    descartadas INTEGER NOT NULL DEFAULT 0,
+    omitidas_por_tope INTEGER NOT NULL DEFAULT 0,
+    llamadas INTEGER NOT NULL DEFAULT 0,    -- llamadas reales al LLM (sin contar la caché)
+    desde_cache INTEGER NOT NULL DEFAULT 0,
+    tokens_entrada INTEGER NOT NULL DEFAULT 0,
+    tokens_salida INTEGER NOT NULL DEFAULT 0,
+    tokens_cache_lectura INTEGER NOT NULL DEFAULT 0,
+    tokens_cache_escritura INTEGER NOT NULL DEFAULT 0,
+    coste_usd REAL NOT NULL DEFAULT 0,
+    avisos TEXT NOT NULL DEFAULT '[]',      -- JSON string[]
+    errores TEXT NOT NULL DEFAULT '[]',     -- JSON string[]
+    PRIMARY KEY (ejecucion_id, fase)
   );
   `,
 ];

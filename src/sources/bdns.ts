@@ -5,7 +5,8 @@
 // 3. Criba con lo que trae el listado; solo de lo que sobrevive se pide el detalle, y se vuelve a cribar.
 import { aFechaBdns, diaLocal, sumarDias } from '../dates.ts';
 import type { Convocatoria, Cribada } from '../types.ts';
-import type { ContextoFuente, Fuente, ResultadoFuente } from './source.ts';
+import { htmlATexto } from '../texto.ts';
+import type { ContextoFuente, DocumentoFuente, Enlace, Fuente, ResultadoFuente } from './source.ts';
 
 export const BDNS_API = 'https://www.infosubvenciones.es/bdnstrans/api';
 const FICHA = 'https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/';
@@ -45,6 +46,17 @@ interface Detalle {
   descripcionFinalidad: string | null;
   regiones: { descripcion: string }[] | null;
   abierto: boolean | null;
+  // Para la criba y el análisis (pueden faltar en detalles antiguos):
+  sedeElectronica?: string | null;
+  presupuestoTotal?: number | null;
+  descripcionBasesReguladoras?: string | null;
+  urlBasesReguladoras?: string | null;
+  fechaInicioSolicitud?: string | null;
+  fechaFinSolicitud?: string | null;
+  textInicio?: string | null;
+  textFin?: string | null;
+  documentos?: { id: number; descripcion: string | null; nombreFic: string | null }[] | null;
+  anuncios?: { titulo: string | null; texto: string | null; url: string | null; cve: string | null; desDiarioOficial: string | null; datPublicacion: string | null }[] | null;
 }
 
 async function getJson<T>(f: typeof fetch, ruta: string, params: Record<string, string | number> = {}): Promise<T> {
@@ -174,4 +186,69 @@ async function recoger(ctx: ContextoFuente): Promise<ResultadoFuente> {
   return { cribadas, errores };
 }
 
-export const bdns: Fuente = { nombre: 'bdns', recoger };
+/** URL de descarga de un documento adjunto a una convocatoria (comprobada en vivo: devuelve el PDF). */
+export function urlDocumentoBdns(idDocumento: number): string {
+  return `${BDNS_API}/convocatorias/documentos?idDocumento=${idDocumento}`;
+}
+
+function detalleDe(c: Convocatoria): Detalle | null {
+  return ((c.datos as { detalle?: Detalle } | null)?.detalle) ?? null;
+}
+
+const esUrl = (u: string | null | undefined): u is string => !!u && /^https?:\/\//i.test(u.trim());
+
+/**
+ * Ficha de metadatos para el LLM. Deliberadamente sin `tiposBeneficiarios` ni sectores: en BDNS son poco fiables
+ * (la 923290 dice "personas físicas" y es para ONG) y la elegibilidad se decide por el texto.
+ */
+function fichaMetadatos(c: Convocatoria, d: Detalle): string {
+  const lineas = [
+    `Título: ${c.titulo}`,
+    `Órgano convocante: ${[c.organo.nivel1, c.organo.nivel2, c.organo.nivel3].filter(Boolean).join(' · ')}`,
+    `Código BDNS: ${c.fuenteId}`,
+    `Fecha de registro en BDNS: ${c.fechaPublicacion}`,
+    d.tipoConvocatoria && `Tipo de convocatoria: ${d.tipoConvocatoria}`,
+    d.descripcionFinalidad && `Finalidad: ${d.descripcionFinalidad}`,
+    d.presupuestoTotal != null && `Presupuesto total: ${d.presupuestoTotal} €`,
+    d.fechaInicioSolicitud && `Inicio de solicitudes: ${d.fechaInicioSolicitud}`,
+    d.fechaFinSolicitud && `Fin de solicitudes: ${d.fechaFinSolicitud}`,
+    d.textInicio && `Inicio del plazo (texto): ${d.textInicio}`,
+    d.textFin && `Fin del plazo (texto): ${d.textFin}`,
+    d.descripcionBasesReguladoras && `Bases reguladoras: ${d.descripcionBasesReguladoras}`,
+    d.regiones?.length && `Regiones: ${d.regiones.map((r) => r.descripcion.trim()).join(', ')}`,
+  ];
+  return lineas.filter(Boolean).join('\n');
+}
+
+function documentos(c: Convocatoria): DocumentoFuente[] {
+  const d = detalleDe(c);
+  if (!d) return [{ titulo: 'Ficha BDNS', url: c.url, texto: `Título: ${c.titulo}` }];
+  const docs: DocumentoFuente[] = [{ titulo: 'Ficha BDNS', url: c.url, texto: fichaMetadatos(c, d) }];
+  for (const a of d.anuncios ?? []) {
+    if (!a.texto) continue;
+    const titulo = `Extracto ${a.cve ?? ''}`.trim();
+    docs.push({ titulo, url: esUrl(a.url) ? a.url : null, texto: [a.titulo, htmlATexto(a.texto)].filter(Boolean).join('\n\n') });
+  }
+  for (const doc of d.documentos ?? []) {
+    docs.push({ titulo: `Documento: ${doc.descripcion ?? doc.nombreFic ?? doc.id}`, url: urlDocumentoBdns(doc.id) });
+  }
+  if (esUrl(d.urlBasesReguladoras)) docs.push({ titulo: 'Bases reguladoras', url: d.urlBasesReguladoras.trim() });
+  return docs;
+}
+
+function enlaces(c: Convocatoria): Enlace[] {
+  const d = detalleDe(c);
+  const r: Enlace[] = [{ tipo: 'ficha', titulo: 'Ficha en BDNS', url: c.url }];
+  if (!d) return r;
+  if (esUrl(d.urlBasesReguladoras)) r.push({ tipo: 'bases', titulo: d.descripcionBasesReguladoras?.trim() || 'Bases reguladoras', url: d.urlBasesReguladoras.trim() });
+  for (const a of d.anuncios ?? []) {
+    if (esUrl(a.url)) r.push({ tipo: 'extracto', titulo: [a.desDiarioOficial, a.cve, a.datPublicacion].filter(Boolean).join(' · ') || 'Extracto', url: a.url });
+  }
+  if (esUrl(d.sedeElectronica)) r.push({ tipo: 'sede', titulo: 'Sede electrónica', url: d.sedeElectronica.trim() });
+  for (const doc of d.documentos ?? []) {
+    r.push({ tipo: 'documento', titulo: doc.descripcion ?? doc.nombreFic ?? `Documento ${doc.id}`, url: urlDocumentoBdns(doc.id) });
+  }
+  return r;
+}
+
+export const bdns: Fuente = { nombre: 'bdns', recoger, documentos, enlaces };

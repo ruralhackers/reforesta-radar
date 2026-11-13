@@ -14,14 +14,32 @@ const nominativa: Regla = (c) => {
   return null;
 };
 
-const ambito: Regla = (c, p) => {
+type Ambito = 'dentro' | 'otra_comunidad' | 'fuera';
+
+function clasificarAmbito(c: Convocatoria, p: Perfil): Ambito {
   const { nivel1, nivel2 } = c.organo;
   const n1 = normalizar(nivel1);
-  if (p.ambito.nivelesSiempre.some((n) => normalizar(n) === n1)) return null;
-  if (n1 === 'AUTONOMICA' && nivel2 && p.ambito.comunidades.some((x) => normalizar(x) === normalizar(nivel2))) return null;
-  if (c.regiones.some((r) => p.ambito.regiones.includes(r))) return null;
+  if (p.ambito.nivelesSiempre.some((n) => normalizar(n) === n1)) return 'dentro';
+  if (n1 === 'AUTONOMICA' && nivel2 && p.ambito.comunidades.some((x) => normalizar(x) === normalizar(nivel2))) return 'dentro';
+  if (c.regiones.some((r) => p.ambito.regiones.includes(r))) return 'dentro';
+  if (n1 === 'AUTONOMICA' && nivel2 && p.ambito.otrasComunidadesSiNoExigenSede) return 'otra_comunidad';
+  return 'fuera';
+}
+
+const ambito: Regla = (c, p) => {
+  if (clasificarAmbito(c, p) !== 'fuera') return null;
+  const { nivel1, nivel2 } = c.organo;
   return { regla: 'ambito', motivo: `Ámbito fuera del perfil: ${[nivel1, nivel2].filter(Boolean).join(' · ')}` };
 };
+
+/**
+ * Condición que deja una convocatoria en juego solo a medias: las autonómicas de otras comunidades no se descartan
+ * por regla, pero la criba LLM debe comprobar que no exigen sede o actividad allí. null = sin condición.
+ */
+export function condicionAmbito(c: Convocatoria, p: Perfil): string | null {
+  if (clasificarAmbito(c, p) !== 'otra_comunidad') return null;
+  return `Otra comunidad (${c.organo.nivel2}): solo encaja si no exige sede o actividad en esa comunidad`;
+}
 
 const finalidad: Regla = (c, p) => {
   if (!c.finalidad) return null;

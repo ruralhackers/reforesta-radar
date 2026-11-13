@@ -21,7 +21,8 @@
       "descripcion": "Estatal + UE + Comunidad de Madrid + ayuntamientos de Madrid; de otras comunidades solo las que no exigen sede allí.",
       "nivelesSiempre": ["ESTADO"],
       "comunidades": ["COMUNIDAD DE MADRID"],
-      "regiones": ["ES3", "ES30", "ES300"]
+      "regiones": ["ES3", "ES30", "ES300"],
+      "otrasComunidadesSiNoExigenSede": true
     },
     "importeMinimo": 3000,
     "finalidadesExcluidas": [

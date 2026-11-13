@@ -1,0 +1,100 @@
+// Prompts de la criba (Haiku) y del análisis (Sonnet). Todo lo de la organización sale del perfil guardado en la BD:
+// aquí no hay nada propio de una entidad concreta. Cambiar un texto aquí invalida la caché de respuestas (va en la clave).
+import type { Convocatoria, Perfil } from '../types.ts';
+
+export interface TextoParaLlm {
+  titulo: string;
+  texto: string;
+}
+
+const MAX_CARACTERES_CRIBA = 12_000;
+
+function describirPerfil(p: Perfil): string {
+  return [
+    `Organización: ${p.nombre} (entidad sin ánimo de lucro).`,
+    'Líneas de trabajo:',
+    ...p.lineas.map((l) => `- ${l.nombre}: ${l.descripcion}`),
+    `Ámbito: ${p.ambito.descripcion}`,
+  ].join('\n');
+}
+
+function bloqueDocumentos(textos: TextoParaLlm[], max: number | null): string {
+  return textos.map((t) => {
+    const recortado = max !== null && t.texto.length > max;
+    const cuerpo = recortado ? `${t.texto.slice(0, max)}\n[… texto recortado para la criba: ${t.texto.length} caracteres en total]` : t.texto;
+    return `<documento titulo="${t.titulo.replace(/"/g, "'")}">\n${cuerpo}\n</documento>`;
+  }).join('\n\n');
+}
+
+function cabecera(c: Convocatoria): string {
+  return [
+    `Convocatoria ${c.id}: ${c.titulo}`,
+    `Órgano: ${[c.organo.nivel1, c.organo.nivel2, c.organo.nivel3].filter(Boolean).join(' · ')}`,
+  ].join('\n');
+}
+
+// --- Criba (Haiku) ---
+
+export const ESQUEMA_CRIBA: Record<string, unknown> = {
+  type: 'object',
+  properties: {
+    decision: { type: 'string', enum: ['puede_encajar', 'descartar'] },
+    motivo: { type: 'string' },
+    exigeSedeEnOtraComunidad: { type: 'string', enum: ['si', 'no', 'no_consta', 'no_aplica'] },
+  },
+  required: ['decision', 'motivo', 'exigeSedeEnOtraComunidad'],
+  additionalProperties: false,
+};
+
+export function promptCriba(perfil: Perfil, c: Convocatoria, condicion: string | null, textos: TextoParaLlm[]): { sistema: string; mensaje: string } {
+  const sistema = [
+    'Eres la primera criba de un radar de convocatorias de subvenciones para una organización sin ánimo de lucro.',
+    'Decides si una convocatoria PUEDE encajar con la organización (para que otra fase la lea a fondo) o si claramente no encaja.',
+    '',
+    describirPerfil(perfil),
+    '',
+    'Criterios:',
+    '- Descarta solo lo claramente ajeno: ayudas a particulares o familias, a empresas o autónomos sin cabida para entidades sin ánimo de lucro,',
+    '  premios o becas individuales, concursos escolares, subvenciones a entidades concretas ya decididas, temas sin relación con las líneas de trabajo.',
+    '- Ante la duda, "puede_encajar": la fase siguiente lee las bases completas.',
+    '- La elegibilidad se decide por el texto de la convocatoria, no por categorías administrativas.',
+    '- "exigeSedeEnOtraComunidad": solo si se te indica una condición de otra comunidad; "si" si el texto exige sede, domicilio,',
+    '  delegación o actividad en esa comunidad; "no" si consta que no; "no_consta" si el texto no lo dice; si no hay condición, "no_aplica".',
+    '  Si exige sede o actividad allí, la decisión es "descartar".',
+    '- El motivo, en castellano, en una frase concreta (qué dice la convocatoria que te lleva a decidir).',
+  ].join('\n');
+  const mensaje = [
+    cabecera(c),
+    condicion ? `Condición de ámbito: ${condicion}.` : 'Condición de ámbito: ninguna.',
+    '',
+    bloqueDocumentos(textos, MAX_CARACTERES_CRIBA),
+  ].join('\n');
+  return { sistema, mensaje };
+}
+
+// --- Análisis (Sonnet) ---
+
+export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoParaLlm[]): { sistema: string; mensaje: string } {
+  const sistema = [
+    'Analizas una convocatoria de subvenciones para una organización sin ánimo de lucro y extraes datos con su cita literal.',
+    '',
+    describirPerfil(perfil),
+    '',
+    'Reglas (obligatorias):',
+    '- Nunca inventes. Cada campo lleva "cita": un fragmento copiado LITERALMENTE de uno de los documentos (sin parafrasear,',
+    '  sin corregir erratas), y "documento": el título exacto del documento donde está. Si no encuentras el dato, valor, cita y documento a null.',
+    '  Un campo sin cita se tratará como desconocido.',
+    '- elegibilidadEsfl: "si" si las entidades sin ánimo de lucro (asociaciones, fundaciones, ONG, tercer sector) pueden ser beneficiarias;',
+    '  "no" si el texto las excluye o limita los beneficiarios a otros tipos. Se decide por el texto de la convocatoria y sus bases,',
+    '  no por categorías de metadatos.',
+    '- importeMaximoProyecto: cuantía máxima por proyecto o beneficiario. importeTotal: crédito o cuantía total de la convocatoria.',
+    '- plazo: el plazo de solicitud tal y como lo dice el texto (literal, sin calcular fechas).',
+    '- cofinanciacion: si exige aportación propia o cofinanciación, y cuánta.',
+    '- requisitos: los requisitos principales para la entidad solicitante (máximo 6), cada uno con su cita.',
+    '- lineas: las líneas de trabajo de la organización con las que encaja, con un motivo breve (y cita si la hay).',
+    '- ideaProyecto: 3–4 líneas con una idea de proyecto concreta que la organización podría presentar. Sin importes que no estén en los textos.',
+    '- Escribe en castellano.',
+  ].join('\n');
+  const mensaje = [cabecera(c), '', bloqueDocumentos(textos, null)].join('\n');
+  return { sistema, mensaje };
+}
