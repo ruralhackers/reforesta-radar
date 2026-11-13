@@ -211,17 +211,20 @@ export interface DocumentoCacheado {
   hash: string | null;
   tipo: string | null;
   error: string | null;
+  /** Fallos pasajeros seguidos (0 tras una descarga buena). */
+  fallos: number;
 }
 
 export function leerDocumento(db: DatabaseSync, url: string): DocumentoCacheado | null {
-  return (db.prepare('SELECT hash, tipo, error FROM documentos WHERE url = ?').get(url) as DocumentoCacheado | undefined) ?? null;
+  return (db.prepare('SELECT hash, tipo, error, fallos FROM documentos WHERE url = ?').get(url) as DocumentoCacheado | undefined) ?? null;
 }
 
 export function guardarDocumento(db: DatabaseSync, url: string, d: DocumentoCacheado, ahora: Date): void {
   db.prepare(`
-    INSERT INTO documentos (url, hash, tipo, error, descargado_en) VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT (url) DO UPDATE SET hash = excluded.hash, tipo = excluded.tipo, error = excluded.error, descargado_en = excluded.descargado_en
-  `).run(url, d.hash, d.tipo, d.error, ahora.toISOString());
+    INSERT INTO documentos (url, hash, tipo, error, fallos, descargado_en) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT (url) DO UPDATE SET hash = excluded.hash, tipo = excluded.tipo, error = excluded.error,
+      fallos = excluded.fallos, descargado_en = excluded.descargado_en
+  `).run(url, d.hash, d.tipo, d.error, d.fallos, ahora.toISOString());
 }
 
 export function leerTexto(db: DatabaseSync, hash: string): { texto: string; paginas: number | null } | null {

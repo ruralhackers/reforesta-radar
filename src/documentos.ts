@@ -15,6 +15,8 @@ const TIMEOUT_MS = 60_000;
 const MAX_BYTES = 25 * 1024 * 1024;
 /** Unos 100k tokens por documento; lo que pase se recorta y se dice en el propio texto. */
 export const MAX_CARACTERES_DOCUMENTO = 400_000;
+/** Fallos pasajeros seguidos (en ejecuciones distintas) tras los que un documento se da por ilegible. */
+export const MAX_FALLOS_PASAJEROS = 3;
 
 /**
  * Fallo al leer un documento. `transitorio` (red, tiempo agotado, 429/5xx): puede salir bien más tarde, así que el
@@ -39,7 +41,7 @@ export interface Lectura {
 }
 
 export async function extraerTextoPdf(bytes: Uint8Array): Promise<{ texto: string; paginas: number }> {
-  const pdf = await getDocumentProxy(bytes);
+  const pdf = await getDocumentProxy(bytes, { verbosity: 0 }); // sin "Warning: TT: …" de pdf.js en stderr
   const { totalPages, text } = await extractText(pdf, { mergePages: true });
   return { texto: text, paginas: totalPages };
 }
@@ -85,10 +87,16 @@ async function textoDeUrl(db: DatabaseSync, f: typeof fetch, url: string, ahora:
     } else {
       throw new ErrorDocumento(`formato no soportado (${tipoContenido || 'desconocido'})`, false);
     }
-    guardarDocumento(db, url, { hash, tipo, error: null }, ahora);
+    guardarDocumento(db, url, { hash, tipo, error: null, fallos: 0 }, ahora);
     return { texto: leerTexto(db, hash)!.texto, descargado: true };
   } catch (e) {
-    guardarDocumento(db, url, { hash: null, tipo: null, error: (e as Error).message }, ahora);
+    const pasajero = e instanceof ErrorDocumento && e.transitorio;
+    const fallos = pasajero ? (cacheado?.fallos ?? 0) + 1 : 0;
+    guardarDocumento(db, url, { hash: null, tipo: null, error: (e as Error).message, fallos }, ahora);
+    // Un servidor que nunca responde (dominio caído) no puede aplazar el análisis para siempre.
+    if (pasajero && fallos >= MAX_FALLOS_PASAJEROS) {
+      throw new ErrorDocumento(`${(e as Error).message} (sin respuesta en ${fallos} intentos)`, false);
+    }
     throw e;
   }
 }

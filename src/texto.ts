@@ -56,7 +56,8 @@ export function citaEnTexto(cita: string, textoNormalizado: string): boolean {
 // --- Cifras: el valor de un campo numérico (importe, porcentaje, plazo, fecha) debe estar en su cita ---
 
 const UNIDADES: Record<string, number> = {
-  un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
+  // "un", "una" y "uno" no cuentan: casi siempre son artículos ("un porcentaje") y harían fallar valores sin cifras.
+  dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
   once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19,
   veinte: 20, veintiun: 21, veintiuno: 21, veintiuna: 21, veintidos: 22, veintitres: 23, veinticuatro: 24,
   veinticinco: 25, veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29, cien: 100, ciento: 100,

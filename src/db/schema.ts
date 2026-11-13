@@ -131,6 +131,11 @@ const MIGRACIONES: string[] = [
     PRIMARY KEY (ejecucion_id, fase)
   );
   `,
+  `
+  -- Fallos pasajeros seguidos al descargar un documento (se pone a 0 al descargarlo bien). Pasado un límite,
+  -- el fallo cuenta como definitivo y el análisis sigue sin ese documento.
+  ALTER TABLE documentos ADD COLUMN fallos INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

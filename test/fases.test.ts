@@ -321,4 +321,21 @@ describe('criba LLM y análisis con citas (LLM falso)', () => {
     assert.match(d.documentosConError[0], /Bases reguladoras.*HTTP 404/);
     assert.match(r.fases.find((f) => f.fase === 'analisis')!.avisos.join('\n'), /Documento ilegible en bdns:923290/);
   });
+  test('un documento que falla en 3 ejecuciones seguidas se da por ilegible y el análisis sigue sin él', async () => {
+    const db = bdSembrada();
+    const reloj = relojFijo(e.ahora);
+    const { llm, llamadas } = llmFalso();
+    const grabado = fetchGrabado();
+    const basesCaidas = ((url: string, init?: RequestInit) =>
+      String(url).includes('BOE-A-2023-17623') ? Promise.reject(new TypeError('fetch failed')) : grabado(url, init)) as typeof fetch;
+    for (let i = 0; i < 2; i++) {
+      await ejecutarRadar({ db, fetch: basesCaidas, reloj, llm }, { diasAtras: e.diasAtras });
+      reloj.adelantar(60 * 60 * 1000);
+    }
+    assert.equal(fase(db, 'bdns:923290', 'analisis'), undefined, 'dos fallos: sigue aplazada');
+    await ejecutarRadar({ db, fetch: basesCaidas, reloj, llm }, { diasAtras: e.diasAtras });
+    const d = fase(db, 'bdns:923290', 'analisis')!.datos as { documentosConError: string[] };
+    assert.match(d.documentosConError[0], /Bases reguladoras.*sin respuesta en 3 intentos/);
+    assert.equal(llamadas.filter((p) => p.tarea === 'analisis').length, 1);
+  });
 });

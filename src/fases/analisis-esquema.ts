@@ -39,23 +39,25 @@ export interface Analisis {
 
 export const CAMPOS_SIMPLES = ['elegibilidadEsfl', 'importeMaximoProyecto', 'importeTotal', 'plazo', 'cofinanciacion'] as const;
 
-const nulable = (s: Record<string, unknown>) => ({ anyOf: [s, { type: 'null' }] });
+// La salida estructurada admite como mucho 16 parámetros con uniones (anyOf / tipos nulables). Por eso el esquema
+// no usa null: "desconocido" es la cadena vacía, y `aplicarCitas` la convierte (str() trata "" como ausente).
+const texto = { type: 'string' };
 
-function esquemaCampo(valor: Record<string, unknown> = { type: 'string' }) {
+function esquemaCampo(valor: Record<string, unknown> = texto) {
   return {
     type: 'object',
-    properties: { valor: nulable(valor), cita: nulable({ type: 'string' }), documento: nulable({ type: 'string' }) },
+    properties: { valor, cita: texto, documento: texto },
     required: ['valor', 'cita', 'documento'],
     additionalProperties: false,
   };
 }
 
-/** JSON Schema de la salida estructurada. Las líneas posibles salen del perfil (nada fijo en el código). */
+/** JSON Schema de la salida estructurada (sin uniones). Las líneas posibles salen del perfil (nada fijo en el código). */
 export function esquemaAnalisis(perfil: Perfil): Record<string, unknown> {
   return {
     type: 'object',
     properties: {
-      elegibilidadEsfl: esquemaCampo({ type: 'string', enum: ['si', 'no'] }),
+      elegibilidadEsfl: esquemaCampo({ type: 'string', enum: ['si', 'no', ''] }),
       importeMaximoProyecto: esquemaCampo(),
       importeTotal: esquemaCampo(),
       plazo: esquemaCampo(),
@@ -67,19 +69,28 @@ export function esquemaAnalisis(perfil: Perfil): Record<string, unknown> {
           type: 'object',
           properties: {
             linea: { type: 'string', enum: perfil.lineas.map((l) => l.nombre) },
-            motivo: { type: 'string' },
-            cita: nulable({ type: 'string' }),
-            documento: nulable({ type: 'string' }),
+            motivo: texto,
+            cita: texto,
+            documento: texto,
           },
           required: ['linea', 'motivo', 'cita', 'documento'],
           additionalProperties: false,
         },
       },
-      ideaProyecto: nulable({ type: 'string' }),
+      ideaProyecto: texto,
     },
     required: ['elegibilidadEsfl', 'importeMaximoProyecto', 'importeTotal', 'plazo', 'cofinanciacion', 'requisitos', 'lineas', 'ideaProyecto'],
     additionalProperties: false,
   };
+}
+
+/** Parámetros con uniones (anyOf/oneOf o `type` con varios tipos) de un JSON Schema: la API admite 16 como mucho. */
+export function contarUniones(esquema: unknown): number {
+  if (Array.isArray(esquema)) return esquema.reduce((t: number, x) => t + contarUniones(x), 0);
+  if (!esquema || typeof esquema !== 'object') return 0;
+  const o = esquema as Record<string, unknown>;
+  const propia = Array.isArray(o.type) || 'anyOf' in o || 'oneOf' in o ? 1 : 0;
+  return propia + Object.values(o).reduce((t: number, v) => t + contarUniones(v), 0);
 }
 
 export interface TextoLeido {

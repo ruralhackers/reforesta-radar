@@ -82,7 +82,8 @@ export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoPar
     '',
     'Reglas (obligatorias):',
     '- Nunca inventes. Cada campo lleva "cita": un fragmento copiado LITERALMENTE de uno de los documentos (sin parafrasear,',
-    '  sin corregir erratas), y "documento": el título exacto del documento donde está. Si no encuentras el dato, valor, cita y documento a null.',
+    '  sin corregir erratas), y "documento": el título exacto del documento donde está. Si no encuentras el dato, valor, cita y documento',
+    '  como cadena vacía "" (eso es "desconocido").',
     '  Un campo sin cita se tratará como desconocido.',
     '- elegibilidadEsfl: "si" si las entidades sin ánimo de lucro (asociaciones, fundaciones, ONG, tercer sector) pueden ser beneficiarias;',
     '  "no" si el texto las excluye o limita los beneficiarios a otros tipos. Se decide por el texto de la convocatoria y sus bases,',
@@ -91,8 +92,9 @@ export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoPar
     '- plazo: el plazo de solicitud tal y como lo dice el texto (literal, sin calcular fechas).',
     '- cofinanciacion: si exige aportación propia o cofinanciación, y cuánta.',
     '- requisitos: los requisitos principales para la entidad solicitante (máximo 6), cada uno con su cita.',
-    '- lineas: las líneas de trabajo de la organización con las que encaja, con un motivo breve (y cita si la hay).',
+    '- lineas: las líneas de trabajo de la organización con las que encaja, con un motivo breve (y cita si la hay; si no, "").',
     '- ideaProyecto: 3–4 líneas con una idea de proyecto concreta que la organización podría presentar. Sin importes que no estén en los textos.',
+    '- En importes, porcentajes y plazos, el valor debe usar las mismas cifras que la cita.',
     '- Escribe en castellano.',
   ].join('\n');
   const mensaje = [cabecera(c), '', bloqueDocumentos(textos, null)].join('\n');
