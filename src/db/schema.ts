@@ -162,6 +162,49 @@ const MIGRACIONES: string[] = [
     calculado_en TEXT NOT NULL
   );
   `,
+  `
+  -- Concesiones de BDNS (ganadores), solo desde 2022. Una fila por concesión (id de BDNS). Las de una convocatoria se
+  -- reemplazan enteras al volver a consultarla; las de Reforesta por NIF solo se añaden o actualizan.
+  CREATE TABLE concesiones (
+    id INTEGER PRIMARY KEY,
+    numero_convocatoria TEXT NOT NULL,
+    nif TEXT,                           -- null = persona anonimizada o sin NIF
+    nombre TEXT NOT NULL,
+    es_persona INTEGER NOT NULL,
+    beneficiario TEXT NOT NULL,         -- tal y como viene de BDNS
+    importe REAL,
+    fecha_concesion TEXT,
+    titulo TEXT NOT NULL,
+    organo_nivel1 TEXT,
+    organo_nivel2 TEXT,
+    organo_nivel3 TEXT,
+    url_bases TEXT,
+    actualizado_en TEXT NOT NULL
+  );
+  CREATE INDEX concesiones_convocatoria ON concesiones (numero_convocatoria);
+  CREATE INDEX concesiones_nif ON concesiones (nif);
+  -- Qué se ha consultado y cuándo (clave "conv:<número>", "nif:<NIF>" o "serie:<clave>"), para no repetir la consulta cada ejecución.
+  CREATE TABLE consultas_concesiones (
+    clave TEXT PRIMARY KEY,
+    consultado_en TEXT NOT NULL,
+    total INTEGER NOT NULL
+  );
+  -- Ediciones de series de convocatorias que se repiten (mismo órgano y título salvo el año).
+  CREATE TABLE ediciones_serie (
+    numero_convocatoria TEXT PRIMARY KEY,
+    serie TEXT NOT NULL,
+    titulo TEXT NOT NULL,
+    anio INTEGER,
+    fecha TEXT
+  );
+  CREATE INDEX ediciones_serie_serie ON ediciones_serie (serie);
+  -- Organizaciones parecidas: origen semilla | calculada | manual (derivada = antiguo). "activa = 0" la desactiva
+  -- (el recálculo no la toca); las manuales nunca se borran ni se sobrescriben.
+  ALTER TABLE organizaciones_parecidas ADD COLUMN activa INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE organizaciones_parecidas ADD COLUMN coincidencias INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE organizaciones_parecidas ADD COLUMN evidencia TEXT NOT NULL DEFAULT '[]';  -- JSON: números de convocatoria ganados junto a Reforesta
+  ALTER TABLE organizaciones_parecidas ADD COLUMN actualizado_en TEXT;
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

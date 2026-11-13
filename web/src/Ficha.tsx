@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { type CampoCitado, type Ficha as TFicha, leerFicha } from './api.ts';
+import { SeccionGanadores } from './Ganadores.tsx';
 import { SeccionPlazo } from './Plazo.tsx';
 import { SeccionPuntuacion } from './Puntuacion.tsx';
 
@@ -92,6 +93,7 @@ export function Ficha({ id }: { id: string }) {
 
           <SeccionPuntuacion puntuacion={ficha.puntuacion} />
           <SeccionPlazo plazo={ficha.plazo} />
+          <SeccionGanadores ganadores={ficha.ganadoresPrevios} />
 
           {!a && <p className="rounded-md bg-white p-4 text-stone-600 shadow-sm">Aún sin analizar.</p>}
           {a && (

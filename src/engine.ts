@@ -8,6 +8,8 @@ import {
 } from './db/repo.ts';
 import { analizarConLlm, FASE_ANALISIS } from './fases/analisis.ts';
 import { cribarConLlm, FASE_CRIBA } from './fases/criba.ts';
+import { CONFIG_GANADORES_POR_DEFECTO, type ConfigGanadores, recogerGanadores, type ResumenGanadores } from './fases/ganadores.ts';
+import { crearProbabilidad } from './ganadores.ts';
 import { calcularPlazos, type ResumenPlazos } from './fases/plazo.ts';
 import { puntuarCandidatas, type ResumenPuntuacion } from './fases/puntuacion.ts';
 import { type ConfigPuntuacion, leerConfigPuntuacion, type ProveedorProbabilidad } from './puntuacion.ts';
@@ -35,8 +37,10 @@ export interface DependenciasMotor {
   festivos?: TablaFestivos;
   /** Pesos y umbrales de la puntuación; por defecto, seed/puntuacion.json (o PUNTUACION_FILE). */
   puntuacion?: ConfigPuntuacion;
-  /** Factor "probabilidad" enchufable (Task 5); por defecto, sin datos. */
+  /** Factor "probabilidad" enchufable; por defecto, el que sale de los ganadores previos y las organizaciones parecidas. */
   probabilidad?: ProveedorProbabilidad;
+  /** Concesiones de BDNS: false = se salta la fase (sin red); objeto = caché y tope de consultas. Por defecto, activa. */
+  ganadores?: boolean | Partial<ConfigGanadores>;
   log?: (mensaje: string) => void;
 }
 
@@ -55,6 +59,8 @@ export interface ResumenEjecucion {
   plazos: ResumenPlazos | null;
   /** Puntuación explicable de las candidatas en juego (se guarda el desglose). */
   puntuacion: ResumenPuntuacion | null;
+  /** Concesiones de BDNS y organizaciones parecidas; null si se saltó la fase. */
+  ganadores: ResumenGanadores | null;
 }
 
 export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtras?: number } = {}): Promise<ResumenEjecucion> {
@@ -69,17 +75,24 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
   let fases: RegistroFase[] = [];
   let plazos: ResumenPlazos | null = null;
   let puntuacion: ResumenPuntuacion | null = null;
+  let ganadores: ResumenGanadores | null = null;
   let errorGeneral: string | null = null;
 
   try {
     for (const fuente of deps.fuentes ?? FUENTES) {
       resumen.push(await recorrerFuente(deps, ejecucionId, fuente, perfil, opciones.diasAtras ?? 7));
     }
+    if (deps.ganadores !== false && (deps.fuentes ?? FUENTES).some((f) => f.nombre === 'bdns')) {
+      const cfgG = { ...CONFIG_GANADORES_POR_DEFECTO, ...(typeof deps.ganadores === 'object' ? deps.ganadores : config.ganadores) };
+      ganadores = await recogerGanadores({ db, fetch: deps.fetch, reloj }, perfil, cfgG);
+      log(`ganadores: ${ganadores.consultas} consultas a BDNS (${ganadores.desdeCache} en caché, ${ganadores.omitidasPorTope} sin hacer por el tope), ${ganadores.concesiones} concesiones, ${ganadores.parecidas} organizaciones parecidas, ${ganadores.errores.length} errores`);
+      for (const e of ganadores.errores) log(`  ! ${e}`);
+    }
     fases = await fasesLlm(deps, ejecucionId, perfil, inicio);
     plazos = calcularPlazos(db, reloj, perfil, deps.festivos ?? leerFestivos(config.rutaFestivos), deps.fuentes);
     log(`plazos: ${plazos.total} candidatas, ${plazos.literales} literales, ${plazos.calculadas} calculadas, ${plazos.desconocidas} desconocidas, ${plazos.errores.length} errores`);
     for (const e of plazos.errores) log(`  ! ${e}`);
-    puntuacion = puntuarCandidatas(db, reloj, perfil, deps.puntuacion ?? leerConfigPuntuacion(config.rutaPuntuacion), deps.probabilidad);
+    puntuacion = puntuarCandidatas(db, reloj, perfil, deps.puntuacion ?? leerConfigPuntuacion(config.rutaPuntuacion), deps.probabilidad ?? crearProbabilidad(db));
     log(`puntuación: ${puntuacion.total} candidatas, ${puntuacion.sinAnalizar} sin analizar, ${puntuacion.excluidas} excluidas, ${puntuacion.errores.length} errores`);
     for (const e of puntuacion.errores) log(`  ! ${e}`);
   } catch (e) {
@@ -87,7 +100,7 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
     errorGeneral = (e as Error).message;
     throw e;
   } finally {
-    const conErrores = errorGeneral !== null || resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0;
+    const conErrores = errorGeneral !== null || resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0;
     try {
       terminarEjecucion(db, ejecucionId, reloj.now(), conErrores, errorGeneral);
     } catch (e) {
@@ -96,8 +109,8 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
     }
   }
 
-  const conErrores = resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0;
-  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion };
+  const conErrores = resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0;
+  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores };
 }
 
 /**

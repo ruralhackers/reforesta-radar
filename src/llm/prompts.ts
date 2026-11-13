@@ -74,7 +74,11 @@ export function promptCriba(perfil: Perfil, c: Convocatoria, condicion: string |
 
 // --- Análisis (Sonnet) ---
 
-export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoParaLlm[]): { sistema: string; mensaje: string } {
+/**
+ * `ganadores`: ganadores de ediciones anteriores (BDNS) como contexto para la idea de proyecto; null = sin ese contexto
+ * y el prompt queda exactamente como antes (así no se invalida la caché de lo ya analizado).
+ */
+export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoParaLlm[], ganadores: string | null = null): { sistema: string; mensaje: string } {
   const sistema = [
     'Analizas una convocatoria de subvenciones para una organización sin ánimo de lucro y extraes datos con su cita literal.',
     '',
@@ -94,9 +98,11 @@ export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoPar
     '- requisitos: los requisitos principales para la entidad solicitante (máximo 6), cada uno con su cita.',
     '- lineas: las líneas de trabajo de la organización con las que encaja, con un motivo breve (y cita si la hay; si no, "").',
     '- ideaProyecto: 3–4 líneas con una idea de proyecto concreta que la organización podría presentar. Sin importes que no estén en los textos.',
+    ...(ganadores ? ['  Si se te dan ganadores de ediciones anteriores, úsalos solo como contexto (qué tipo de entidades suelen ganarla); no son parte de los documentos: no los cites ni copies sus importes.'] : []),
     '- En importes, porcentajes y plazos, el valor debe usar las mismas cifras que la cita.',
     '- Escribe en castellano.',
   ].join('\n');
-  const mensaje = [cabecera(c), '', bloqueDocumentos(textos, null)].join('\n');
+  const contexto = ganadores ? ['', 'Contexto (BDNS; no forma parte de los documentos y no es citable). Ganadores de ediciones anteriores:', ganadores] : [];
+  const mensaje = [cabecera(c), ...contexto, '', bloqueDocumentos(textos, null)].join('\n');
   return { sistema, mensaje };
 }

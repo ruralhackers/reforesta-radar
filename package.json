@@ -15,7 +15,8 @@
     "build": "vite build --config web/vite.config.ts",
     "test": "node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json",
-    "record:bdns": "node scripts/record-bdns-fixtures.ts"
+    "record:bdns": "node scripts/record-bdns-fixtures.ts",
+    "record:concesiones": "node scripts/record-bdns-concesiones.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

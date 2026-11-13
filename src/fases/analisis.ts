@@ -4,6 +4,7 @@
 // `diasPendientes`) y se registra.
 import { guardarFase, pendientesDeFase, type RegistroFase, registroFaseVacio } from '../db/repo.ts';
 import { leerDocumentos } from '../documentos.ts';
+import { textoGanadoresParaPrompt } from '../ganadores.ts';
 import { promptAnalisis } from '../llm/prompts.ts';
 import { fuentePorNombre } from '../sources/index.ts';
 import type { Fuente } from '../sources/source.ts';
@@ -33,7 +34,7 @@ export async function analizarConLlm(
         registro.errores.push(`Análisis ${c.id} aplazado, documentos no disponibles ahora: ${lectura.erroresTransitorios.join(' · ')}`);
         return;
       }
-      const { sistema, mensaje } = promptAnalisis(perfil, c, lectura.textos);
+      const { sistema, mensaje } = promptAnalisis(perfil, c, lectura.textos, textoGanadoresParaPrompt(ctx.db, c, perfil));
       const peticion = { tarea: 'analisis' as const, modelo, sistema, mensaje, esquema, maxTokens: 16000 };
       const clave = claveCache(peticion);
       let r = desdeCache(ctx.db, clave);

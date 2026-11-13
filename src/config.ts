@@ -15,6 +15,11 @@ export const config = {
   dirWeb: process.env.WEB_DIR ?? 'dist/web',
   /** Sin clave, la criba y el análisis se saltan (con aviso en el registro de la ejecución). */
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || null,
+  /** Concesiones de BDNS (ganadores previos y organizaciones parecidas): días de caché de cada consulta y tope por ejecución. */
+  ganadores: {
+    diasCache: Number(process.env.RADAR_DIAS_CACHE_GANADORES ?? 7),
+    maxConsultas: Number(process.env.RADAR_MAX_CONSULTAS_GANADORES ?? 200),
+  },
   llm: {
     modeloCriba: process.env.RADAR_MODELO_CRIBA || CONFIG_LLM_POR_DEFECTO.modeloCriba,
     modeloAnalisis: process.env.RADAR_MODELO_ANALISIS || CONFIG_LLM_POR_DEFECTO.modeloAnalisis,

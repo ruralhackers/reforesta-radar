@@ -3,6 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { Hono } from 'hono';
 import { diaLocal, sumarDias } from '../dates.ts';
 import { descartesEntre, filasRanking, leerConvocatoria, leerPerfil, leerPlazo, ultimasEjecuciones, type VeredictoFase } from '../db/repo.ts';
+import { crearProbabilidad, ganadoresPrevios, resumirHistorial } from '../ganadores.ts';
 import { FASE_ANALISIS } from '../fases/analisis.ts';
 import type { Analisis } from '../fases/analisis-esquema.ts';
 import { FASE_CRIBA } from '../fases/criba.ts';
@@ -16,9 +17,11 @@ import type { Reloj } from '../types.ts';
 
 const DIA = /^\d{4}-\d{2}-\d{2}$/;
 
-export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad }: { db: DatabaseSync; reloj: Reloj; fuentes?: Fuente[]; puntuacion?: ConfigPuntuacion; probabilidad?: ProveedorProbabilidad }): Hono {
+export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabilidadInyectada }: { db: DatabaseSync; reloj: Reloj; fuentes?: Fuente[]; puntuacion?: ConfigPuntuacion; probabilidad?: ProveedorProbabilidad }): Hono {
   const api = new Hono();
   const cfg = puntuacion ?? leerConfigPuntuacion(config.rutaPuntuacion);
+  // Por defecto, la probabilidad sale de los ganadores previos y las organizaciones parecidas guardadas.
+  const probabilidad = probabilidadInyectada ?? crearProbabilidad(db);
 
   api.get('/salud', (c) => c.json({ ok: true }));
 
@@ -72,6 +75,9 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad }: { db:
     const analisis = fase(FASE_ANALISIS);
     const datosAnalisis = analisis?.datos as { analisis: Analisis; modelo: string; documentos: unknown; documentosConError: string[] } | undefined;
     const enJuego = !g.descarte && !g.fases.some((f) => f.descarta) && (!g.condicion || (criba !== null && !criba.descarta));
+    const perfil = leerPerfil(db);
+    const previos = perfil ? ganadoresPrevios(db, conv, perfil) : { esSerie: false, ediciones: [] };
+    const historial = resumirHistorial(db, previos);
     return c.json({
       id: conv.id,
       fuente: conv.fuente,
@@ -100,6 +106,15 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad }: { db:
       // Calculada ahora con el reloj de la petición; null si la convocatoria ya no está en juego (descartada).
       // `excluida` = motivo por el que no entra en el ranking (cerrada).
       puntuacion: enJuego ? { ...puntuarConvocatoria(db, conv, leerPlazo(db, conv.id, diaLocal(reloj.now())), leerPerfil(db)?.importeMinimo ?? null, cfg, probabilidad), calculadoEn: reloj.now().toISOString() } : null,
+      // Quién la ganó antes: su propia resolución (si ya la hay) y las ediciones anteriores de su serie (mismo órgano y título salvo el año).
+      // Cada edición: { numeroConvocatoria, anio, titulo, url, propia, ganadores: [{ nombre, nif, importe, fechaConcesion, esReforesta, esParecida }], importeTotal,
+      // reforesta: 'gano' | 'no_figura' | 'sin_datos', importeReforesta }. BDNS solo publica ganadores: 'no_figura' no significa que la perdiera.
+      ganadoresPrevios: {
+        esSerie: previos.esSerie,
+        ediciones: previos.ediciones,
+        reforestaGano: historial.ganadasPorReforesta.map((e) => ({ numeroConvocatoria: e.numeroConvocatoria, anio: e.anio, importe: e.importeReforesta })),
+        parecidas: historial.parecidas,
+      },
       enlaces: fuentePorNombre(conv.fuente, fuentes)?.enlaces?.(conv) ?? [{ tipo: 'ficha', titulo: 'Ficha en la fuente', url: conv.url }],
     });
   });

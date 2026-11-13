@@ -92,6 +92,36 @@ export interface CamposAnalisis {
   correcciones: string[];
 }
 
+export interface GanadorPrevio {
+  nombre: string;
+  nif: string | null;
+  importe: number | null;
+  fechaConcesion: string | null;
+  esReforesta: boolean;
+  esParecida: boolean;
+}
+
+export interface EdicionPrevia {
+  numeroConvocatoria: string;
+  anio: number | null;
+  titulo: string;
+  url: string;
+  /** Es esta misma convocatoria, ya resuelta. */
+  propia: boolean;
+  ganadores: GanadorPrevio[];
+  importeTotal: number;
+  /** BDNS solo publica ganadores: no_figura no significa que la perdiera. */
+  reforesta: 'gano' | 'no_figura' | 'sin_datos';
+  importeReforesta: number | null;
+}
+
+export interface GanadoresPrevios {
+  esSerie: boolean;
+  ediciones: EdicionPrevia[];
+  reforestaGano: { numeroConvocatoria: string; anio: number | null; importe: number | null }[];
+  parecidas: { nif: string; nombre: string; anios: number[] }[];
+}
+
 export interface Ficha {
   id: string;
   fuente: string;
@@ -117,6 +147,7 @@ export interface Ficha {
     documentos: { titulo: string; caracteres: number }[];
     documentosConError: string[];
   } | null;
+  ganadoresPrevios: GanadoresPrevios;
   enlaces: { tipo: 'ficha' | 'bases' | 'extracto' | 'sede' | 'documento'; titulo: string; url: string }[];
 }
 

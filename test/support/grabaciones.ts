@@ -4,6 +4,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const DIR_GRABACIONES = join(import.meta.dirname, '..', 'fixtures', 'bdns');
+/** Concesiones (ganadores) y búsquedas de ediciones grabadas: solo las sirve `fetchGrabado({ concesiones: true })`. */
+export const DIR_CONCESIONES = join(import.meta.dirname, '..', 'fixtures', 'bdns-concesiones');
 /** Documentos descargados (PDF de BDNS, bases en BOE…), tal cual llegan. */
 export const DIR_DOCUMENTOS = join(import.meta.dirname, '..', 'fixtures', 'documentos');
 
@@ -32,9 +34,28 @@ export function claveGrabacion(url: string): string {
   return `${ruta}${params ? `__${params}` : ''}`.replace(/[^\w=.-]+/g, '_') + '.json';
 }
 
-export function fetchGrabado(): typeof fetch {
+const paginaVacia = () => new Response(JSON.stringify({ content: [], last: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+/** ¿Es una consulta de la fase de ganadores (concesiones o búsqueda de ediciones por título)? */
+export function esConsultaDeGanadores(url: string): boolean {
+  const u = new URL(url);
+  return u.pathname.endsWith('/concesiones/busqueda') || (u.pathname.endsWith('/convocatorias/busqueda') && u.searchParams.has('descripcion'));
+}
+
+/**
+ * Fetch falso con las grabaciones. Las consultas de ganadores (concesiones, búsqueda de ediciones) devuelven una página vacía,
+ * para que los tests que no tratan de ellas no dependan de las grabaciones de concesiones; con `concesiones: true` se sirven
+ * las grabadas en DIR_CONCESIONES (y una sin grabar falla).
+ */
+export function fetchGrabado({ concesiones = false }: { concesiones?: boolean } = {}): typeof fetch {
   return (async (entrada: string | URL | Request) => {
     const url = entrada instanceof Request ? entrada.url : String(entrada);
+    if (esConsultaDeGanadores(url)) {
+      if (!concesiones) return paginaVacia();
+      const f = join(DIR_CONCESIONES, claveGrabacion(url));
+      if (!existsSync(f)) throw new Error(`Sin grabación de concesiones para ${url} (${f})`);
+      return new Response(readFileSync(f), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
     const documento = join(DIR_DOCUMENTOS, claveDocumento(url));
     if (existsSync(documento)) return new Response(readFileSync(documento), { status: 200, headers: { 'Content-Type': 'application/octet-stream' } });
     const fichero = join(DIR_GRABACIONES, claveGrabacion(url));

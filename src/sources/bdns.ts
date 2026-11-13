@@ -11,7 +11,7 @@ import type { ContextoFuente, DocumentoFuente, Enlace, Fuente, ResultadoFuente }
 
 export const BDNS_API = 'https://www.infosubvenciones.es/bdnstrans/api';
 const FICHA = 'https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/';
-const USER_AGENT = 'Mozilla/5.0 (compatible; radar-convocatorias/0.1)';
+export const USER_AGENT = 'Mozilla/5.0 (compatible; radar-convocatorias/0.1)';
 const TAM_PAGINA = 1000;
 const DETALLES_EN_PARALELO = 2;
 const REINTENTOS = 4; // BDNS responde 429 si se le pide deprisa
@@ -60,7 +60,7 @@ interface Detalle {
   anuncios?: { titulo: string | null; texto: string | null; url: string | null; cve: string | null; desDiarioOficial: string | null; datPublicacion: string | null }[] | null;
 }
 
-async function getJson<T>(f: typeof fetch, ruta: string, params: Record<string, string | number> = {}): Promise<T> {
+export async function getJson<T>(f: typeof fetch, ruta: string, params: Record<string, string | number> = {}): Promise<T> {
   const qs = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]));
   const url = `${BDNS_API}${ruta}${qs.size ? `?${qs}` : ''}`;
   for (let intento = 0; ; intento++) {
