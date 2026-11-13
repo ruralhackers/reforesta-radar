@@ -31,10 +31,12 @@ test('GET /semana lista las vistas por primera vez en los últimos 7 días (sin 
   const api = crearApi({ db, reloj: { now: () => ahora } });
   const res = await api.request('/semana');
   assert.equal(res.status, 200);
-  const cuerpo = await res.json() as { desde: string; hasta: string; convocatorias: { id: string; organo: string; url: string }[] };
+  const cuerpo = await res.json() as { desde: string; hasta: string; convocatorias: { id: string; organo: string; url: string; seccion: string }[] };
   assert.equal(cuerpo.desde, '2026-11-07');
   assert.equal(cuerpo.hasta, '2026-11-13');
-  assert.deepEqual(cuerpo.convocatorias.map((c) => c.id), ['bdns:1', 'bdns:2']);
+  // La 3 (vista hace 10 días, sin cierre conocido) ya no es nueva pero sigue abierta: sale al final, en "abiertas".
+  assert.deepEqual(cuerpo.convocatorias.map((c) => c.id), ['bdns:1', 'bdns:2', 'bdns:3']);
+  assert.deepEqual(cuerpo.convocatorias.map((c: { seccion?: string }) => c.seccion), ['nuevas', 'nuevas', 'abiertas']);
   assert.equal(cuerpo.convocatorias[0].organo, 'MINISTERIO X · DG Y');
   assert.equal(cuerpo.convocatorias[0].url, 'https://example.org/1');
   db.close();
@@ -58,6 +60,8 @@ test('GET /convocatorias/:id da la ficha con campos citados, desconocidos y enla
   const campos = {
     elegibilidadEsfl: { valor: 'si', cita: 'entidades sin ánimo de lucro', documento: 'Bases reguladoras' },
     importeMaximoProyecto: { valor: null, cita: null, documento: null, motivo: 'sin cita literal' },
+    importeTotal: { valor: null, cita: null, documento: null }, plazo: { valor: null, cita: null, documento: null },
+    cofinanciacion: { valor: null, cita: null, documento: null }, requisitos: [], lineas: [], ideaProyecto: null, correcciones: [],
   };
   guardarFase(db, { convocatoriaId: 'bdns:9', fase: 'analisis', descarta: false, motivo: null, datos: { modelo: 'm', analisis: campos, documentos: [], documentosConError: [] } }, ahora);
 

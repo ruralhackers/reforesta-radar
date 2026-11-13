@@ -9,9 +9,10 @@ const fecha = (dia: string) =>
 const instante = (iso: string) =>
   new Date(iso).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Madrid' });
 
-const SECCIONES: { id: 'cierran_pronto' | 'nuevas'; titulo: string; ayuda: (s: Semana) => string }[] = [
+const SECCIONES: { id: 'cierran_pronto' | 'nuevas' | 'abiertas'; titulo: string; ayuda: (s: Semana) => string }[] = [
   { id: 'cierran_pronto', titulo: 'Cierran pronto', ayuda: (s) => `Cierre en ${s.cierranProntoDias} días o menos, por puntuación.` },
   { id: 'nuevas', titulo: 'Nuevas', ayuda: (s) => `Vistas por primera vez en los últimos ${s.nuevasDias} días y que no cierran pronto, por puntuación.` },
+  { id: 'abiertas', titulo: 'Abiertas', ayuda: () => 'El resto de convocatorias abiertas que encajan, con cierre lejano o desconocido, por puntuación.' },
 ];
 
 export function EstaSemana() {
@@ -29,7 +30,7 @@ export function EstaSemana() {
         <h1 className="text-2xl font-bold sm:text-3xl">Esta semana</h1>
         {semana && (
           <p className="mt-1 text-sm text-stone-600">
-            Del {fecha(semana.desde)} al {fecha(semana.hasta)} · {semana.convocatorias.length} candidatas, ordenadas por puntuación
+            Del {fecha(semana.desde)} al {fecha(semana.hasta)} · {semana.convocatorias.length} candidatas, abiertas, ordenadas por puntuación
           </p>
         )}
       </header>

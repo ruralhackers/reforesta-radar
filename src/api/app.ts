@@ -2,11 +2,12 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { Hono } from 'hono';
 import { diaLocal, sumarDias } from '../dates.ts';
-import { descartesEntre, filasRanking, leerConvocatoria, leerPlazo, leerPuntuacion, ultimasEjecuciones, type VeredictoFase } from '../db/repo.ts';
+import { descartesEntre, filasRanking, leerConvocatoria, leerPerfil, leerPlazo, ultimasEjecuciones, type VeredictoFase } from '../db/repo.ts';
 import { FASE_ANALISIS } from '../fases/analisis.ts';
 import type { Analisis } from '../fases/analisis-esquema.ts';
 import { FASE_CRIBA } from '../fases/criba.ts';
-import { type ConfigPuntuacion, leerConfigPuntuacion } from '../puntuacion.ts';
+import { puntuarConvocatoria } from '../fases/puntuacion.ts';
+import { type ConfigPuntuacion, leerConfigPuntuacion, type ProveedorProbabilidad } from '../puntuacion.ts';
 import { construirRanking } from '../ranking.ts';
 import { config } from '../config.ts';
 import { fuentePorNombre } from '../sources/index.ts';
@@ -15,7 +16,7 @@ import type { Reloj } from '../types.ts';
 
 const DIA = /^\d{4}-\d{2}-\d{2}$/;
 
-export function crearApi({ db, reloj, fuentes, puntuacion }: { db: DatabaseSync; reloj: Reloj; fuentes?: Fuente[]; puntuacion?: ConfigPuntuacion }): Hono {
+export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad }: { db: DatabaseSync; reloj: Reloj; fuentes?: Fuente[]; puntuacion?: ConfigPuntuacion; probabilidad?: ProveedorProbabilidad }): Hono {
   const api = new Hono();
   const cfg = puntuacion ?? leerConfigPuntuacion(config.rutaPuntuacion);
 
@@ -25,13 +26,14 @@ export function crearApi({ db, reloj, fuentes, puntuacion }: { db: DatabaseSync;
    * "Esta semana": ranking por puntuación dividido en "cierran pronto" (cierre en `cierranProntoDias` días o menos) y
    * "nuevas" (vistas por primera vez en los últimos `nuevasDias` días); cada convocatoria sale en una sola sección
    * (cierran pronto manda). Las cerradas y las excluidas no salen. Ver src/ranking.ts.
-   * `convocatorias` ya viene en orden: primero las de "cierran_pronto", luego las "nuevas", cada una por puntuación.
-   * `puntuacion` es null si aún no hubo ninguna pasada tras guardarla.
+   * `convocatorias` ya viene en orden: "cierran_pronto", "nuevas" y "abiertas" (el resto de abiertas, con cierre lejano o desconocido), cada una por puntuación.
    */
   api.get('/semana', (c) => {
     const hasta = diaLocal(reloj.now());
     const { nuevasDias, cierranProntoDias } = cfg;
-    const filas = construirRanking(filasRanking(db, hasta), hasta, { nuevasDias, cierranProntoDias });
+    const importeMinimo = leerPerfil(db)?.importeMinimo ?? null;
+    // La puntuación se calcula aquí, con el reloj de la petición (función pura y barata): total, explicación de cierre y secciones coherentes.
+    const filas = construirRanking(filasRanking(db, hasta, (conv, plazo) => puntuarConvocatoria(db, conv, plazo, importeMinimo, cfg, probabilidad), reloj.now()), hasta, { nuevasDias, cierranProntoDias });
     return c.json({
       desde: sumarDias(hasta, -(nuevasDias - 1)),
       hasta,
@@ -95,8 +97,9 @@ export function crearApi({ db, reloj, fuentes, puntuacion }: { db: DatabaseSync;
         }
         : null,
       plazo: leerPlazo(db, conv.id, diaLocal(reloj.now())),
-      // null si aún no hubo pasada; `excluida` = motivo por el que no entra en el ranking (el desglose se muestra igual).
-      puntuacion: leerPuntuacion(db, conv.id),
+      // Calculada ahora con el reloj de la petición; null si la convocatoria ya no está en juego (descartada).
+      // `excluida` = motivo por el que no entra en el ranking (cerrada).
+      puntuacion: enJuego ? { ...puntuarConvocatoria(db, conv, leerPlazo(db, conv.id, diaLocal(reloj.now())), leerPerfil(db)?.importeMinimo ?? null, cfg, probabilidad), calculadoEn: reloj.now().toISOString() } : null,
       enlaces: fuentePorNombre(conv.fuente, fuentes)?.enlaces?.(conv) ?? [{ tipo: 'ficha', titulo: 'Ficha en la fuente', url: conv.url }],
     });
   });

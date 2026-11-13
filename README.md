@@ -65,7 +65,9 @@ Quedan fuera del ranking (con el motivo guardado) las que no admiten entidades s
 **Pesos y umbrales: `seed/puntuacion.json`** (`PUNTUACION_FILE` cambia la ruta; documentado dentro, campo `_`). Los pesos son relativos
 (no tienen que sumar 100). Al cambiarlos, la siguiente pasada del radar recalcula todo.
 
-"Esta semana" (`GET /api/semana`) se ordena por puntuación y se divide en **cierran pronto** (cierre en `cierranProntoDias`, 21 por
-defecto) y **nuevas** (vistas por primera vez en los últimos `nuevasDias`, 7). Una convocatoria sale en **una sola** sección:
-"cierran pronto" tiene preferencia (lo urgente manda; sin duplicados). Las cerradas y las excluidas no salen. Los días hasta el cierre
-y las secciones se calculan al pedir la lista con el reloj de ese momento; la puntuación guardada es la de la última pasada.
+"Esta semana" (`GET /api/semana`) lista **todas las abiertas en juego**, ordenadas por puntuación y divididas en tres secciones:
+**cierran pronto** (cierre en `cierranProntoDias`, 21 por defecto), **nuevas** (vistas por primera vez en los últimos `nuevasDias`, 7) y
+**abiertas** (el resto: cierre lejano o desconocido). Una convocatoria sale en **una sola** (cierran pronto > nuevas > abiertas), así que
+nunca se pierde una que encaja. Las cerradas y las excluidas no salen. La API calcula la puntuación en el momento de la petición con el
+reloj de ese momento (función pura y barata): total, explicación del cierre y secciones son siempre coherentes; lo guardado en
+`puntuaciones` por cada pasada es solo registro (y se borra para las que dejan de estar en juego).

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import type { DatabaseSync } from 'node:sqlite';
 import { crearApi } from '../src/api/app.ts';
-import { leerPuntuacion } from '../src/db/repo.ts';
+import { guardarFase, leerPuntuacion } from '../src/db/repo.ts';
 import { ejecutarRadar } from '../src/engine.ts';
 import type { Llm, PeticionLlm } from '../src/llm/llm.ts';
 import { leerConfigPuntuacion } from '../src/puntuacion.ts';
@@ -99,7 +99,7 @@ async function pasada(): Promise<{ db: DatabaseSync; reloj: ReturnType<typeof re
 
 interface Item {
   id: string;
-  seccion: 'cierran_pronto' | 'nuevas';
+  seccion: 'cierran_pronto' | 'nuevas' | 'abiertas';
   puntuacion: { total: number; analizada: boolean; factores: { id: string; subpuntuacion: number; conocido: boolean; explicacion: string; peso: number; nombre: string }[] } | null;
   plazo: { diasHastaCierre: number | null } | null;
 }
@@ -176,8 +176,55 @@ describe('ranking de "Esta semana" con el motor (LLM falso, reloj fijo)', () => 
     const s = await semana(db, new Date(reloj.now().getTime() + 8 * 86_400_000));
     const secciones = Object.fromEntries(s.convocatorias.map((c) => [c.id, c.seccion]));
     // 434 y 889 cierran el 23 y el 21 (ya en cierran pronto); la 309 y la 256 (05/05) ahora a 19 días: cierran pronto;
-    // la 251 (15/09, 152 días) ya no es nueva ni cierra pronto: sale de "Esta semana".
-    assert.deepEqual(secciones, { 'bdns:825434': 'cierran_pronto', 'bdns:825889': 'cierran_pronto', 'bdns:825309': 'cierran_pronto', 'bdns:825256': 'cierran_pronto' });
+    // la 251 (15/09, 152 días) ya no es nueva ni cierra pronto, pero sigue abierta y encaja: sale en "abiertas" (nunca se pierde).
+    assert.deepEqual(secciones, {
+      'bdns:825434': 'cierran_pronto', 'bdns:825889': 'cierran_pronto', 'bdns:825309': 'cierran_pronto', 'bdns:825256': 'cierran_pronto',
+      'bdns:825251': 'abiertas',
+    });
+    assert.equal(s.convocatorias.at(-1)!.id, 'bdns:825251', '"abiertas" va después de las otras secciones');
+    assert.ok(!s.convocatorias.some((c) => c.id === 'bdns:825395' || c.id === 'bdns:825807'), 'cerrada y no elegible siguen fuera');
+  });
+
+  test('una abierta con cierre desconocido nunca desaparece: pasa a "abiertas" tras la primera semana', async () => {
+    const { db, reloj } = await pasada();
+    db.prepare("UPDATE plazos SET fecha_cierre = NULL, tipo = 'desconocida' WHERE convocatoria_id = 'bdns:825256'").run();
+    const s = await semana(db, new Date(reloj.now().getTime() + 30 * 86_400_000));
+    const c = s.convocatorias.find((x) => x.id === 'bdns:825256')!;
+    assert.equal(c.seccion, 'abiertas');
+    assert.equal(c.plazo?.diasHastaCierre, null);
+    assert.match(c.puntuacion!.factores.find((f) => f.id === 'cierre')!.explicacion, /^desconocido/);
+  });
+
+  test('la puntuación se calcula con el reloj de la petición: con dos relojes cambian la explicación de cierre y el total, sin nueva pasada', async () => {
+    const { db, reloj } = await pasada();
+    const ver = async (dias: number) => {
+      const s = await semana(db, new Date(reloj.now().getTime() + dias * 86_400_000));
+      const c = s.convocatorias.find((x) => x.id === 'bdns:825434')!; // cierre 23/04
+      return { total: c.puntuacion!.total, cierre: c.puntuacion!.factores.find((f) => f.id === 'cierre')!, dias: c.plazo!.diasHastaCierre };
+    };
+    const a = await ver(0); // 08/04: 15 días
+    const c = await ver(13); // 21/04: faltan 2 días
+    assert.deepEqual([a.dias, a.cierre.subpuntuacion], [15, 1]);
+    assert.match(a.cierre.explicacion, /faltan 15 días/);
+    assert.deepEqual([c.dias, c.cierre.subpuntuacion], [2, 0.15]);
+    assert.match(c.cierre.explicacion, /faltan 2 días/);
+    assert.ok(c.total < a.total, `${c.total} < ${a.total}`);
+    const s26 = await semana(db, new Date(reloj.now().getTime() + 18 * 86_400_000));
+    assert.ok(!s26.convocatorias.some((x) => x.id === 'bdns:825434'), 'cerrada con el reloj de la petición');
+  });
+
+  test('una convocatoria descartada después de puntuarse no conserva ni muestra su puntuación', async () => {
+    const { db, reloj } = await pasada();
+    assert.ok(leerPuntuacion(db, 'bdns:825309'));
+    guardarFase(db, { convocatoriaId: 'bdns:825309', fase: 'analisis', descarta: true, motivo: 'No admite ESFL', datos: {} }, reloj.now());
+    const api = crearApi({ db, reloj: { now: () => reloj.now() }, fuentes: [fuente], puntuacion: config });
+    const ficha = await (await api.request('/convocatorias/bdns:825309')).json() as { enJuego: boolean; puntuacion: unknown };
+    assert.equal(ficha.enJuego, false);
+    assert.equal(ficha.puntuacion, null);
+    // Y la siguiente pasada borra la fila guardada.
+    await ejecutarRadar({ db, fetch: (() => Promise.reject(new Error('sin red'))) as typeof fetch, reloj, llm, fuentes: [fuente], puntuacion: config }, { diasAtras: 1 });
+    assert.equal(leerPuntuacion(db, 'bdns:825309'), null);
+    assert.ok(leerPuntuacion(db, 'bdns:825434'), 'las demás siguen');
   });
 
   test('sin LLM ni análisis, las candidatas puntúan con el encaje desconocido (no desaparecen)', async () => {

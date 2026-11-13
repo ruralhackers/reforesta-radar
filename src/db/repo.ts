@@ -460,10 +460,25 @@ export interface FilaRanking extends FilaConvocatoria {
   puntuacion: PuntuacionGuardada | null;
 }
 
-export function filasRanking(db: DatabaseSync, hoy: string): FilaRanking[] {
+/**
+ * `puntuador` calcula la puntuación en el momento de la petición (con el reloj de ahora): así el factor de cierre, el total
+ * y las secciones son coherentes. Lo guardado por la última pasada (`puntuaciones`) es solo registro.
+ */
+export function filasRanking(
+  db: DatabaseSync, hoy: string, puntuador: (c: Convocatoria, plazo: PlazoGuardado | null) => Puntuacion, ahora: Date,
+): FilaRanking[] {
   const filas = db.prepare(`SELECT * FROM convocatorias c WHERE ${EN_JUEGO} ORDER BY c.fecha_publicacion DESC, c.id DESC`).all() as Record<string, string | null>[];
-  return filas.map((f) => ({
-    id: f.id!, fuente: f.fuente!, titulo: f.titulo!, organo: organoLegible(f), fechaPublicacion: f.fecha_publicacion!, url: f.url!,
-    primeraVez: f.primera_vez!, plazo: leerPlazo(db, f.id!, hoy), puntuacion: leerPuntuacion(db, f.id!),
-  }));
+  return filas.map((f) => {
+    const plazo = leerPlazo(db, f.id!, hoy);
+    const p = puntuador(filaAConvocatoria(f), plazo);
+    return {
+      id: f.id!, fuente: f.fuente!, titulo: f.titulo!, organo: organoLegible(f), fechaPublicacion: f.fecha_publicacion!, url: f.url!,
+      primeraVez: f.primera_vez!, plazo, puntuacion: { ...p, calculadoEn: ahora.toISOString() },
+    };
+  });
+}
+
+/** Borra las puntuaciones guardadas de convocatorias que ya no están en juego (descartadas después de puntuarse). */
+export function borrarPuntuacionesFueraDeJuego(db: DatabaseSync): number {
+  return Number(db.prepare(`DELETE FROM puntuaciones WHERE convocatoria_id NOT IN (SELECT c.id FROM convocatorias c WHERE ${EN_JUEGO})`).run().changes);
 }

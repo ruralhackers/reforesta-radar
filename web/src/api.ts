@@ -40,8 +40,8 @@ export interface ConvocatoriaSemana {
   fechaPublicacion: string;
   url: string;
   plazo: Plazo | null;
-  /** "cierran_pronto" tiene preferencia sobre "nuevas": sale en una sola. */
-  seccion: 'cierran_pronto' | 'nuevas';
+  /** Sale en una sola: cierran_pronto > nuevas > abiertas. */
+  seccion: 'cierran_pronto' | 'nuevas' | 'abiertas';
   /** null = todavía no hubo ninguna pasada tras guardarla. */
   puntuacion: Puntuacion | null;
 }
@@ -59,7 +59,7 @@ export interface Semana {
   hasta: string;
   nuevasDias: number;
   cierranProntoDias: number;
-  /** Ya en orden: primero las que cierran pronto, luego las nuevas; cada sección por puntuación. */
+  /** Ya en orden: cierran pronto, nuevas y abiertas; cada sección por puntuación. */
   convocatorias: ConvocatoriaSemana[];
   ultimaEjecucion: Ejecucion | null;
 }
