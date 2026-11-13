@@ -16,6 +16,8 @@ export interface ContextoFuente {
   db?: DatabaseSync;
   llm?: Llm | null;
   modeloLlm?: string;
+  /** DNS para la descarga segura de páginas (solo tests; por defecto el del sistema con el fetch real). */
+  resolver?: ((host: string) => Promise<string[]>) | null;
   /** Días hacia atrás (incluido hoy) que se revisan. */
   diasAtras: number;
   /** Reglas deterministas; la fuente las aplica para no pedir detalle de lo que ya está descartado. */

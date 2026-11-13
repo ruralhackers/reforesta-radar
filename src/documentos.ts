@@ -5,6 +5,7 @@
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { extractText, getDocumentProxy } from 'unpdf';
+import { ErrorTamano, ErrorUrlBloqueada, fetchSeguro, type Resolver } from './fetch-seguro.ts';
 import { guardarDocumento, guardarTexto, leerDocumento, leerTexto } from './db/repo.ts';
 import type { TextoParaLlm } from './llm/prompts.ts';
 import type { DocumentoFuente } from './sources/source.ts';
@@ -46,31 +47,29 @@ export async function extraerTextoPdf(bytes: Uint8Array): Promise<{ texto: strin
   return { texto: text, paginas: totalPages };
 }
 
-async function descargar(f: typeof fetch, url: string): Promise<{ bytes: Uint8Array; tipoContenido: string }> {
-  let res: Response;
-  let bytes: Uint8Array;
+async function descargar(f: typeof fetch, url: string, resolver?: Resolver | null): Promise<{ bytes: Uint8Array; tipoContenido: string }> {
+  let r;
   try {
-    res = await f(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
-    if (!res.ok) throw new ErrorDocumento(`HTTP ${res.status}`, res.status === 408 || res.status === 429 || res.status >= 500);
-    bytes = new Uint8Array(await res.arrayBuffer());
+    r = await fetchSeguro(f, url, { headers: { 'User-Agent': USER_AGENT }, timeoutMs: TIMEOUT_MS, maxBytes: MAX_BYTES, resolver });
   } catch (e) {
-    if (e instanceof ErrorDocumento) throw e;
-    throw new ErrorDocumento((e as Error).message, true); // red, DNS, tiempo agotado
+    // URL no permitida o demasiado grande: definitivo. Red, DNS, tiempo agotado: pasajero.
+    if (e instanceof ErrorUrlBloqueada || e instanceof ErrorTamano) throw new ErrorDocumento((e as Error).message, false);
+    throw new ErrorDocumento((e as Error).message, true);
   }
-  if (bytes.byteLength > MAX_BYTES) throw new ErrorDocumento(`demasiado grande (${bytes.byteLength} bytes)`, false);
-  return { bytes, tipoContenido: res.headers.get('content-type') ?? '' };
+  if (!r.ok) throw new ErrorDocumento(`HTTP ${r.status}`, r.status === 408 || r.status === 429 || r.status >= 500);
+  return { bytes: r.bytes, tipoContenido: r.tipoContenido };
 }
 
 const esPdf = (b: Uint8Array) => b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46; // %PDF
 
-async function textoDeUrl(db: DatabaseSync, f: typeof fetch, url: string, ahora: Date): Promise<{ texto: string; descargado: boolean }> {
+async function textoDeUrl(db: DatabaseSync, f: typeof fetch, url: string, ahora: Date, resolver?: Resolver | null): Promise<{ texto: string; descargado: boolean }> {
   const cacheado = leerDocumento(db, url);
   if (cacheado?.hash) {
     const t = leerTexto(db, cacheado.hash);
     if (t) return { texto: t.texto, descargado: false };
   }
   try {
-    const { bytes, tipoContenido } = await descargar(f, url);
+    const { bytes, tipoContenido } = await descargar(f, url, resolver);
     const hash = createHash('sha256').update(bytes).digest('hex');
     let tipo: string;
     const yaLeido = leerTexto(db, hash);
@@ -102,7 +101,7 @@ async function textoDeUrl(db: DatabaseSync, f: typeof fetch, url: string, ahora:
 }
 
 /** Lee los documentos de una convocatoria: los que traen texto se usan tal cual; los demás se descargan (o se sacan de la caché). */
-export async function leerDocumentos(db: DatabaseSync, f: typeof fetch, docs: DocumentoFuente[], ahora: Date): Promise<Lectura> {
+export async function leerDocumentos(db: DatabaseSync, f: typeof fetch, docs: DocumentoFuente[], ahora: Date, resolver?: Resolver | null): Promise<Lectura> {
   const r: Lectura = { textos: [], errores: [], erroresTransitorios: [], descargas: 0 };
   for (const d of docs) {
     let texto: string;
@@ -110,7 +109,7 @@ export async function leerDocumentos(db: DatabaseSync, f: typeof fetch, docs: Do
       texto = d.texto;
     } else if (d.url) {
       try {
-        const t = await textoDeUrl(db, f, d.url, ahora);
+        const t = await textoDeUrl(db, f, d.url, ahora, resolver);
         texto = t.texto;
         if (t.descargado) r.descargas++;
       } catch (e) {

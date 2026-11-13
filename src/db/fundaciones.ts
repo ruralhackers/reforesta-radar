@@ -1,5 +1,6 @@
 // Fuentes vigiladas (fundaciones privadas y agregadores del tercer sector): alta, baja, activación y estado de la última revisión.
 import type { DatabaseSync } from 'node:sqlite';
+import { urlPermitidaSintactica } from '../fetch-seguro.ts';
 
 export type TipoFundacion = 'fundacion' | 'agregador';
 
@@ -52,9 +53,9 @@ export function validarUrl(url: unknown): string {
     throw new ErrorFundacion('La URL no es válida (p. ej. https://fundacion.org/convocatorias)', 400);
   }
   if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new ErrorFundacion('La URL debe empezar por http:// o https://', 400);
-  // El radar descarga estas páginas desde el servidor: nada de direcciones IP ni de nombres internos (localhost, sin punto, .local/.internal).
-  const h = u.hostname;
-  if (/^[\d.]+$/.test(h) || h.includes(':') || !h.includes('.') || /\.(local|internal|localhost|lan)$/i.test(h)) throw new ErrorFundacion('La URL debe ser la de una web pública (con nombre de dominio, no una IP ni una dirección interna)', 400);
+  // El radar descarga estas páginas desde el servidor. Esto es solo una validación temprana (mensaje claro al añadir): la comprobación de verdad
+  // (DNS, redirecciones, todas las fuentes) se hace al descargar, en src/fetch-seguro.ts.
+  if (!urlPermitidaSintactica(u.toString())) throw new ErrorFundacion('La URL debe ser la de una web pública (con nombre de dominio, no una IP ni una dirección interna)', 400);
   return u.toString();
 }
 

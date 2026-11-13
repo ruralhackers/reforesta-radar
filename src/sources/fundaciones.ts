@@ -18,6 +18,7 @@ import { apuntarRevision, type FuenteVigilada, fuentesActivas, type ResultadoRev
 import { type RegistroFase, registroFaseVacio } from '../db/repo.ts';
 import { aCache, claveCache, desdeCache, llamar } from '../fases/comun.ts';
 import { ESQUEMA_EXTRACCION, promptExtraccion } from '../llm/prompts.ts';
+import { fetchSeguro, type Resolver, urlPermitidaSintactica } from '../fetch-seguro.ts';
 import { huellaDeTexto, textoPrincipal } from '../pagina.ts';
 import type { DatosPlazo } from '../plazos.ts';
 import { citaEnTexto, normalizarParaCita } from '../texto.ts';
@@ -46,13 +47,16 @@ export interface DatosFundacion {
   plazo: string | null;
   importe: string | null;
   extracto: string | null;
-  /** Síntesis del LLM (no literal): solo para la ficha, nunca citable. */
-  resumen: string | null;
   /** Enlace propio de la convocatoria; null si solo se conoce la página vigilada. */
   enlacePropio: string | null;
 }
 
-interface Candidata { titulo: string; url: string; plazo: string; importe: string; extracto: string; resumen: string }
+interface Candidata { titulo: string; url: string; plazo: string; importe: string; extracto: string }
+
+/** Topes de longitud de lo que sale de una página (que es texto no confiable). */
+export const MAX_TITULO = 300;
+export const MAX_URL = 500;
+export const MAX_LITERAL = 600;
 
 const dormirReal = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -80,18 +84,18 @@ function validarCandidatas(datos: unknown, texto: string, paginaUrl: string): Ca
     const o = (x ?? {}) as Record<string, unknown>;
     const s = (k: string) => (typeof o[k] === 'string' ? (o[k] as string).trim() : '');
     const titulo = s('titulo');
-    if (!titulo || !norm.includes(normalizarParaCita(titulo).replace(/^["'.…\s]+|["'.…\s]+$/g, ''))) continue; // el título tiene que estar en la página
+    if (!titulo || titulo.length > MAX_TITULO || !norm.includes(normalizarParaCita(titulo).replace(/^["'.…\s]+|["'.…\s]+$/g, ''))) continue; // el título tiene que estar en la página
     let url = '';
     try {
       const u = new URL(s('url'), paginaUrl);
       // Solo enlaces que de verdad aparecen en el texto de la página (el LLM no los inventa) y distintos de la propia página.
-      if ((u.protocol === 'http:' || u.protocol === 'https:') && texto.includes(`[${u.toString().replace(/#.*$/, '')}]`) && normalizarUrl(u.toString()) !== pagina) url = u.toString().replace(/#.*$/, '');
+      if (u.toString().length <= MAX_URL && urlPermitidaSintactica(u.toString()) && texto.includes(`[${u.toString().replace(/#.*$/, '')}]`) && normalizarUrl(u.toString()) !== pagina) url = u.toString().replace(/#.*$/, '');
     } catch { /* sin enlace */ }
-    const literal = (k: string) => (s(k) && citaEnTexto(s(k), norm) ? s(k) : '');
+    const literal = (k: string) => (s(k) && s(k).length <= MAX_LITERAL && citaEnTexto(s(k), norm) ? s(k) : '');
     const clave = url ? normalizarUrl(url) : normalizarParaCita(titulo);
     if (vistos.has(clave)) continue;
     vistos.add(clave);
-    salida.push({ titulo, url, plazo: literal('plazo'), importe: literal('importe'), extracto: literal('extracto'), resumen: s('resumen') });
+    salida.push({ titulo, url, plazo: literal('plazo'), importe: literal('importe'), extracto: literal('extracto') });
   }
   return salida;
 }
@@ -101,7 +105,7 @@ function aConvocatoria(c: Candidata, f: FuenteVigilada, paginaUrl: string, fecha
   const id = idFundacion(paginaUrl, c.titulo, enlacePropio);
   const datos: DatosFundacion = {
     fuenteNombre: f.nombre, tipo: f.tipo, paginaUrl, plazo: c.plazo || null, importe: c.importe || null, extracto: c.extracto || null,
-    resumen: c.resumen || null, enlacePropio,
+    enlacePropio,
   };
   return {
     id, fuente: 'fundacion', fuenteId: id.slice('fund:'.length), titulo: c.titulo,
@@ -110,16 +114,11 @@ function aConvocatoria(c: Candidata, f: FuenteVigilada, paginaUrl: string, fecha
   };
 }
 
-async function descargar(f: typeof fetch, url: string, o: OpcionesFundaciones): Promise<string> {
-  const res = await f(url, { headers: { 'User-Agent': USER_AGENT, Accept: 'text/html,application/xhtml+xml' }, signal: AbortSignal.timeout(o.timeoutMs) });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const tipo = res.headers.get('content-type') ?? '';
-  if (tipo && !/html|xml|text/i.test(tipo)) throw new Error(`no es una página web (${tipo})`);
-  const declarado = Number(res.headers.get('content-length') ?? 0);
-  if (declarado > o.maxBytes) throw new Error(`página demasiado grande (${declarado} bytes)`);
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  if (bytes.byteLength > o.maxBytes) throw new Error(`página demasiado grande (${bytes.byteLength} bytes)`);
-  return new TextDecoder().decode(bytes);
+async function descargar(f: typeof fetch, url: string, o: OpcionesFundaciones, resolver?: Resolver | null): Promise<string> {
+  const r = await fetchSeguro(f, url, { headers: { 'User-Agent': USER_AGENT, Accept: 'text/html,application/xhtml+xml' }, timeoutMs: o.timeoutMs, maxBytes: o.maxBytes, resolver });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  if (!/html|xml|text/i.test(r.tipoContenido)) throw new Error(`no es una página web (${r.tipoContenido || 'sin tipo de contenido'})`);
+  return new TextDecoder().decode(r.bytes);
 }
 
 export interface ResultadoFundaciones extends ResultadoFuente {
@@ -147,7 +146,7 @@ export function crearFuenteFundaciones(opciones: () => OpcionesFundaciones = () 
       const url = f.url!;
       let resultado: ResultadoRevision;
       try {
-        const html = await descargar(ctx.fetch, url, o);
+        const html = await descargar(ctx.fetch, url, o, ctx.resolver);
         const texto = textoPrincipal(html, url);
         if (texto.length < MIN_CARACTERES) throw new Error('La página no tiene texto (¿se carga con JavaScript o bloquea el acceso?)');
         const huella = huellaDeTexto(texto);
@@ -192,15 +191,18 @@ export function crearFuenteFundaciones(opciones: () => OpcionesFundaciones = () 
 
 const datosDe = (c: Convocatoria): DatosFundacion | null => ((c.datos as { fundacion?: DatosFundacion } | null)?.fundacion) ?? null;
 
+/** Sin ángulos: el texto de la página no puede cerrar las etiquetas <documento> del prompt del análisis. */
+const limpio = (t: string) => t.replace(/[<>]/g, '');
+
 function ficha(c: Convocatoria, d: DatosFundacion): string {
   return [
-    `Título: ${c.titulo}`,
+    `Título: ${limpio(c.titulo)}`,
     `Convocatoria de una fundación privada o programa de RSC (no es una subvención pública). Fuente vigilada: ${d.fuenteNombre}${d.tipo === 'agregador' ? ' (agregador de convocatorias)' : ''}`,
     `Página donde se ha visto: ${d.paginaUrl}`,
     d.enlacePropio && `Enlace de la convocatoria: ${d.enlacePropio}`,
-    d.plazo && `Plazo (literal de la página): ${d.plazo}`,
-    d.importe && `Importe (literal de la página): ${d.importe}`,
-    d.extracto && `Texto de la página: ${d.extracto}`,
+    d.plazo && `Plazo (literal de la página): ${limpio(d.plazo)}`,
+    d.importe && `Importe (literal de la página): ${limpio(d.importe)}`,
+    d.extracto && `Texto de la página: ${limpio(d.extracto)}`,
   ].filter(Boolean).join('\n');
 }
 

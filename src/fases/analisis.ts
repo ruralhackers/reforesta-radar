@@ -28,7 +28,7 @@ export async function analizarConLlm(
   await enParalelo(pendientes, EN_PARALELO, async ({ convocatoria: c }) => {
     try {
       const docs = fuentePorNombre(c.fuente, fuentes)?.documentos?.(c) ?? [{ titulo: 'Ficha', url: c.url, texto: c.titulo }];
-      const lectura = await leerDocumentos(ctx.db, ctx.fetch, docs, ctx.reloj.now());
+      const lectura = await leerDocumentos(ctx.db, ctx.fetch, docs, ctx.reloj.now(), ctx.resolver);
       if (lectura.erroresTransitorios.length) {
         // Sin todos los textos el análisis saldría con importes o plazos "desconocido" para siempre:
         // no se llama al LLM ni se guarda veredicto; queda pendiente para la próxima ejecución.

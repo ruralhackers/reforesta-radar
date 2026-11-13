@@ -12,6 +12,7 @@ export interface ContextoFase {
   llm: Llm;
   reloj: Reloj;
   fetch: typeof globalThis.fetch;
+  resolver?: ((host: string) => Promise<string[]>) | null;
   /** Decisiones del equipo como ejemplos para los prompts; se leen una vez por ejecución para que todas las llamadas vean los mismos. */
   ejemplos?: EjemploDecision[];
 }

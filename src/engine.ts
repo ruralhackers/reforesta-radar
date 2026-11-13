@@ -32,6 +32,8 @@ export { FUENTES };
 export interface DependenciasMotor {
   db: DatabaseSync;
   fetch: typeof globalThis.fetch;
+  /** DNS para la descarga segura de URLs que salen de datos (solo tests; por defecto, el del sistema con el fetch real). */
+  resolver?: ((host: string) => Promise<string[]>) | null;
   reloj: Reloj;
   /** Fuentes a recorrer; por defecto todas las del radar. */
   fuentes?: Fuente[];
@@ -167,7 +169,7 @@ async function fasesLlm(deps: DependenciasMotor, ejecucionId: number, perfil: Pe
     for (const f of fases) f.avisos.push(aviso);
     await entreCribaYAnalisis();
   } else {
-    const ctx = { db: deps.db, llm: deps.llm, reloj: deps.reloj, fetch: deps.fetch, ejemplos: ejemplosDecisiones(deps.db, deps.maxEjemplosDecisiones ?? config.decisiones.maxEjemplos) };
+    const ctx = { db: deps.db, llm: deps.llm, reloj: deps.reloj, fetch: deps.fetch, resolver: deps.resolver, ejemplos: ejemplosDecisiones(deps.db, deps.maxEjemplosDecisiones ?? config.decisiones.maxEjemplos) };
     const publicadasDesde = sumarDias(diaLocal(inicio), -(cfg.diasPendientes - 1));
     const criba = await cribarConLlm(ctx, perfil, cfg.modeloCriba, publicadasDesde, deps.fuentes);
     guardarRegistroFase(deps.db, ejecucionId, criba);
@@ -197,7 +199,7 @@ async function recorrerFuente(
   let avisos: string[] = [];
   try {
     const modeloLlm = { ...CONFIG_LLM_POR_DEFECTO, ...deps.configLlm }.modeloCriba;
-    const r = await fuente.recoger({ fetch: deps.fetch, ahora: reloj.now(), perfil, diasAtras, dormir: deps.dormir, cribar: (c) => cribar(c, perfil), db, llm: deps.llm, modeloLlm });
+    const r = await fuente.recoger({ fetch: deps.fetch, ahora: reloj.now(), perfil, diasAtras, dormir: deps.dormir, cribar: (c) => cribar(c, perfil), db, llm: deps.llm, modeloLlm, resolver: deps.resolver });
     errores = r.errores;
     avisos = r.avisos ?? [];
     if (r.fase) {
