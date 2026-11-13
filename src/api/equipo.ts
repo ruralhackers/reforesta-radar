@@ -16,15 +16,18 @@
 // invalida todas las cookies antiguas. Sin SESSION_SECRET la clave depende solo de la contraseña: pon un secreto largo
 // y aleatorio para que la cookie no se pueda fabricar a partir de una contraseña adivinada.
 //
-// Fuerza bruta: pausa fija ante contraseña errónea y límite en memoria por IP (10 fallos / 15 min → 429) más un tope
-// global (100 fallos / 15 min). La IP sale de X-Forwarded-For (último salto) / X-Real-IP: detrás de nginx es fiable.
-// Se reinicia al reiniciar el proceso (suficiente para este uso).
+// Fuerza bruta: pausa fija ante contraseña errónea y límite en memoria por IP (10 intentos fallidos / 15 min → 429).
+// El intento se reserva de forma síncrona antes de leer el cuerpo (las ráfagas en paralelo no lo esquivan) y se libera
+// si la contraseña es buena. No hay bloqueo global: una contraseña correcta nunca se rechaza por los fallos de otras IP.
+// IP del cliente: CF-Connecting-IP (Cloudflare Tunnel); X-Forwarded-For (último salto) / X-Real-IP solo si
+// RADAR_CONFIAR_X_FORWARDED_FOR=1; si no hay cabecera, la dirección del socket. Se reinicia con el proceso.
 //
 // CSRF: SameSite=Lax impide que otra web envíe la cookie en POST/PUT/DELETE, y además las escrituras exigen
 // Content-Type: application/json (un formulario HTML cruzado no puede enviarlo sin pasar por CORS). Suficiente aquí.
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import type { MiddlewareHandler } from 'hono';
 import { Hono } from 'hono';
+import { getConnInfo } from '@hono/node-server/conninfo';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 
 export interface OpcionesEquipo {
@@ -36,6 +39,8 @@ export interface OpcionesEquipo {
   retrasoMs?: number;
   /** Fuerza la marca Secure de la cookie; por defecto, la petición es https (o X-Forwarded-Proto: https). */
   secure?: boolean;
+  /** Fiarse de X-Forwarded-For / X-Real-IP para la IP del cliente (solo detrás de un proxy propio que los fije). */
+  confiarXForwardedFor?: boolean;
   /** Duración de la sesión en días. */
   dias?: number;
 }
@@ -43,7 +48,6 @@ export interface OpcionesEquipo {
 const COOKIE = 'radar_equipo';
 const VENTANA_MS = 15 * 60 * 1000;
 const MAX_POR_IP = 10;
-const MAX_GLOBAL = 100;
 
 const sha = (s: string) => createHash('sha256').update(s).digest();
 const igualesEnTiempoConstante = (a: string, b: string) => timingSafeEqual(sha(a), sha(b));
@@ -80,11 +84,17 @@ export function crearAcceso(opciones: OpcionesEquipo = {}) {
   };
 
   // --- /api/sesion ---
-  const fallos = new Map<string, number[]>();
-  let fallosGlobales: number[] = [];
+  const intentos = new Map<string, number[]>();
   const reciente = (ts: number[], ahora: number) => ts.filter((t) => ahora - t < VENTANA_MS);
-  const ipDe = (c: Parameters<MiddlewareHandler>[0]) =>
-    c.req.header('x-forwarded-for')?.split(',').at(-1)?.trim() || c.req.header('x-real-ip') || 'local';
+  const ipDe = (c: Parameters<MiddlewareHandler>[0]): string => {
+    const cf = c.req.header('cf-connecting-ip')?.trim();
+    if (cf) return cf;
+    if (opciones.confiarXForwardedFor) {
+      const x = c.req.header('x-forwarded-for')?.split(',').at(-1)?.trim() || c.req.header('x-real-ip')?.trim();
+      if (x) return x;
+    }
+    try { return getConnInfo(c).remote.address ?? 'desconocida'; } catch { return 'desconocida'; }
+  };
 
   const sesion = new Hono();
   sesion.get('/', (c) => c.json({ modoPrivado, autenticado: autenticado(c) }));
@@ -93,18 +103,21 @@ export function crearAcceso(opciones: OpcionesEquipo = {}) {
     if (exigirJson(c)) return c.json({ error: 'Debe enviarse como application/json' }, 415);
     const ahora = Date.now();
     const ip = ipDe(c);
-    const deIp = reciente(fallos.get(ip) ?? [], ahora);
-    fallosGlobales = reciente(fallosGlobales, ahora);
-    if (deIp.length >= MAX_POR_IP || fallosGlobales.length >= MAX_GLOBAL) return c.json({ error: 'Demasiados intentos; prueba más tarde' }, 429);
+    // Poda: fuera las IP sin intentos recientes.
+    for (const [k, ts] of intentos) { const v = reciente(ts, ahora); if (v.length) intentos.set(k, v); else intentos.delete(k); }
+    const previos = intentos.get(ip) ?? [];
+    if (previos.length >= MAX_POR_IP) return c.json({ error: 'Demasiados intentos; prueba más tarde' }, 429);
+    // Reserva síncrona (antes de cualquier await): si la contraseña es buena se libera.
+    const reserva = ahora + Math.random();
+    intentos.set(ip, [...previos, reserva]);
     const cuerpo = await c.req.json().catch(() => null) as { password?: unknown } | null;
     const intento = typeof cuerpo?.password === 'string' ? cuerpo.password : '';
     if (!igualesEnTiempoConstante(intento, password!)) {
-      fallos.set(ip, [...deIp, ahora]);
-      fallosGlobales.push(ahora);
       if (retrasoMs > 0) await new Promise((r) => setTimeout(r, retrasoMs));
       return c.json({ error: 'Contraseña incorrecta' }, 401);
     }
-    fallos.delete(ip);
+    const resto = (intentos.get(ip) ?? []).filter((t) => t !== reserva);
+    if (resto.length) intentos.set(ip, resto); else intentos.delete(ip);
     const secure = opciones.secure ?? (new URL(c.req.url).protocol === 'https:' || c.req.header('x-forwarded-proto') === 'https');
     setCookie(c, COOKIE, crearCookie(ahora), { httpOnly: true, sameSite: 'Lax', secure, path: '/', maxAge: dias * 86_400 });
     return c.json({ modoPrivado, autenticado: true });

@@ -119,6 +119,9 @@ ocultándose de `/api/semana` para todos.
   (Secure si la petición es https / `X-Forwarded-Proto: https`, o forzado con `RADAR_COOKIE_SECURE`). `DELETE /api/sesion` sale; `GET /api/sesion`
   devuelve `{ modoPrivado, autenticado }`.
 - La clave de firma sale de `TEAM_PASSWORD` y `SESSION_SECRET` (opcional pero recomendado): cambiar cualquiera invalida las cookies antiguas.
-- Fuerza bruta: pausa de 0,5 s ante contraseña errónea y límite en memoria (10 fallos por IP y 100 globales cada 15 min → 429).
+- Fuerza bruta: pausa de 0,5 s ante contraseña errónea y límite en memoria de 10 intentos fallidos por IP cada 15 min (429; el intento se reserva antes de
+  leer el cuerpo, así que las ráfagas en paralelo no lo esquivan). No hay bloqueo global: una contraseña correcta nunca se rechaza por fallos de otras IP.
+  IP del cliente: `CF-Connecting-IP` (Cloudflare Tunnel); `X-Forwarded-For`/`X-Real-IP` solo con `RADAR_CONFIAR_X_FORWARDED_FOR=1`; sin cabecera, la
+  dirección del socket. En el VPS pon `RADAR_COOKIE_SECURE=1` (la app ve http local tras el túnel).
 - CSRF: SameSite=Lax y las escrituras exigen `Content-Type: application/json` (415 si no).
 - Para marcar una ruta nueva como privada, ver la cabecera de `src/api/equipo.ts`: sub-router con `router.use('*', acceso.requiereEquipo)`.

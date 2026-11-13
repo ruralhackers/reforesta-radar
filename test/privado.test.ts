@@ -14,10 +14,10 @@ const conv: Convocatoria = {
 };
 const J = { 'Content-Type': 'application/json' };
 
-function nueva(password: string | null, secret?: string) {
+function nueva(password: string | null, secret?: string, extra: Record<string, unknown> = {}) {
   const db = bdSembrada();
   guardarConvocatoria(db, { convocatoria: conv, descarte: null }, AHORA);
-  return { db, api: crearApi({ db, reloj, equipo: { password, secret, retrasoMs: 0 } }) };
+  return { db, api: crearApi({ db, reloj, equipo: { password, secret, retrasoMs: 0, ...extra } }) };
 }
 type Api = ReturnType<typeof nueva>['api'];
 const entrar = (api: Api, password: string, extra: Record<string, string> = {}) => api.request('/sesion', { method: 'POST', headers: { ...J, ...extra }, body: JSON.stringify({ password }) });
@@ -113,12 +113,48 @@ describe('modo privado (con TEAM_PASSWORD)', () => {
     assert.equal(login.status, 415);
   });
 
-  test('límite de intentos por IP: tras 10 fallos, 429 incluso con la contraseña buena; otra IP no se ve afectada', async () => {
+  test('límite de intentos por IP (CF-Connecting-IP): tras 10 fallos, 429 incluso con la buena; otra IP no se ve afectada', async () => {
     const { api } = nueva('x');
-    const ip = { 'X-Forwarded-For': '1.2.3.4' };
+    const ip = { 'CF-Connecting-IP': '1.2.3.4' };
     for (let i = 0; i < 10; i++) assert.equal((await entrar(api, 'mal', ip)).status, 401);
     assert.equal((await entrar(api, 'x', ip)).status, 429);
-    assert.equal((await entrar(api, 'x', { 'X-Forwarded-For': '5.6.7.8' })).status, 200);
+    assert.equal((await entrar(api, 'x', { 'CF-Connecting-IP': '5.6.7.8' })).status, 200);
+  });
+
+  test('ráfaga en paralelo: como mucho 10 se evalúan, el resto 429', async () => {
+    const { api } = nueva('x');
+    const ip = { 'CF-Connecting-IP': '9.9.9.9' };
+    const res = await Promise.all(Array.from({ length: 40 }, () => entrar(api, 'mal', ip)));
+    assert.equal(res.filter((r) => r.status === 401).length, 10);
+    assert.equal(res.filter((r) => r.status === 429).length, 30);
+  });
+
+  test('una contraseña correcta libera su reserva (no gasta el cupo)', async () => {
+    const { api } = nueva('x');
+    const ip = { 'CF-Connecting-IP': '8.8.8.8' };
+    for (let i = 0; i < 30; i++) assert.equal((await entrar(api, 'x', ip)).status, 200);
+  });
+
+  test('sin bloqueo global: la contraseña buena entra aunque muchas IP hayan fallado', async () => {
+    const { api } = nueva('x');
+    for (let i = 0; i < 30; i++) for (let j = 0; j < 10; j++) await entrar(api, 'mal', { 'CF-Connecting-IP': `10.0.${i}.1` });
+    assert.equal((await entrar(api, 'x', { 'CF-Connecting-IP': '11.0.0.1' })).status, 200);
+  });
+
+  test('origen de la IP: CF-Connecting-IP manda; X-Forwarded-For se ignora salvo confiarXForwardedFor; sin cabecera, un cubo del socket', async () => {
+    // Sin confianza: variar X-Forwarded-For no esquiva el límite.
+    const a = nueva('x').api;
+    for (let i = 0; i < 10; i++) await entrar(a, 'mal', { 'X-Forwarded-For': `1.1.1.${i}` });
+    assert.equal((await entrar(a, 'mal', { 'X-Forwarded-For': '2.2.2.2' })).status, 429);
+    // CF-Connecting-IP gana sobre X-Forwarded-For aunque se confíe en él.
+    const b = nueva('x', undefined, { confiarXForwardedFor: true }).api;
+    for (let i = 0; i < 10; i++) await entrar(b, 'mal', { 'CF-Connecting-IP': '3.3.3.3', 'X-Forwarded-For': `1.1.1.${i}` });
+    assert.equal((await entrar(b, 'mal', { 'CF-Connecting-IP': '3.3.3.3', 'X-Forwarded-For': '4.4.4.4' })).status, 429);
+    // Con confianza y sin CF: X-Forwarded-For (último salto) separa clientes.
+    const c = nueva('x', undefined, { confiarXForwardedFor: true }).api;
+    for (let i = 0; i < 10; i++) await entrar(c, 'mal', { 'X-Forwarded-For': '9.9.9.9, 5.5.5.5' });
+    assert.equal((await entrar(c, 'x', { 'X-Forwarded-For': '8.8.8.8, 5.5.5.5' })).status, 429);
+    assert.equal((await entrar(c, 'x', { 'X-Forwarded-For': '8.8.8.8, 6.6.6.6' })).status, 200);
   });
 
   test('lo público sigue abierto y no filtra decisiones ni notas', async () => {

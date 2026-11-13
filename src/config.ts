@@ -35,6 +35,7 @@ export const config = {
   equipo: {
     password: process.env.TEAM_PASSWORD || null,
     secret: process.env.SESSION_SECRET || null,
+    confiarXForwardedFor: process.env.RADAR_CONFIAR_X_FORWARDED_FOR === '1',
     secure: process.env.RADAR_COOKIE_SECURE === undefined || process.env.RADAR_COOKIE_SECURE === '' ? undefined : process.env.RADAR_COOKIE_SECURE === '1',
   },
   llm: {
