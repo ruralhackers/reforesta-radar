@@ -122,9 +122,11 @@ describe('motor con respuestas grabadas de BDNS', () => {
     reloj.adelantar(24 * 60 * 60 * 1000);
     await ejecutarRadar(deps, { diasAtras: 2 });
 
-    assert.deepEqual(leerFases(db, 'bdns:923290'), [
-      { convocatoriaId: 'bdns:923290', fase: 'criba_llm', descarta: true, motivo: 'No encaja', datos: { modelo: 'falso' } },
-    ]);
+    // El motor estampa la versión del perfil en los veredictos que aún no la tenían (no los borra).
+    const [v, ...resto] = leerFases(db, 'bdns:923290');
+    assert.equal(resto.length, 0);
+    assert.deepEqual({ ...v, datos: { ...(v.datos as object), versionPerfil: undefined } },
+      { convocatoriaId: 'bdns:923290', fase: 'criba_llm', descarta: true, motivo: 'No encaja', datos: { modelo: 'falso', versionPerfil: undefined } });
     assert.ok(!enLista().includes('bdns:923290'), 'sigue fuera de la lista tras la nueva pasada');
     assert.equal(fila(db, '923290')?.descarte_regla, null, 'el veredicto de las reglas se sigue refrescando aparte');
   });

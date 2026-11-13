@@ -201,3 +201,27 @@ export async function leerParecidas(): Promise<Parecida[]> {
 export const activarParecida = (nif: string, activa: boolean) => pedirParecidas(`/${encodeURIComponent(nif)}`, 'PATCH', { activa });
 export const anadirParecida = (nif: string, nombre: string) => pedirParecidas('', 'POST', { nif, nombre: nombre || undefined });
 export const quitarParecida = (nif: string) => pedirParecidas(`/${encodeURIComponent(nif)}`, 'DELETE');
+
+// --- Perfil (GET/PUT /api/perfil) ---
+export interface PerfilWeb {
+  nombre: string;
+  nif: string;
+  bdnsIdPersona: number | null;
+  lineas: { nombre: string; descripcion: string }[];
+  ambito: { descripcion: string; nivelesSiempre: string[]; comunidades: string[]; regiones: string[]; otrasComunidadesSiNoExigenSede?: boolean };
+  importeMinimo: number | null;
+}
+
+export async function leerPerfil(): Promise<PerfilWeb> {
+  const res = await fetch('/api/perfil');
+  const datos = await res.json().catch(() => ({})) as PerfilWeb & { error?: string };
+  if (!res.ok) throw new Error(datos.error ?? `Error ${res.status}`);
+  return datos;
+}
+
+export async function guardarPerfil(p: Pick<PerfilWeb, 'lineas' | 'ambito' | 'importeMinimo'>): Promise<PerfilWeb> {
+  const res = await fetch('/api/perfil', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
+  const datos = await res.json().catch(() => ({})) as PerfilWeb & { error?: string };
+  if (!res.ok) throw new Error(datos.error ?? `Error ${res.status}`);
+  return datos;
+}

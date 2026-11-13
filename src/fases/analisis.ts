@@ -8,6 +8,7 @@ import { textoGanadoresParaPrompt } from '../ganadores.ts';
 import { promptAnalisis } from '../llm/prompts.ts';
 import { fuentePorNombre } from '../sources/index.ts';
 import type { Fuente } from '../sources/source.ts';
+import { versionLineas } from '../perfil.ts';
 import type { Perfil } from '../types.ts';
 import { aplicarCitas, esquemaAnalisis } from './analisis-esquema.ts';
 import { aCache, type ContextoFase, claveCache, desdeCache, enParalelo, llamar } from './comun.ts';
@@ -56,7 +57,7 @@ export async function analizarConLlm(
         convocatoriaId: c.id, fase: FASE_ANALISIS, descarta,
         motivo: descarta ? `No admite entidades sin ánimo de lucro: «${e.cita}»` : null,
         datos: {
-          modelo: r.modelo, desdeCache: r.desdeCache, analisis,
+          modelo: r.modelo, desdeCache: r.desdeCache, analisis, versionLineas: versionLineas(perfil),
           documentos: lectura.textos.map((t) => ({ titulo: t.titulo, caracteres: t.texto.length })),
           documentosConError: lectura.errores,
         },

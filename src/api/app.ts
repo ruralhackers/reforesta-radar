@@ -15,6 +15,7 @@ import { activarParecida, altaParecidaManual, leerParecidasConAportes, NIF_ENTID
 import { config } from '../config.ts';
 import { fuentePorNombre } from '../sources/index.ts';
 import type { Fuente } from '../sources/source.ts';
+import { ErrorPerfil, guardarPerfilEditable, validarPerfilEditable } from '../perfil.ts';
 import type { Reloj } from '../types.ts';
 
 const DIA = /^\d{4}-\d{2}-\d{2}$/;
@@ -88,6 +89,28 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
     return c.json({ nif, quitada: true });
   });
   api.route('/parecidas', privada);
+
+  // --- Perfil editable (líneas de trabajo, ámbito, importe mínimo). NIF e idPersona solo se leen. ---
+  // PUT va en su propio sub-router `privadaPerfil` (Task 9: `privadaPerfil.use('*', ...)`).
+  const vistaPerfil = (p: NonNullable<ReturnType<typeof leerPerfil>>) => ({
+    nombre: p.nombre, nif: p.nif, bdnsIdPersona: p.bdnsIdPersona, lineas: p.lineas, ambito: p.ambito, importeMinimo: p.importeMinimo,
+  });
+  api.get('/perfil', (c) => {
+    const p = leerPerfil(db);
+    return p ? c.json(vistaPerfil(p)) : c.json({ error: 'La base de datos no tiene perfil' }, 404);
+  });
+  const privadaPerfil = new Hono();
+  privadaPerfil.put('/', async (c) => {
+    const cuerpo = await c.req.json().catch(() => undefined);
+    if (cuerpo === undefined) return c.json({ error: 'El cuerpo no es JSON válido' }, 400);
+    try {
+      return c.json(vistaPerfil(guardarPerfilEditable(db, validarPerfilEditable(cuerpo), reloj.now())));
+    } catch (e) {
+      if (e instanceof ErrorPerfil) return c.json({ error: e.message }, 400);
+      throw e;
+    }
+  });
+  api.route('/perfil', privadaPerfil);
 
   /**
    * Descartadas con su motivo (reglas y fases). Por defecto, los últimos 7 días.

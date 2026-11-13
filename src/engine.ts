@@ -22,6 +22,7 @@ import { CONFIG_LLM_POR_DEFECTO, type ConfigLlm, type Llm } from './llm/llm.ts';
 import { condicionAmbito, cribar } from './rules.ts';
 import { FUENTES } from './sources/index.ts';
 import type { Fuente } from './sources/source.ts';
+import { reconsiderarVeredictos } from './perfil.ts';
 import type { Perfil, Reloj } from './types.ts';
 
 export { FUENTES };
@@ -77,6 +78,9 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
   const perfil = leerPerfil(db);
   if (!perfil) throw new Error('La BD no tiene perfil: carga la semilla antes (npm run seed)');
 
+  // Veredictos de LLM hechos con otro perfil (ámbito, líneas) se borran para que esta ejecución los reconsidere.
+  const reconsideradas = reconsiderarVeredictos(db, perfil);
+  if (reconsideradas.cribas || reconsideradas.analisis) log(`Perfil cambiado: ${reconsideradas.cribas} cribas y ${reconsideradas.analisis} análisis se rehacen`);
   const inicio = reloj.now();
   const ejecucionId = empezarEjecucion(db, inicio);
   const resumen: ResumenFuente[] = [];

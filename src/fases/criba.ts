@@ -2,6 +2,7 @@
 // Solo usa los textos que la fuente ya trae (extracto, ficha); no descarga documentos. Las de otra comunidad llevan
 // la condición de las reglas: si exigen sede o actividad allí, se descartan.
 import { guardarFase, pendientesDeFase, type RegistroFase, registroFaseVacio } from '../db/repo.ts';
+import { versionCriba } from '../perfil.ts';
 import { ESQUEMA_CRIBA, promptCriba } from '../llm/prompts.ts';
 import { fuentePorNombre } from '../sources/index.ts';
 import type { Fuente } from '../sources/source.ts';
@@ -51,7 +52,7 @@ export async function cribarConLlm(
       const motivo = porSede && v.decision !== 'descartar' ? `Exige sede o actividad en otra comunidad: ${v.motivo}` : v.motivo;
       guardarFase(ctx.db, {
         convocatoriaId: c.id, fase: FASE_CRIBA, descarta, motivo,
-        datos: { modelo: r.modelo, ...v, condicion, desdeCache: r.desdeCache },
+        datos: { modelo: r.modelo, ...v, condicion, desdeCache: r.desdeCache, versionPerfil: versionCriba(perfil) },
       }, ctx.reloj.now());
       registro.procesadas++;
       if (descarta) registro.descartadas++;
