@@ -14,6 +14,7 @@ import { infoParecidas } from '../parecidas.ts';
 import { activarParecida, altaParecidaManual, leerParecidasConAportes, NIF_ENTIDAD_VALIDO, quitarParecidaManual } from '../db/ganadores.ts';
 import { anadirNota, borrarNota, decidir, deshacerDecision, ErrorDecision, leerDecision, leerDecisiones, leerNotas, MOTIVOS_DESCARTE, nosInteresa } from '../db/decisiones.ts';
 import { config } from '../config.ts';
+import { crearAcceso, type OpcionesEquipo } from './equipo.ts';
 import { fuentePorNombre } from '../sources/index.ts';
 import type { Fuente } from '../sources/source.ts';
 import { ErrorPerfil, guardarPerfilEditable, validarPerfilEditable } from '../perfil.ts';
@@ -21,8 +22,11 @@ import type { Reloj } from '../types.ts';
 
 const DIA = /^\d{4}-\d{2}-\d{2}$/;
 
-export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabilidadInyectada }: { db: DatabaseSync; reloj: Reloj; fuentes?: Fuente[]; puntuacion?: ConfigPuntuacion; probabilidad?: ProveedorProbabilidad }): Hono {
+export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabilidadInyectada, equipo: opcionesEquipo }: { db: DatabaseSync; reloj: Reloj; fuentes?: Fuente[]; puntuacion?: ConfigPuntuacion; probabilidad?: ProveedorProbabilidad; equipo?: OpcionesEquipo }): Hono {
   const api = new Hono();
+  // Modo privado (TEAM_PASSWORD): ver src/api/equipo.ts. `acceso.requiereEquipo` es el marcador de lo privado.
+  const acceso = crearAcceso(opcionesEquipo ?? config.equipo);
+  api.route('/sesion', acceso.sesion);
   const cfg = puntuacion ?? leerConfigPuntuacion(config.rutaPuntuacion);
   // Por defecto, la probabilidad sale de los ganadores previos y las organizaciones parecidas guardadas.
   const probabilidad = probabilidadInyectada ?? crearProbabilidad(db);
@@ -68,6 +72,7 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
   api.get('/parecidas', (c) => c.json({ parecidas: leerParecidasConAportes(db) }));
 
   const privada = new Hono();
+  privada.use('*', acceso.requiereEquipo);
   privada.patch('/:nif', async (c) => {
     const cuerpo = await c.req.json().catch(() => null) as { activa?: unknown } | null;
     if (typeof cuerpo?.activa !== 'boolean') return c.json({ error: 'Falta "activa" (true o false)' }, 400);
@@ -101,6 +106,7 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
     return p ? c.json(vistaPerfil(p)) : c.json({ error: 'La base de datos no tiene perfil' }, 404);
   });
   const privadaPerfil = new Hono();
+  privadaPerfil.use('*', acceso.requiereEquipo);
   privadaPerfil.put('/', async (c) => {
     const cuerpo = await c.req.json().catch(() => undefined);
     if (cuerpo === undefined) return c.json({ error: 'El cuerpo no es JSON válido' }, 400);
@@ -118,6 +124,7 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
   // (`equipo.use('*', ...)`). ESCRITURAS en `privadaDecisiones` (/api/decisiones), el sub-router para su middleware.
   // Lo descartado por el equipo ya no sale en /api/semana (ni en la lista paralela de parecidas); ver NO_DESCARTADA_POR_EQUIPO en db/repo.ts.
   const equipo = new Hono();
+  equipo.use('*', acceso.requiereEquipo);
   /** Motivos de descarte de un clic (el último, "Otro", exige texto libre). */
   equipo.get('/motivos', (c) => c.json({ motivos: MOTIVOS_DESCARTE }));
   /** Todas las decisiones: [{ convocatoriaId, decision, motivo, detalle, decididaEn }], las más recientes primero. */
@@ -133,6 +140,7 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
   api.route('/equipo', equipo);
 
   const privadaDecisiones = new Hono();
+  privadaDecisiones.use('*', acceso.requiereEquipo);
   const respuestaDecision = (c: { json: (o: object, s?: 400 | 404) => Response }, e: unknown) => {
     if (e instanceof ErrorDecision) return c.json({ error: e.message }, e.estado);
     throw e;

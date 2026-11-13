@@ -1,10 +1,12 @@
 import { type FormEvent, useEffect, useState } from 'react';
+import { useSesion } from './Sesion.tsx';
 import { activarParecida, anadirParecida, leerParecidas, type Parecida, quitarParecida } from './api.ts';
 
 const ORIGEN: Record<Parecida['origen'], string> = { calculada: 'calculada', semilla: 'de partida', manual: 'manual', derivada: 'de partida' };
 
 /** Ajuste de las organizaciones parecidas: las desactivadas no aportan convocatorias en la siguiente ejecución. */
 export function Parecidas() {
+  const { puedeEditar } = useSesion();
   const [lista, setLista] = useState<Parecida[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nif, setNif] = useState('');
@@ -38,7 +40,7 @@ export function Parecidas() {
 
       {error && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-red-800">{error}</p>}
 
-      <form onSubmit={alta} className="mb-6 rounded-lg bg-white p-4 shadow-sm ring-1 ring-stone-200">
+      {puedeEditar && <form onSubmit={alta} className="mb-6 rounded-lg bg-white p-4 shadow-sm ring-1 ring-stone-200">
         <h2 className="mb-2 font-semibold">Añadir una organización</h2>
         <div className="flex flex-col gap-2 sm:flex-row">
           <input value={nif} onChange={(e) => setNif(e.target.value)} placeholder="NIF (p. ej. G78456118)" aria-label="NIF" required
@@ -47,7 +49,7 @@ export function Parecidas() {
             className="min-w-0 flex-1 rounded border border-stone-300 px-3 py-2 text-sm" />
           <button type="submit" disabled={ocupado || !nif.trim()} className="rounded bg-emerald-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Añadir</button>
         </div>
-      </form>
+      </form>}
 
       {!lista && !error && <p className="text-stone-500">Cargando…</p>}
       {lista && lista.length === 0 && <p className="rounded-md bg-white p-4 text-stone-600 shadow-sm">Todavía no hay organizaciones parecidas.</p>}
@@ -63,11 +65,11 @@ export function Parecidas() {
                   </p>
                 </div>
                 <label className="flex shrink-0 items-center gap-2 text-sm">
-                  <input type="checkbox" checked={p.activa} disabled={ocupado} onChange={(e) => void accion(() => activarParecida(p.nif, e.target.checked))} />
+                  <input type="checkbox" checked={p.activa} disabled={ocupado || !puedeEditar} onChange={(e) => void accion(() => activarParecida(p.nif, e.target.checked))} />
                   {p.activa ? 'Activa' : 'Desactivada'}
                 </label>
               </div>
-              {p.origen === 'manual' && (
+              {puedeEditar && p.origen === 'manual' && (
                 <button type="button" disabled={ocupado} onClick={() => void accion(() => quitarParecida(p.nif))} className="mt-2 text-xs text-red-700 hover:underline disabled:opacity-50">
                   Quitar de la lista
                 </button>

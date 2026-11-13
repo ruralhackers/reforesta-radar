@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react';
+import { useSesion } from './Sesion.tsx';
 import { guardarPerfil, leerPerfil, type PerfilWeb } from './api.ts';
 
 const NIVELES = ['ESTADO', 'AUTONOMICA', 'LOCAL', 'OTROS'];
@@ -7,6 +8,7 @@ const entrada = 'w-full rounded border border-stone-300 px-3 py-2 text-sm';
 
 /** Perfil de la organización: lo que leen las reglas, la criba, el análisis y la puntuación en la siguiente ejecución. */
 export function Perfil() {
+  const { puedeEditar } = useSesion();
   const [perfil, setPerfil] = useState<PerfilWeb | null>(null);
   const [lineas, setLineas] = useState<{ nombre: string; descripcion: string }[]>([]);
   const [descripcion, setDescripcion] = useState('');
@@ -56,10 +58,12 @@ export function Perfil() {
 
       {error && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-red-800">{error}</p>}
       {ok && <p role="status" className="mb-4 rounded-md bg-emerald-50 p-3 text-emerald-900">Perfil guardado. Se usará en la siguiente ejecución del radar.</p>}
+      {perfil && !puedeEditar && <p className="mb-4 rounded-md bg-stone-100 p-3 text-sm text-stone-700">Solo el equipo puede editar el perfil: entra con «Acceso equipo».</p>}
       {!perfil && !error && <p className="text-stone-500">Cargando…</p>}
 
       {perfil && (
         <form onSubmit={(ev) => void enviar(ev)} className="space-y-6">
+          <fieldset disabled={!puedeEditar} className="space-y-6">
           <section className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-stone-200">
             <h2 className="font-semibold">{perfil.nombre}</h2>
             <p className="mt-1 text-xs text-stone-500">NIF {perfil.nif}{perfil.bdnsIdPersona !== null && ` · idPersona en BDNS ${perfil.bdnsIdPersona}`} (solo lectura)</p>
@@ -113,7 +117,8 @@ export function Perfil() {
             <p className="mt-1 text-xs text-stone-500">Por debajo de esta cantidad una convocatoria puntúa menos: no merece el esfuerzo.</p>
           </section>
 
-          <button type="submit" disabled={ocupado} className="w-full rounded bg-emerald-700 px-4 py-2 font-medium text-white disabled:opacity-50 sm:w-auto">{ocupado ? 'Guardando…' : 'Guardar perfil'}</button>
+          {puedeEditar && <button type="submit" disabled={ocupado} className="w-full rounded bg-emerald-700 px-4 py-2 font-medium text-white disabled:opacity-50 sm:w-auto">{ocupado ? 'Guardando…' : 'Guardar perfil'}</button>}
+          </fieldset>
         </form>
       )}
     </main>

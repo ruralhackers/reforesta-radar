@@ -31,6 +31,12 @@ export const config = {
   decisiones: {
     maxEjemplos: Number(process.env.RADAR_EJEMPLOS_DECISIONES ?? 20),
   },
+  /** Modo privado: sin TEAM_PASSWORD todo está abierto (demo). SESSION_SECRET refuerza la firma de la cookie; RADAR_COOKIE_SECURE=1/0 fuerza la marca Secure. */
+  equipo: {
+    password: process.env.TEAM_PASSWORD || null,
+    secret: process.env.SESSION_SECRET || null,
+    secure: process.env.RADAR_COOKIE_SECURE === undefined || process.env.RADAR_COOKIE_SECURE === '' ? undefined : process.env.RADAR_COOKIE_SECURE === '1',
+  },
   llm: {
     modeloCriba: process.env.RADAR_MODELO_CRIBA || CONFIG_LLM_POR_DEFECTO.modeloCriba,
     modeloAnalisis: process.env.RADAR_MODELO_ANALISIS || CONFIG_LLM_POR_DEFECTO.modeloAnalisis,

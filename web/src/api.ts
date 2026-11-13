@@ -261,3 +261,9 @@ export const decidirConvocatoria = (id: string, cuerpo: { decision: 'nos_interes
 export const deshacerDecision = (id: string) => pedir<object>(`/api/decisiones/${encodeURIComponent(id)}`, 'DELETE');
 export const anadirNota = (id: string, texto: string, autor: string) => pedir<NotaEquipo>(`/api/decisiones/${encodeURIComponent(id)}/notas`, 'POST', { texto, autor: autor || undefined });
 export const borrarNota = (id: string, notaId: number) => pedir<object>(`/api/decisiones/${encodeURIComponent(id)}/notas/${notaId}`, 'DELETE');
+
+// --- Sesión del equipo (GET/POST/DELETE /api/sesion): solo hay acceso de equipo cuando el servidor tiene TEAM_PASSWORD ---
+export interface EstadoSesion { modoPrivado: boolean; autenticado: boolean }
+export const leerSesion = () => pedir<EstadoSesion>('/api/sesion');
+export const entrarEquipo = (password: string) => pedir<EstadoSesion>('/api/sesion', 'POST', { password });
+export const salirEquipo = () => pedir<EstadoSesion>('/api/sesion', 'DELETE');
