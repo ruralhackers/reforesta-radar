@@ -1,0 +1,62 @@
+{
+  "perfil": {
+    "nombre": "Reforesta",
+    "nif": "G80428204",
+    "bdnsIdPersona": 5886517,
+    "lineas": [
+      {
+        "nombre": "Restauración de ecosistemas",
+        "descripcion": "Charcas para anfibios, plantación de árboles y otras especies; programa agroambiental con agricultores; proyectos de hábitat de aves con eléctricas."
+      },
+      {
+        "nombre": "Conservación y mejora de hábitats",
+        "descripcion": "Tritones, control de ailanto y otras invasoras, paisajes en la Sierra de Guadarrama."
+      },
+      {
+        "nombre": "Educación ambiental",
+        "descripcion": "Voluntariado, actividades con centros educativos y sensibilización ambiental."
+      }
+    ],
+    "ambito": {
+      "descripcion": "Estatal + UE + Comunidad de Madrid + ayuntamientos de Madrid; de otras comunidades solo las que no exigen sede allí.",
+      "nivelesSiempre": ["ESTADO"],
+      "comunidades": ["COMUNIDAD DE MADRID"],
+      "regiones": ["ES3", "ES30", "ES300"]
+    },
+    "importeMinimo": 3000,
+    "finalidadesExcluidas": [
+      "DEFENSA",
+      "JUSTICIA",
+      "SEGURIDAD CIUDADANA E INSTITUCIONES PENITENCIARIAS",
+      "ACCESO A LA VIVIENDA Y FOMENTO DE LA EDIFICACIÓN",
+      "SANIDAD",
+      "DESEMPLEO",
+      "SUBVENCIONES AL TRANSPORTE"
+    ]
+  },
+  "organizacionesParecidas": [
+    { "nif": "G78456118", "nombre": "GREFA" },
+    { "nif": "G78616893", "nombre": "Grupo Brinzal" },
+    { "nif": "G28795961", "nombre": "SEO/BirdLife" },
+    { "nif": "G78291788", "nombre": "Asociación Herpetológica Española (AHE)" },
+    { "nif": "G13598545", "nombre": "Fundación Artemisan" },
+    { "nif": "G86795002", "nombre": "Terra Naturalis" },
+    { "nif": "G34147827", "nombre": "Fundación Santa María la Real" },
+    { "nif": "G86433836", "nombre": "International Birdwatching Association" },
+    { "nif": "G97335798", "nombre": "SEBiCoP" },
+    { "nif": "G44906352", "nombre": "Halcones Urbanos" },
+    { "nif": "G79275632", "nombre": "Federación Madrileña de Caza" }
+  ],
+  "fundaciones": [
+    { "nombre": "Fundación Montemadrid", "url": "https://www.fundacionmontemadrid.es/", "notas": "Donante recurrente (con CaixaBank). TODO: página concreta de convocatorias." },
+    { "nombre": "Fundación \"la Caixa\" / CaixaBank", "url": "https://fundacionlacaixa.org/es/convocatorias", "notas": "Donante recurrente." },
+    { "nombre": "Fundación Repsol", "url": "https://www.fundacionrepsol.com/", "notas": "Donante recurrente. TODO: página concreta de convocatorias." },
+    { "nombre": "Fundación Iberdrola España", "url": "https://www.fundacioniberdrolaespana.org/", "notas": "Donante recurrente. TODO: página concreta de convocatorias." },
+    { "nombre": "Fundación Endesa", "url": "https://www.fundacionendesa.org/", "notas": "TODO: página concreta de convocatorias." },
+    { "nombre": "Fundación BBVA", "url": "https://www.fbbva.es/", "notas": "TODO: página concreta de convocatorias." },
+    { "nombre": "Fundación Mapfre", "url": "https://www.fundacionmapfre.org/", "notas": "TODO: página concreta de convocatorias." },
+    { "nombre": "Ecoembes", "url": "https://www.ecoembes.com/", "notas": "TODO: página concreta de convocatorias." },
+    { "nombre": "Caterpillar Foundation", "url": null, "notas": "Donante recurrente vía CAF America. TODO: URL de convocatorias." },
+    { "nombre": "Alstom Foundation", "url": null, "notas": "Donante recurrente. TODO: URL de convocatorias." }
+  ]
+}
