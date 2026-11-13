@@ -41,6 +41,8 @@ export interface DependenciasMotor {
   probabilidad?: ProveedorProbabilidad;
   /** Concesiones de BDNS: false = se salta la fase (sin red); objeto = caché y tope de consultas. Por defecto, activa. */
   ganadores?: boolean | Partial<ConfigGanadores>;
+  /** Espera entre peticiones a BDNS (por defecto setTimeout); los tests la inyectan. */
+  dormir?: (ms: number) => Promise<void>;
   log?: (mensaje: string) => void;
 }
 
@@ -75,20 +77,22 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
   let fases: RegistroFase[] = [];
   let plazos: ResumenPlazos | null = null;
   let puntuacion: ResumenPuntuacion | null = null;
-  let ganadores: ResumenGanadores | null = null;
+  let ganadores = null as ResumenGanadores | null;
   let errorGeneral: string | null = null;
 
   try {
     for (const fuente of deps.fuentes ?? FUENTES) {
       resumen.push(await recorrerFuente(deps, ejecucionId, fuente, perfil, opciones.diasAtras ?? 7));
     }
-    if (deps.ganadores !== false && (deps.fuentes ?? FUENTES).some((f) => f.nombre === 'bdns')) {
+    // Los ganadores se piden tras la criba (solo de lo que sigue en juego) y antes del análisis (que los usa como contexto).
+    const pedirGanadores = async () => {
+      if (deps.ganadores === false || !(deps.fuentes ?? FUENTES).some((f) => f.nombre === 'bdns')) return;
       const cfgG = { ...CONFIG_GANADORES_POR_DEFECTO, ...(typeof deps.ganadores === 'object' ? deps.ganadores : config.ganadores) };
-      ganadores = await recogerGanadores({ db, fetch: deps.fetch, reloj }, perfil, cfgG);
-      log(`ganadores: ${ganadores.consultas} consultas a BDNS (${ganadores.desdeCache} en caché, ${ganadores.omitidasPorTope} sin hacer por el tope), ${ganadores.concesiones} concesiones, ${ganadores.parecidas} organizaciones parecidas, ${ganadores.errores.length} errores`);
+      ganadores = await recogerGanadores({ db, fetch: deps.fetch, reloj, dormir: deps.dormir }, perfil, cfgG);
+      log(`ganadores: ${ganadores.consultas} consultas, ${ganadores.peticiones} peticiones a BDNS (${ganadores.desdeCache} consultas en caché, ${ganadores.omitidasPorTope} sin hacer por el tope), ${ganadores.concesiones} concesiones, ${ganadores.parecidas} organizaciones parecidas, ${ganadores.errores.length} errores`);
       for (const e of ganadores.errores) log(`  ! ${e}`);
-    }
-    fases = await fasesLlm(deps, ejecucionId, perfil, inicio);
+    };
+    fases = await fasesLlm(deps, ejecucionId, perfil, inicio, pedirGanadores);
     plazos = calcularPlazos(db, reloj, perfil, deps.festivos ?? leerFestivos(config.rutaFestivos), deps.fuentes);
     log(`plazos: ${plazos.total} candidatas, ${plazos.literales} literales, ${plazos.calculadas} calculadas, ${plazos.desconocidas} desconocidas, ${plazos.errores.length} errores`);
     for (const e of plazos.errores) log(`  ! ${e}`);
@@ -118,7 +122,7 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
  * la fuente en esta ejecución). Cada fase salta las convocatorias que ya tienen su
  * veredicto (no se repiten llamadas). Sin LLM, ambas se registran como omitidas con un aviso.
  */
-async function fasesLlm(deps: DependenciasMotor, ejecucionId: number, perfil: Perfil, inicio: Date): Promise<RegistroFase[]> {
+async function fasesLlm(deps: DependenciasMotor, ejecucionId: number, perfil: Perfil, inicio: Date, entreCribaYAnalisis: () => Promise<void>): Promise<RegistroFase[]> {
   const log = deps.log ?? (() => {});
   const cfg = { ...CONFIG_LLM_POR_DEFECTO, ...deps.configLlm };
   let fases: RegistroFase[];
@@ -126,11 +130,13 @@ async function fasesLlm(deps: DependenciasMotor, ejecucionId: number, perfil: Pe
     const aviso = 'Sin LLM configurado (falta ANTHROPIC_API_KEY): criba y análisis omitidos en esta ejecución';
     fases = [registroFaseVacio(FASE_CRIBA, null), registroFaseVacio(FASE_ANALISIS, null)];
     for (const f of fases) f.avisos.push(aviso);
+    await entreCribaYAnalisis();
   } else {
     const ctx = { db: deps.db, llm: deps.llm, reloj: deps.reloj, fetch: deps.fetch };
     const publicadasDesde = sumarDias(diaLocal(inicio), -(cfg.diasPendientes - 1));
     const criba = await cribarConLlm(ctx, perfil, cfg.modeloCriba, publicadasDesde, deps.fuentes);
     guardarRegistroFase(deps.db, ejecucionId, criba);
+    await entreCribaYAnalisis();
     const analisis = await analizarConLlm(ctx, perfil, cfg.modeloAnalisis, cfg.maxAnalisis, publicadasDesde, deps.fuentes);
     fases = [criba, analisis];
   }

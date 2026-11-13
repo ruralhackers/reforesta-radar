@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import type { DatabaseSync } from 'node:sqlite';
 import { crearApi } from '../src/api/app.ts';
-import { anioDelTitulo, claveSerie, leerBeneficiario, tituloSinAnio } from '../src/concesiones.ts';
-import { leerParecidas } from '../src/db/ganadores.ts';
+import { anioDelTitulo, claveSerie, edicionesComparables, leerBeneficiario, tituloSinAnio } from '../src/concesiones.ts';
+import { guardarConcesionesDeConvocatoria, leerParecidas, registrarEdicion } from '../src/db/ganadores.ts';
+import { recogerGanadores } from '../src/fases/ganadores.ts';
+import type { ConcesionBdns } from '../src/sources/bdns-concesiones.ts';
 import { guardarConvocatoria } from '../src/db/repo.ts';
 import { ejecutarRadar } from '../src/engine.ts';
 import type { Llm, PeticionLlm } from '../src/llm/llm.ts';
@@ -37,7 +39,7 @@ function bdConCandidata(fechaPublicacion = CONV_2026.fechaPublicacion): Database
   return db;
 }
 
-const deps = (db: DatabaseSync, extra: object = {}) => ({ db, fetch: fetchGrabado({ concesiones: true }), reloj: relojFijo(AHORA), fuentes: [fuente], ...extra });
+const deps = (db: DatabaseSync, extra: object = {}) => ({ db, fetch: fetchGrabado({ concesiones: true }), reloj: relojFijo(AHORA), fuentes: [fuente], dormir: async () => {}, ...extra });
 
 describe('piezas puras', () => {
   test('beneficiario: entidades con NIF, personas anonimizadas sin él', () => {
@@ -179,5 +181,73 @@ describe('ficha, probabilidad y análisis', () => {
     assert.match(analisis[0].mensaje, /GRUPO BRINZAL/);
     // Sin ganadores el prompt es el de siempre (la caché de lo ya analizado sigue valiendo).
     assert.ok(!promptAnalisis(perfil, CONV_2026, []).mensaje.includes('Ganadores de ediciones anteriores'));
+  });
+});
+
+describe('tope de peticiones y pausa', () => {
+  test('con un tope ajustado se hace primero lo que construye las parecidas (NIF y lo que ganó Reforesta)', async () => {
+    const db = bdConCandidata();
+    const r = await ejecutarRadar(deps(db, { ganadores: { maxPeticiones: 4, pausaMs: 0 } }));
+    assert.equal(r.ganadores?.peticiones, 4); // NIF + 3 convocatorias ganadas
+    assert.ok((r.ganadores?.omitidasPorTope ?? 0) > 0);
+    const porNif = new Map(leerParecidas(db).map((x) => [x.nif, x]));
+    for (const nif of ['G78456118', 'G78616893', 'G28795961']) assert.ok(porNif.has(nif), `falta ${nif}`);
+    assert.equal(porNif.get('G78616893')!.origen, 'calculada');
+  });
+
+  const filaSuelta = (id: number): ConcesionBdns => ({
+    id, fechaConcesion: '2025-01-01', beneficiario: 'G11111111 ALGUIEN', importe: 1, urlBR: null, numeroConvocatoria: '1', idConvocatoria: 1,
+    convocatoria: 'X', nivel1: null, nivel2: null, nivel3: null, idPersona: null,
+  });
+
+  test('el tope cuenta peticiones HTTP aunque una consulta pagine, y se espacian con la pausa', async () => {
+    const db = bdSembrada();
+    let llamadas = 0;
+    const pausas: number[] = [];
+    const paginado = (async () => new Response(JSON.stringify({ content: [filaSuelta(++llamadas)], last: false }), { status: 200 })) as typeof fetch;
+    const r = await recogerGanadores(
+      { db, fetch: paginado, reloj: relojFijo(AHORA), dormir: async (ms) => { pausas.push(ms); } }, perfil, { diasCache: 7, maxPeticiones: 5, pausaMs: 250 },
+    );
+    assert.equal(llamadas, 5);
+    assert.equal(r.peticiones, 5);
+    assert.ok(r.omitidasPorTope >= 1);
+    assert.deepEqual(pausas, [250, 250, 250, 250]); // entre peticiones, no antes de la primera
+    assert.equal(r.errores.length, 0);
+  });
+});
+
+describe('series: sin falsos positivos', () => {
+  test('un título genérico no forma serie', () => {
+    assert.equal(claveSerie('Subvenciones a entidades 2026', ORGANO), null);
+    assert.equal(claveSerie('Ayudas para proyectos sociales 2026', ORGANO), null);
+    assert.ok(claveSerie('SUBVENCIÓN ENTIDADES SIN ÁNIMO DE LUCRO PROYECTOS AMBIENTALES 2026', ORGANO));
+  });
+
+  test('edicionesComparables: solo años anteriores, conocidos y con una sola convocatoria por año', () => {
+    const eds = [
+      { numeroConvocatoria: '1', anio: 2025 }, { numeroConvocatoria: '2', anio: 2024 }, { numeroConvocatoria: '3', anio: 2024 },
+      { numeroConvocatoria: '4', anio: 2026 }, { numeroConvocatoria: '5', anio: null }, { numeroConvocatoria: '6', anio: 2023 },
+    ];
+    assert.deepEqual(edicionesComparables(eds, { numeroConvocatoria: '9', anio: 2026 }).map((e) => e.numeroConvocatoria), ['1', '6']);
+    assert.deepEqual(edicionesComparables(eds, { numeroConvocatoria: '9', anio: null }), []);
+  });
+
+  test('dos convocatorias del mismo año con el mismo título no alimentan la ficha ni "Reforesta ganó"', async () => {
+    const db = bdConCandidata();
+    const fila = (id: number, numero: string, beneficiario: string): ConcesionBdns => ({
+      id, fechaConcesion: '2024-12-01', beneficiario, importe: 1000, urlBR: null, numeroConvocatoria: numero, idConvocatoria: id,
+      convocatoria: 'SUBVENCIÓN ENTIDADES SIN ÁNIMO DE LUCRO PROYECTOS AMBIENTALES 2024', ...ORGANO, idPersona: null,
+    });
+    // Dos convocatorias de 2024 con el mismo título y órgano (una de ellas con Reforesta entre los ganadores) y otra de 2026 (el mismo año que la candidata).
+    guardarConcesionesDeConvocatoria(db, '5001', [fila(1, '5001', 'G80428204 ASOC. REFORESTA')], AHORA);
+    guardarConcesionesDeConvocatoria(db, '5002', [fila(2, '5002', 'G11111111 OTRA')], AHORA);
+    registrarEdicion(db, '5003', 'SUBVENCIÓN ENTIDADES SIN ÁNIMO DE LUCRO PROYECTOS AMBIENTALES 2026', ORGANO, '2026-06-01');
+    guardarConcesionesDeConvocatoria(db, '5003', [{ ...fila(3, '5003', 'G80428204 ASOC. REFORESTA'), convocatoria: 'SUBVENCIÓN ENTIDADES SIN ÁNIMO DE LUCRO PROYECTOS AMBIENTALES 2026' }], AHORA);
+    const app = crearApi({ db, reloj: relojFijo(AHORA), fuentes: [fuente], puntuacion: leerConfigPuntuacion(RUTA_PUNTUACION) });
+    const ficha = await (await app.request('/convocatorias/bdns:904719')).json() as any;
+    assert.deepEqual(ficha.ganadoresPrevios.ediciones, []);
+    assert.deepEqual(ficha.ganadoresPrevios.reforestaGano, []);
+    const f = ficha.puntuacion.factores.find((x: any) => x.id === 'probabilidad');
+    assert.equal(f.conocido, false);
   });
 });

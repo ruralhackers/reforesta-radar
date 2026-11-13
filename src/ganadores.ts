@@ -2,7 +2,7 @@
 // anteriores de su serie (mismo órgano, mismo título salvo el año). Es lo que usan la ficha, la probabilidad y el análisis.
 // BDNS solo publica a los ganadores: nunca sabemos a quién se denegó, así que "no figura entre los ganadores" no es "perdió".
 import type { DatabaseSync } from 'node:sqlite';
-import { anioEdicion, claveSerie } from './concesiones.ts';
+import { anioEdicion, claveSerie, edicionesComparables } from './concesiones.ts';
 import { concesionesDe, edicionesDeSerie, leerParecidas } from './db/ganadores.ts';
 import { leerPerfil } from './db/repo.ts';
 import type { ProveedorProbabilidad } from './puntuacion.ts';
@@ -62,9 +62,7 @@ export function ganadoresPrevios(db: DatabaseSync, c: Convocatoria, perfil: Perf
   const propia = construir(c.fuenteId, c.titulo, anioPropio, true);
   if (propia.ganadores.length > 0) ediciones.push(propia);
   if (serie) {
-    for (const e of edicionesDeSerie(db, serie)) {
-      if (e.numeroConvocatoria === c.fuenteId) continue;
-      if (anioPropio !== null && e.anio !== null && e.anio >= anioPropio) continue; // solo las anteriores
+    for (const e of edicionesComparables(edicionesDeSerie(db, serie), { numeroConvocatoria: c.fuenteId, anio: anioPropio })) {
       ediciones.push(construir(e.numeroConvocatoria, e.titulo, e.anio, false));
     }
   }

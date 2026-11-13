@@ -13,7 +13,7 @@
     "start": "node src/server.ts",
     "dev:web": "vite --config web/vite.config.ts",
     "build": "vite build --config web/vite.config.ts",
-    "test": "node --test \"test/**/*.test.ts\"",
+    "test": "RADAR_PAUSA_BDNS_MS=0 node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json",
     "record:bdns": "node scripts/record-bdns-fixtures.ts",
     "record:concesiones": "node scripts/record-bdns-concesiones.ts"

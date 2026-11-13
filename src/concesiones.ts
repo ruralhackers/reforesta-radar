@@ -45,14 +45,33 @@ export interface OrganoSerie {
   nivel3: string | null;
 }
 
+const PALABRAS_VACIAS = new Set(['de', 'del', 'la', 'las', 'el', 'los', 'lo', 'y', 'e', 'o', 'u', 'a', 'al', 'en', 'con', 'por', 'para', 'sin', 'un', 'una', 'que', 'se']);
+/** Palabras significativas mínimas del título (sin años ni palabras vacías) para fiarse de una serie. */
+export const MIN_PALABRAS_SERIE = 4;
+
 /**
- * Clave de serie: título normalizado sin años + órgano. Dos convocatorias con la misma clave son ediciones de la misma serie.
- * null si el título (sin años) es demasiado genérico (menos de dos palabras) para fiarse.
+ * Clave de serie: título normalizado sin años + órgano. Dos convocatorias con la misma clave son candidatas a ser ediciones de la misma serie
+ * (ver `edicionesComparables`). null si el título es demasiado genérico: menos de MIN_PALABRAS_SERIE palabras significativas.
  */
 export function claveSerie(titulo: string, organo: OrganoSerie): string | null {
   const t = normalizar(tituloSinAnio(titulo));
-  if (t.split(' ').filter(Boolean).length < 2) return null;
+  if (t.split(' ').filter((w) => w && !PALABRAS_VACIAS.has(w)).length < MIN_PALABRAS_SERIE) return null;
   return [t, normalizar(organo.nivel1 ?? ''), normalizar(organo.nivel2 ?? ''), normalizar(organo.nivel3 ?? '')].join('|');
+}
+
+/**
+ * De las ediciones con la misma clave de serie, las que de verdad se pueden enlazar con la convocatoria `propia`: años conocidos,
+ * anteriores al suyo, y un solo número de convocatoria por año (si dos convocatorias distintas comparten año y título, no se sabe cuál
+ * es "la edición" de ese año y no se enlaza ninguna). Nunca se enlazan dos convocatorias del mismo año.
+ */
+export function edicionesComparables<T extends { numeroConvocatoria: string; anio: number | null }>(
+  ediciones: T[], propia: { numeroConvocatoria: string; anio: number | null },
+): T[] {
+  if (propia.anio === null) return [];
+  const otras = ediciones.filter((e) => e.numeroConvocatoria !== propia.numeroConvocatoria && e.anio !== null && e.anio < propia.anio!);
+  const porAnio = new Map<number, number>();
+  for (const e of otras) porAnio.set(e.anio!, (porAnio.get(e.anio!) ?? 0) + 1);
+  return otras.filter((e) => porAnio.get(e.anio!) === 1);
 }
 
 /** Año de una edición: el del título; si no lleva, el de la fecha de referencia (YYYY-MM-DD). */
