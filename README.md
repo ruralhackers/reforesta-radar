@@ -59,7 +59,7 @@ Sobre el historial de Reforesta, solo lo verificado en BDNS: ganó las convocato
 ## Vídeo y demo
 
 - [Vídeo de la demo](ENLACE_VIDEO)
-- Demo en vivo: **pendiente de despliegue** (la web irá en `https://reforesta.ruralhackers.com`, ver [Desplegar](#desplegar)).
+- Demo en vivo: **https://reforesta.ruralhackers.com** — acceso con código por email (Cloudflare Access); pide acceso si no estás en la lista.
 
 El vídeo se genera con `npm run video` (guion en [`docs/guion-video.md`](docs/guion-video.md)); las capturas de este README, con `npm run capturas` ([`docs/capturas/`](docs/capturas/LEEME.md)).
 
@@ -133,7 +133,7 @@ Todo lo específico de Reforesta está en [`seed/`](seed/), no en el código: `p
 - Algunas webs de fundaciones bloquean a clientes automáticos (p. ej. «la Caixa», desactivada en la semilla); la lista es corta.
 - Empresas: las DIA dan un motivo verificable, no un contacto; el nivel B de la huella es de baja confianza.
 - Un único usuario «equipo», sin cuentas individuales. No redacta propuestas ni presenta solicitudes.
-- Pendientes: la demo en vivo aún no está desplegada y el correo del lunes aún no sigue el rediseño de la web.
+- Pendientes: el correo del lunes aún no sigue el rediseño de la web.
 
 Lista completa en la [referencia técnica](docs/referencia-tecnica.md#límites-conocidos).
 
