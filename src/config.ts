@@ -44,6 +44,8 @@ export function leerConfig(env: Entorno) {
     rutaFestivos: env.FESTIVOS_FILE || fileURLToPath(new URL('../seed/festivos.json', import.meta.url)),
     /** Pesos y umbrales de la puntuación. */
     rutaPuntuacion: env.PUNTUACION_FILE || fileURLToPath(new URL('../seed/puntuacion.json', import.meta.url)),
+    /** Palabras genéricas y de administración con las que no se casan los financiadores de las memorias con empresas ni fundaciones (ver seed/financiadores-genericos.json). */
+    rutaGenericos: env.FINANCIADORES_GENERICOS_FILE || fileURLToPath(new URL('../seed/financiadores-genericos.json', import.meta.url)),
     /** Informe público del backtest ("Cómo sabemos") que se sirve cuando la BD aún no tiene resultados (lo escribe `npm run backtest`). */
     rutaBacktest: env.BACKTEST_FILE || fileURLToPath(new URL('../seed/backtest.json', import.meta.url)),
     /** Backtest: BD de trabajo (criba y caché del LLM; nunca la del radar), tope de convocatorias del conjunto (b) por ejecución y pasada de construcción. */

@@ -16,6 +16,19 @@ export const FASE_MEMORIAS = 'memorias';
 /** Fallos de descarga seguidos tras los que el motor deja de insistir con una memoria (el comando sí lo intenta siempre). */
 const MAX_FALLOS_MOTOR = 3;
 const DIAS_ENTRE_DESCUBRIMIENTOS = 7;
+/** Fallos de extracción (LLM: respuesta cortada, rechazo, error de la API) por URL tras los que el motor la deja `DIAS_PAUSA_FALLOS` días (las respuestas fallidas se cobran). */
+const MAX_FALLOS_LLM = 3;
+const DIAS_PAUSA_FALLOS = 30;
+
+/** Fallos de extracción apuntados de una URL (`n|fecha del último`); a los 30 días del último se olvidan. */
+function fallosLlm(db: DatabaseSync, url: string, ahora: Date): { n: number; ultimo: Date | null } {
+  const v = leerEstadoFuente(db, 'memorias', `fallo-llm:${url}`);
+  if (!v) return { n: 0, ultimo: null };
+  const [n, fecha] = v.split('|');
+  const ultimo = new Date(fecha);
+  if (Number.isNaN(ultimo.getTime()) || ahora.getTime() - ultimo.getTime() >= DIAS_PAUSA_FALLOS * 86_400_000) return { n: 0, ultimo: null };
+  return { n: Number(n) || 0, ultimo };
+}
 
 export interface ConfigMemorias {
   /** Caracteres de una memoria que entran en el prompt (el resto se recorta con una nota y las citas se comprueban contra lo enviado). */
@@ -120,6 +133,10 @@ export async function procesarMemorias(ctx: Contexto, perfilEntrada: Perfil, mod
       if (hashMemoria(ctx.db, url) !== null) { r.sinCambios++; continue; }
       if (Number(leerEstadoFuente(ctx.db, 'memorias', `fallo:${url}`) ?? 0) >= MAX_FALLOS_MOTOR) { registro.avisos.push(`Memoria ${url}: ${MAX_FALLOS_MOTOR} fallos seguidos, el motor no insiste (npm run memorias lo reintenta)`); continue; }
     }
+    if (cfg.soloPendientes) {
+      const f = fallosLlm(ctx.db, url, ahora());
+      if (f.n >= MAX_FALLOS_LLM) { registro.avisos.push(`Memoria ${url}: ${f.n} extracciones fallidas, el motor la deja ${DIAS_PAUSA_FALLOS} días desde ${f.ultimo!.toISOString().slice(0, 10)} (npm run memorias la reintenta)`); continue; }
+    }
     if (cfg.refrescar) ctx.db.prepare('DELETE FROM documentos WHERE url = ?').run(url);
     const lectura = await leerDocumentos(ctx.db, ctx.fetch, [{ titulo: `Memoria ${url}`, url }], ahora(), ctx.resolver);
     const fallo = [...lectura.erroresTransitorios.map((m) => [m, true] as const), ...lectura.errores.map((m) => [m, false] as const)][0];
@@ -159,6 +176,7 @@ export async function procesarMemorias(ctx: Contexto, perfilEntrada: Perfil, mod
       const m = validarRespuesta(() => validarMemoria(resp.datos, textoEnviado, perfil, t.url, t.hash, resp.modelo, t.paginas));
       aCache(ctx as ContextoFase, clave, resp);
       guardarMemoria(ctx.db, m, ahora());
+      guardarEstadoFuente(ctx.db, 'memorias', `fallo-llm:${t.url}`, '0|', ahora());
       registro.procesadas++;
       r.extraidas++; r.proyectos += m.proyectos.length; r.financiadores += m.financiadores.length;
       for (const c of m.correcciones) registro.avisos.push(`Memoria ${m.anio ?? t.url}: ${c}`);
@@ -166,6 +184,9 @@ export async function procesarMemorias(ctx: Contexto, perfilEntrada: Perfil, mod
       if (esPresupuestoAgotado(e)) { registro.omitidasPorTope++; continue; }
       errores.push(`Memoria ${t.url}: ${(e as Error).message}`);
       registro.errores.push(`Memoria ${t.url}: ${(e as Error).message}`);
+      const n = fallosLlm(ctx.db, t.url, ahora()).n + 1;
+      guardarEstadoFuente(ctx.db, 'memorias', `fallo-llm:${t.url}`, `${n}|${ahora().toISOString()}`, ahora());
+      if (n >= MAX_FALLOS_LLM) registro.avisos.push(`Memoria ${t.url}: ${n} extracciones fallidas seguidas; el motor deja de intentarla ${DIAS_PAUSA_FALLOS} días`);
     }
   }
   if (registro.omitidasPorTope) registro.avisos.push(`Presupuesto de LLM agotado: ${registro.omitidasPorTope} memorias quedan sin extraer (se retoman en la siguiente ejecución)`);

@@ -1,6 +1,8 @@
 // Memorias anuales de la propia entidad: qué ha hecho (proyectos_propios) y quién la ha financiado (financiadores_propios), con la cita literal
 // de cada dato. Una memoria = un documento por URL; se guarda con el hash de lo leído para no volver a extraerla si no ha cambiado.
+import { readFileSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
+import { config } from '../config.ts';
 import { claveEmpresa } from './empresas.ts';
 import { transaccion } from './repo.ts';
 
@@ -140,24 +142,53 @@ export interface YaFinanciador {
 }
 
 export interface FinanciadoresConocidos {
-  /** Para casar con empresas: financiadores que no son fundaciones ni administraciones. */
+  /** Para casar con empresas: financiadores de tipo empresa u otro (nunca administraciones, aunque el LLM las etiquete así). */
   empresas: Map<string, YaFinanciador>;
   /** Para casar con fundaciones vigiladas: financiadores de tipo fundación. */
   fundaciones: Map<string, YaFinanciador>;
+  /** Solo de tipo empresa: lo único que una fundación vigilada admite como respaldo cuando la memoria llama empresa a su matriz («Iberdrola» → Fundación Iberdrola). */
+  comerciales: Map<string, YaFinanciador>;
 }
 
-/** Financiadores de las memorias agrupados por clave (nombre normalizado) y por tipo. Las administraciones no se casan con nada (no son empresas ni fundaciones). */
+interface Genericos { palabrasGenericas: Set<string>; palabrasAdministracion: Set<string> }
+let genericos: Genericos | null = null;
+function cargarGenericos(): Genericos {
+  if (!genericos) {
+    const j = JSON.parse(readFileSync(config.rutaGenericos, 'utf8')) as { palabrasGenericas?: string[]; palabrasAdministracion?: string[] };
+    genericos = { palabrasGenericas: new Set(j.palabrasGenericas ?? []), palabrasAdministracion: new Set(j.palabrasAdministracion ?? []) };
+  }
+  return genericos;
+}
+
+/** Clave demasiado genérica para casar por nombre: todas sus palabras son genéricas («obra social», «caja», «natura») o es una sola palabra de menos de 4 letras. */
+export function claveGenerica(clave: string, g: Genericos = cargarGenericos()): boolean {
+  const t = clave.split(' ').filter(Boolean);
+  return t.length === 0 || (t.length === 1 && t[0].length < 4) || t.every((x) => g.palabrasGenericas.has(x));
+}
+
+/** El nombre es el de una administración (por sus palabras), diga lo que diga el tipo que le puso el LLM. */
+export function esAdministracionPorNombre(nombre: string, g: Genericos = cargarGenericos()): boolean {
+  return claveEmpresa(nombre).split(' ').some((x) => g.palabrasAdministracion.has(x));
+}
+
+/**
+ * Financiadores de las memorias agrupados por clave (nombre normalizado) y por tipo, para marcar empresas y fundaciones. No casan: las administraciones (por tipo o por
+ * nombre), las claves genéricas, ni la relación `otra` (solo financiación y voluntariado corporativo dan el chip).
+ */
 export function financiadoresConocidos(db: DatabaseSync): FinanciadoresConocidos {
-  const r: FinanciadoresConocidos = { empresas: new Map(), fundaciones: new Map() };
+  const r: FinanciadoresConocidos = { empresas: new Map(), fundaciones: new Map(), comerciales: new Map() };
+  const g = cargarGenericos();
   for (const f of financiadoresPropios(db)) {
-    if (!f.clave || f.tipo === 'administracion') continue;
-    const mapa = f.tipo === 'fundacion' ? r.fundaciones : r.empresas;
-    const previo = mapa.get(f.clave);
-    const anios = new Set([...(previo?.anios ?? []), ...(f.anio === null ? [] : [f.anio])]);
-    mapa.set(f.clave, {
-      nombre: previo?.nombre ?? f.nombre, anios: [...anios].sort((a, b) => a - b),
-      relacion: previo?.relacion === 'financiacion' || f.relacion === 'financiacion' ? 'financiacion' : (previo?.relacion ?? f.relacion),
-    });
+    if (!f.clave || f.tipo === 'administracion' || f.relacion === 'otra' || claveGenerica(f.clave, g) || esAdministracionPorNombre(f.nombre, g)) continue;
+    const destinos = f.tipo === 'fundacion' ? [r.fundaciones] : f.tipo === 'empresa' ? [r.empresas, r.comerciales] : [r.empresas];
+    for (const mapa of destinos) {
+      const previo = mapa.get(f.clave);
+      const anios = new Set([...(previo?.anios ?? []), ...(f.anio === null ? [] : [f.anio])]);
+      mapa.set(f.clave, {
+        nombre: previo?.nombre ?? f.nombre, anios: [...anios].sort((a, b) => a - b),
+        relacion: previo?.relacion === 'financiacion' || f.relacion === 'financiacion' ? 'financiacion' : (previo?.relacion ?? f.relacion),
+      });
+    }
   }
   return r;
 }

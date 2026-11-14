@@ -1,0 +1,11 @@
+{
+  "_ayuda": "Palabras (ya sin tildes ni forma societaria ni «fundación», ver claveFinanciador) con las que NO se casa un financiador de las memorias con una empresa o fundación. palabrasGenericas: un nombre cuyas palabras son todas genéricas (p. ej. «obra social», «caja», «natura») no casa con nada, tampoco uno de una sola palabra de menos de 4 letras. palabrasAdministracion: un nombre con alguna de estas palabras es una administración aunque el LLM la haya etiquetado empresa u otro. Editable por entidad (FINANCIADORES_GENERICOS_FILE).",
+  "palabrasGenericas": [
+    "obra", "social", "caja", "cajas", "natura", "naturaleza", "banco", "bancos", "grupo", "instituto", "universidad", "colegio", "club", "sociedad", "centro", "servicios",
+    "espana", "espanola", "madrid", "nacional", "general", "internacional", "medio", "ambiente", "ambiental", "ong", "cooperativa", "ayuda", "ayudas", "verde", "tierra"
+  ],
+  "palabrasAdministracion": [
+    "ayuntamiento", "diputacion", "comunidad", "consejeria", "gobierno", "ministerio", "junta", "agencia", "comision", "parlamento", "cabildo", "generalitat", "xunta",
+    "mancomunidad", "confederacion", "europea", "europeo", "europeos", "estado", "organismo", "parque", "patronato"
+  ]
+}

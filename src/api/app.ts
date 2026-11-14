@@ -127,7 +127,7 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
   // `yaFinanciador`: la fundación figura entre los financiadores de las memorias de la entidad (por nombre normalizado); solo las de tipo fundación.
   api.get('/fundaciones', (c) => {
     const k = financiadoresConocidos(db);
-    return c.json({ fundaciones: leerFuentesVigiladas(db).map(({ huella: _huella, ...f }) => ({ ...f, yaFinanciador: f.tipo === 'fundacion' ? (k.fundaciones.get(claveFinanciador(f.nombre)) ?? k.empresas.get(claveFinanciador(f.nombre)) ?? null) : null })) });
+    return c.json({ fundaciones: leerFuentesVigiladas(db).map(({ huella: _huella, ...f }) => ({ ...f, yaFinanciador: f.tipo === 'fundacion' ? (k.fundaciones.get(claveFinanciador(f.nombre)) ?? k.comerciales.get(claveFinanciador(f.nombre)) ?? null) : null })) });
   });
 
   // --- Memorias de la entidad (las lee el motor o `npm run memorias`; aquí solo se ve el resultado) ---

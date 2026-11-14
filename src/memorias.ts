@@ -77,6 +77,31 @@ export function peticionMemoria(perfil: Perfil, url: string, documento: string, 
 }
 
 type Bruto = Record<string, unknown>;
+/** `nombre` (normalizado, mínimo 3 caracteres) aparece en `dentro` (ya normalizado) con límite de palabra a cada lado. */
+export function nombreEnTexto(nombre: string, dentro: string): boolean {
+  const x = normalizarParaCita(nombre).replace(/^["'.\s]+|["'.\s]+$/g, '');
+  if (x.length < 3) return false;
+  const esc = x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?<![\\p{L}\\p{N}])${esc}(?![\\p{L}\\p{N}])`, 'u').test(dentro);
+}
+
+/** El nombre de un proyecto consta en su cita: entero, o todas sus palabras distintivas (4+ letras) juntas en ella. */
+function nombreDeProyectoEnCita(nombre: string, cita: string): boolean {
+  const c = normalizarParaCita(cita);
+  if (nombreEnTexto(nombre, c)) return true;
+  const palabras = [...raices(nombre)];
+  return palabras.length >= 2 && palabras.every((r) => c.split(/[^\p{L}\p{N}]+/u).some((t) => t.normalize('NFD').replace(/\p{M}/gu, '').startsWith(r)));
+}
+
+/** La descripción está respaldada por la cita: sus cifras están en ella y al menos la mitad de sus palabras con contenido (por raíz). */
+function descripcionRespaldada(desc: string, cita: string): boolean {
+  if (!valorEnCita(desc, cita)) return false;
+  const r = [...raices(desc)];
+  if (r.length === 0) return false;
+  const rc = raices(cita);
+  return r.filter((x) => rc.has(x)).length * 2 >= r.length;
+}
+
 const cad = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 const lista = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
@@ -98,6 +123,8 @@ export function validarMemoria(bruto: unknown, textoEnviado: string, perfil: Per
   const quito = (m: string) => correcciones.push(m);
   const aparece = (s: string) => { const x = normalizarParaCita(s); return x.length >= 2 && n.includes(x); };
   const citaBuena = (c: string) => citaEnTexto(c, n);
+  /** El nombre está en el texto como palabra(s) completa(s) (no dentro de otra: «UE» no casa en «queda»). */
+  const apareceExacto = (nombre: string, dentro: string) => nombreEnTexto(nombre, dentro);
 
   const anioDoc = Number.isInteger(r.anioMemoria) && (r.anioMemoria as number) >= 1990 && (r.anioMemoria as number) <= 2100 ? (r.anioMemoria as number) : null;
   const anio = anioDoc ?? anioDeUrl(url);
@@ -113,13 +140,16 @@ export function validarMemoria(bruto: unknown, textoEnviado: string, perfil: Per
   }
 
   const lineas = new Set(perfil.lineas.map((l) => l.nombre));
-  const nombresEnTexto = (v: unknown): string[] => [...new Set(lista(v).map(cad).filter(Boolean))].filter((s) => aparece(s) || (quito(`nombre «${s}» no aparece en el texto; se quita`), false));
+  const nombresEnTexto = (v: unknown): string[] => [...new Set(lista(v).map(cad).filter(Boolean))].filter((s) => apareceExacto(s, n) || (quito(`nombre «${s}» no aparece en el texto; se quita`), false));
   const proyectos: MemoriaExtraida['proyectos'] = [];
   const vistos = new Set<string>();
   for (const x of lista(r.proyectos) as Bruto[]) {
     const nombre = cad(x?.nombre);
     if (!nombre) continue;
-    if (!citaBuena(cad(x?.cita))) { quito(`proyecto «${nombre}»: la cita no aparece en el texto; se quita`); continue; }
+    const citaP = cad(x?.cita);
+    if (!citaBuena(citaP)) { quito(`proyecto «${nombre}»: la cita no aparece en el texto; se quita`); continue; }
+    // El nombre tiene que constar en su cita o, si la cita es un resultado y no el título, escrito tal cual en el documento (con límite de palabra).
+    if (!nombreDeProyectoEnCita(nombre, citaP) && !apareceExacto(nombre, n)) { quito(`proyecto «${nombre}»: su nombre no consta ni en su cita ni en el texto; se quita`); continue; }
     const clave = claveEmpresa(nombre);
     if (vistos.has(clave)) continue; // el mismo proyecto dos veces en una memoria
     vistos.add(clave);
@@ -140,10 +170,17 @@ export function validarMemoria(bruto: unknown, textoEnviado: string, perfil: Per
       if (!citaBuena(cita) || !valorEnCita(valor, cita)) { quito(`proyecto «${nombre}»: dato «${valor}» sin cita comprobable; se quita`); continue; }
       datos.push({ concepto, etiqueta: cad(d?.etiqueta), valor, cita });
     }
-    const aProy = Number.isInteger(x?.anio) && (x.anio as number) >= 1990 && (x.anio as number) <= 2100 ? (x.anio as number) : anio;
+    // Un año distinto del de la memoria es una afirmación: tiene que estar en la cita (como número de 4 cifras); si no, se usa el de la memoria.
+    const anioDicho = Number.isInteger(x?.anio) && (x.anio as number) >= 1990 && (x.anio as number) <= 2100 ? (x.anio as number) : null;
+    const anioEnCita = anioDicho !== null && new RegExp(`(?<!\\d)${anioDicho}(?!\\d)`).test(citaP);
+    if (anioDicho !== null && anioDicho !== anio && !anioEnCita) quito(`proyecto «${nombre}»: el año ${anioDicho} no consta en su cita; se usa el de la memoria`);
+    const aProy = anioDicho !== null && (anioDicho === anio || anioEnCita) ? anioDicho : anio;
+    const descBruta = cad(x?.descripcion);
+    const descripcion = descBruta && descripcionRespaldada(descBruta, citaP) ? descBruta : '';
+    if (descBruta && !descripcion) quito(`proyecto «${nombre}»: la descripción no está respaldada por su cita; se quita`);
     proyectos.push({
       nombre, anio: aProy, lugar: lugar('lugar'), municipio: lugar('municipio'), provincia: lugar('provincia'),
-      linea: lineas.has(cad(x?.linea)) ? cad(x?.linea) : '', descripcion: cad(x?.descripcion), socios: nombresEnTexto(x?.socios), financiadores: nombresEnTexto(x?.financiadores), datos, cita: cad(x?.cita),
+      linea: lineas.has(cad(x?.linea)) ? cad(x?.linea) : '', descripcion, socios: nombresEnTexto(x?.socios), financiadores: nombresEnTexto(x?.financiadores), datos, cita: cad(x?.cita),
     });
   }
 
@@ -152,8 +189,8 @@ export function validarMemoria(bruto: unknown, textoEnviado: string, perfil: Per
     const nombre = cad(x?.nombre);
     const clave = claveFinanciador(nombre);
     if (!nombre || !clave) continue;
-    if (!aparece(nombre)) { quito(`financiador «${nombre}»: el nombre no aparece en el texto; se quita`); continue; }
     if (!citaBuena(cad(x?.cita))) { quito(`financiador «${nombre}»: la cita no aparece en el texto; se quita`); continue; }
+    if (!apareceExacto(nombre, normalizarParaCita(cad(x?.cita)))) { quito(`financiador «${nombre}»: su nombre no consta en su propia cita; se quita`); continue; }
     const tipo = (TIPOS_FINANCIADOR as readonly string[]).includes(cad(x?.tipo)) ? (cad(x?.tipo) as TipoFinanciador) : 'otro';
     const relacion = (RELACIONES_FINANCIADOR as readonly string[]).includes(cad(x?.relacion)) ? (cad(x?.relacion) as RelacionFinanciador) : 'otra';
     const previo = porClave.get(`${clave}|${tipo}`);
@@ -183,6 +220,15 @@ export function enlacesDeMemorias(html: string, base: string): string[] {
 // --- Experiencia en los prompts ---
 
 const LIMITE_EXPERIENCIA = 15;
+/** Caracteres como mucho por campo (nombre, lugar, socio, descripción…) y por todo el bloque de experiencia que entra en un prompt. */
+export const MAX_CARACTERES_CAMPO_EXPERIENCIA = 120;
+export const MAX_CARACTERES_EXPERIENCIA = 3000;
+
+/** Campo de un proyecto para un prompt: sin saltos de línea ni caracteres de control ni `<` `>`, con el espacio colapsado y cortado a `max`. */
+export function limpioParaPrompt(s: string, max = MAX_CARACTERES_CAMPO_EXPERIENCIA): string {
+  const t = s.replace(/[\p{C}\u2028\u2029<>]/gu, ' ').replace(/\s+/g, ' ').trim();
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+}
 
 const etiquetaMemoria = (p: ProyectoPropio, memorias: Map<string, number | null>) => `Memoria ${memorias.get(p.memoriaUrl) ?? p.anio ?? '?'}`;
 
@@ -200,11 +246,22 @@ function sinRepetidos(proyectos: ProyectoPropio[]): ProyectoPropio[] {
 export function textoExperiencia(proyectos: ProyectoPropio[], aniosMemoria: Map<string, number | null>, max = LIMITE_EXPERIENCIA): string {
   const elegidos = sinRepetidos([...proyectos].sort((a, b) => Number(!!b.linea) - Number(!!a.linea) || (b.anio ?? 0) - (a.anio ?? 0) || a.nombre.localeCompare(b.nombre) || a.id - b.id)).slice(0, max)
     .sort((a, b) => (b.anio ?? 0) - (a.anio ?? 0) || a.nombre.localeCompare(b.nombre) || a.id - b.id);
-  return elegidos.map((p) => {
-    const donde = [p.lugar, p.municipio && !p.lugar.includes(p.municipio) ? p.municipio : '', p.provincia && !p.lugar.includes(p.provincia) ? p.provincia : ''].filter(Boolean).join(', ');
-    const con = [...new Set([...p.socios, ...p.financiadores])];
-    return `- [${etiquetaMemoria(p, aniosMemoria)}] ${p.nombre}${p.anio ? ` (${p.anio})` : ''}${donde ? ` — ${donde}` : ''}${p.linea ? ` — línea: ${p.linea}` : ''}${con.length ? ` — con ${con.slice(0, 4).join(', ')}` : ''}${p.descripcion ? ` — ${p.descripcion}` : ''}`;
-  }).join('\n');
+  const lineas = elegidos.map((p) => {
+    const l = (x: string) => limpioParaPrompt(x);
+    const donde = [p.lugar, p.municipio && !p.lugar.includes(p.municipio) ? p.municipio : '', p.provincia && !p.lugar.includes(p.provincia) ? p.provincia : ''].filter(Boolean).map(l).join(', ');
+    const con = [...new Set([...p.socios, ...p.financiadores])].map(l);
+    const memoria = limpioParaPrompt(etiquetaMemoria(p, aniosMemoria), 20);
+    return `- [${memoria}] ${l(p.nombre)}${p.anio ? ` (${p.anio})` : ''}${donde ? ` — ${limpioParaPrompt(donde, 200)}` : ''}${p.linea ? ` — línea: ${l(p.linea)}` : ''}${con.length ? ` — con ${limpioParaPrompt(con.slice(0, 4).join(', '), 200)}` : ''}${p.descripcion ? ` — ${l(p.descripcion)}` : ''}`;
+  });
+  // Tope del bloque entero: se corta por líneas completas (las primeras son las más recientes).
+  const salida: string[] = [];
+  let total = 0;
+  for (const linea of lineas) {
+    if (total + linea.length + 1 > MAX_CARACTERES_EXPERIENCIA) break;
+    salida.push(linea);
+    total += linea.length + 1;
+  }
+  return salida.join('\n');
 }
 
 // --- Experiencia relacionada en la ficha (sin LLM) ---
@@ -246,7 +303,9 @@ export function experienciaRelacionada(proyectos: ProyectoPropio[], aniosMemoria
   const rc = raices(c.texto);
   const lineas = new Set(c.lineas.map((l) => l.toLowerCase()));
   const puntuados = sinRepetidos(proyectos).map((p) => {
-    const comunes = [...raices(`${p.nombre} ${p.descripcion}`)].filter((r) => rc.has(r)).length;
+    const lugarP = raices(`${p.lugar} ${p.municipio} ${p.provincia}`);
+    // Las palabras que son solo de lugar no cuentan como parecido de contenido (el lugar puntúa aparte).
+    const comunes = [...raices(`${p.nombre} ${p.descripcion}`)].filter((r) => rc.has(r) && !lugarP.has(r)).length;
     const deLinea = p.linea !== '' && lineas.has(p.linea.toLowerCase());
     const sitio = [...raices(`${p.lugar} ${p.municipio} ${p.provincia}`)].some((r) => rc.has(r));
     const puntos = comunes + (deLinea ? 2 : 0) + (sitio ? 2 : 0);
