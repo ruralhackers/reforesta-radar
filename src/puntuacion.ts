@@ -110,6 +110,8 @@ export interface EntradaPuntuacion {
   /** null = aún sin analizar. Para una licitación (fuente placsp), el análisis propio (`AnalisisLicitacion`). */
   analisis: Analisis | AnalisisLicitacion | null;
   /** Solo licitaciones: lo que el perfil dice de la escala de la entidad (presupuesto máximo y volumen anual). */
+  /** Nombre de la entidad del perfil, para las explicaciones (ausente = «la entidad»). */
+  nombreEntidad?: string;
   escalaLicitaciones?: { presupuestoMaximo: number | null; ingresosAnuales: number | null };
   plazo: { fechaCierre: string | null; tipo: 'literal' | 'calculada' | 'desconocida'; diasHastaCierre: number | null } | null;
   /** Importe mínimo del perfil, en euros. */
@@ -148,7 +150,7 @@ export type ProveedorProbabilidad = (e: EntradaPuntuacion) => { valor: number | 
 /** Hasta que haya ganadoras parecidas e historial propio (Task 5), no hay datos. */
 export const probabilidadSinDatos: ProveedorProbabilidad = () => ({
   valor: null,
-  explicacion: 'desconocida: aún no hay ganadoras parecidas ni historial de Reforesta con esta convocatoria',
+  explicacion: 'desconocida: aún no hay ganadoras parecidas ni historial propio con esta convocatoria',
 });
 
 const NOMBRES: Record<IdFactor, string> = {
@@ -195,7 +197,7 @@ function encaje(e: EntradaPuntuacion, c: ConfigPuntuacion['encaje']): Parcial {
   if (!a) return { subpuntuacion: c.valorDesconocido, conocido: false, explicacion: 'desconocido: la convocatoria aún no se ha analizado' };
   const n = a.lineas.length;
   const base = c.porLineas[Math.min(n, c.porLineas.length - 1)] ?? 0;
-  const lineas = n === 0 ? 'no encaja con ninguna línea de Reforesta' : `encaja con ${n === 1 ? 'la línea' : `${n} líneas`}: ${a.lineas.map((l) => l.linea).join(', ')}`;
+  const lineas = n === 0 ? `no encaja con ninguna línea de ${e.nombreEntidad ?? 'la entidad'}` : `encaja con ${n === 1 ? 'la línea' : `${n} líneas`}: ${a.lineas.map((l) => l.linea).join(', ')}`;
   if (a.elegibilidadEsfl.valor === 'si') return { subpuntuacion: redondear(base), conocido: true, explicacion: `${lineas}; admite entidades sin ánimo de lucro` };
   return {
     subpuntuacion: redondear(base * c.esflDesconocido), conocido: false,
@@ -356,7 +358,7 @@ function puntuarLicitacion(e: EntradaPuntuacion, config: ConfigPuntuacion): Punt
       if (!a) return { subpuntuacion: cfg.encaje.valorDesconocido, conocido: false, explicacion: 'desconocido: la licitación aún no se ha analizado' };
       const n = a.lineas.length;
       const base = cfg.encaje.porLineas[Math.min(n, cfg.encaje.porLineas.length - 1)] ?? 0;
-      return { subpuntuacion: redondear(base), conocido: true, explicacion: n === 0 ? 'el objeto del contrato no encaja con ninguna línea de Reforesta' : `el objeto encaja con ${n === 1 ? 'la línea' : `${n} líneas`}: ${a.lineas.map((x) => x.linea).join(', ')}` };
+      return { subpuntuacion: redondear(base), conocido: true, explicacion: n === 0 ? `el objeto del contrato no encaja con ninguna línea de ${e.nombreEntidad ?? 'la entidad'}` : `el objeto encaja con ${n === 1 ? 'la línea' : `${n} líneas`}: ${a.lineas.map((x) => x.linea).join(', ')}` };
     })(),
     escala: ((): Parcial => {
       const { importe: p, deLote } = presupuestoEfectivo(l, a);

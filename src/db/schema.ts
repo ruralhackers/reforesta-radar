@@ -490,6 +490,16 @@ const MIGRACIONES: string[] = [
     PRIMARY KEY (fuente, clave)
   );
   `,
+  `
+  -- Licitaciones (PLACSP) vistas con una versión posterior que ya no admite ofertas (anulada, adjudicada, resuelta, en evaluación), guardadas o no: una versión PUB más
+  -- antigua de la misma licitación que se lea después (en la misma pasada o al cerrar un hueco del feed) no debe guardarse como abierta. Se purga con los días.
+  CREATE TABLE IF NOT EXISTS licitaciones_cerradas (
+    id TEXT PRIMARY KEY,
+    estado TEXT NOT NULL,
+    actualizada TEXT NOT NULL,  -- ISO de la versión no-PUB más reciente vista
+    visto_en TEXT NOT NULL
+  );
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

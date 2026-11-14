@@ -24,11 +24,12 @@ export function puntuarConvocatoria(
   hoy?: string,
 ): Puntuacion {
   const datos = leerFases(db, c.id).find((f) => f.fase === FASE_ANALISIS)?.datos as { analisis?: Analisis | AnalisisLicitacion } | undefined;
-  const perfil = c.fuente === 'placsp' ? leerPerfil(db) : null;
+  const perfil = leerPerfil(db);
   const primera = hoy ? (db.prepare('SELECT primera_vez FROM convocatorias WHERE id = ?').get(c.id) as { primera_vez: string } | undefined)?.primera_vez : undefined;
   return puntuar({
     convocatoria: c, analisis: datos?.analisis ?? null, importeMinimo,
-    ...(perfil ? { escalaLicitaciones: { presupuestoMaximo: presupuestoMaximoLicitacion(perfil), ingresosAnuales: ingresosAnuales(perfil) } } : {}),
+    ...(perfil ? { nombreEntidad: perfil.nombre } : {}),
+    ...(perfil && c.fuente === 'placsp' ? { escalaLicitaciones: { presupuestoMaximo: presupuestoMaximoLicitacion(perfil), ingresosAnuales: ingresosAnuales(perfil) } } : {}),
     diasDesdePrimeraVez: hoy && primera ? diasEntre(diaLocal(new Date(primera)), hoy) : null,
     plazo: plazo && { fechaCierre: plazo.fechaCierre, tipo: plazo.tipo, diasHastaCierre: plazo.diasHastaCierre },
   }, config, probabilidad);

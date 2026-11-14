@@ -560,3 +560,84 @@ describe('criba de licitaciones: el texto sale del perfil', () => {
     assert.equal(leerPerfil(db)!.licitaciones!.presupuestoMaximo, 1);
   });
 });
+
+describe('licitaciones cerradas sin guardar y huecos muertos', () => {
+  const entradaDe = (pagina: string, id: string) => pagina.match(/<entry>[\s\S]*?<\/entry>/g)!.find((e) => e.includes(`licitacionesPerfilContratante/${id}`))!;
+  const p1 = () => readFileSync(`${DIR_PLACSP}/pagina_1.atom`, 'utf8');
+  const p2 = () => readFileSync(`${DIR_PLACSP}/pagina_2.atom`, 'utf8');
+  const anulada = () => entradaDe(p2(), '20797834').replace(/<updated>[^<]+<\/updated>/, '<updated>2026-11-13T21:30:00.000+01:00</updated>').replace(/(ContractFolderStatusCode[^>]*>)PUB</, '$1ANUL<');
+  const conAnulada = () => p1().replace('<entry>', `${anulada()}\n<entry>`);
+  const cobertura = (db: DatabaseSync) => leerCobertura(db);
+
+  test('una versión anulada de una licitación NO guardada impide guardar después una PUB anterior: en la misma pasada y al cerrar un hueco', async () => {
+    const db = bdSembrada();
+    await pasada(db, [placsp()], fetchPlacsp([], { 1: conAnulada() }));
+    assert.ok(ids(db).includes(PODA) && !ids(db).includes(RELEVANTE), 'la PUB antigua de la página 2 no se guarda: arriba se vio la anulada');
+    assert.equal((db.prepare('SELECT estado FROM licitaciones_cerradas WHERE id = ?').get('20797834') as { estado: string }).estado, 'ANUL');
+
+    // Con un hueco: la anulada se lee en una pasada y la PUB vieja en otra.
+    const db2 = bdSembrada();
+    const bueno = fetchPlacsp([], { 1: conAnulada() });
+    const sinSegunda = (async (u: string, i?: RequestInit) => (u === URL_FEED_PLACSP ? bueno(u, i) : new Response('Service Unavailable', { status: 503 }))) as typeof fetch;
+    await pasada(db2, [placsp()], sinSegunda);
+    assert.equal(cobertura(db2).huecos.length, 1);
+    await pasada(db2, [placsp()], fetchPlacsp([], { 1: conAnulada() }));
+    assert.deepEqual(cobertura(db2).huecos, []);
+    assert.ok(ids(db2).includes(PODA) && !ids(db2).includes(RELEVANTE), 'al cerrar el hueco, la PUB antigua tampoco se guarda');
+  });
+
+  const urlMuerta = 'https://contrataciondelestado.es/sindicacion/sindicacion_643/licitacionesPerfilesContratanteCompleto3_20200101_000000.atom';
+  const conCobertura = (db: DatabaseSync, huecos: object[]) => guardarEstadoFuente(db, 'placsp', 'cobertura', JSON.stringify({ hasta: '2026-11-13T19:00:00.000Z', huecos }), new Date());
+  const f404 = (peticiones: string[] = []): typeof fetch => {
+    const bueno = fetchPlacsp(peticiones);
+    return (async (u: string, i?: RequestInit) => (u === urlMuerta ? (peticiones.push(u), new Response('Not Found', { status: 404 })) : bueno(u, i))) as typeof fetch;
+  };
+
+  test('un hueco con la URL muerta se abandona tras 3 fallos con aviso y no impide leer lo de arriba ni los demás huecos', async () => {
+    const db = bdSembrada();
+    const ahora = AHORA_PLACSP.toISOString();
+    conCobertura(db, [{ url: urlMuerta, hasta: '2026-11-12T00:00:00.000Z', creado: ahora }, { url: URL_PAGINA_2_PLACSP, hasta: '2026-11-01T00:00:00.000Z', creado: ahora }]);
+    const p: string[] = [];
+    const r1 = await pasada(db, [placsp()], f404(p));
+    assert.deepEqual(p, [URL_FEED_PLACSP, urlMuerta, URL_PAGINA_2_PLACSP], 'tras el hueco muerto sigue con el siguiente');
+    assert.ok(ids(db).includes(RELEVANTE), 'el hueco bueno se leyó');
+    assert.deepEqual(cobertura(db).huecos.map((h) => [h.url, h.fallos]), [[urlMuerta, 1]]);
+    assert.match(r1.fuentes[0].errores.join(' '), /HTTP 404/);
+    await pasada(db, [placsp()], f404());
+    assert.equal(cobertura(db).huecos[0].fallos, 2);
+    const r3 = await pasada(db, [placsp()], f404());
+    assert.deepEqual(cobertura(db).huecos, [], 'a la tercera se abandona');
+    assert.match(r3.fuentes[0].avisos.join(' '), /abandonado tras 3 fallos seguidos/);
+  });
+
+  test('un hueco más viejo que RADAR_DIAS_HUECO se abandona con aviso sin pedirlo; y se tira lo que pase del máximo de huecos', async () => {
+    const db = bdSembrada();
+    conCobertura(db, [{ url: urlMuerta, hasta: '2026-10-01T00:00:00.000Z', creado: '2026-10-01T00:00:00.000Z' }]);
+    const p: string[] = [];
+    const r = await pasada(db, [placsp({ diasHueco: 14 })], f404(p));
+    assert.ok(!p.includes(urlMuerta));
+    assert.match(r.fuentes[0].avisos.join(' '), /abandonado por antiguo/);
+    assert.deepEqual(cobertura(db).huecos, []);
+
+    const db2 = bdSembrada();
+    const ahora = AHORA_PLACSP.toISOString();
+    conCobertura(db2, [1, 2, 3].map((i) => ({ url: `${urlMuerta}?${i}`, hasta: `2026-11-0${i}T00:00:00.000Z`, creado: `2026-11-1${i}T00:00:00.000Z` })).map((h) => ({ ...h, creado: h.creado < ahora ? h.creado : ahora })));
+    const muertas = (async (u: string, i?: RequestInit) => (u.includes('_20200101') ? new Response('x', { status: 404 }) : fetchPlacsp()(u, i))) as typeof fetch;
+    const r2 = await pasada(db2, [placsp({ maxHuecos: 2 })], muertas);
+    assert.equal(cobertura(db2).huecos.length, 2);
+    assert.match(r2.fuentes[0].avisos.join(' '), /Demasiados huecos .*máximo 2.*1 más antiguos/);
+  });
+
+  test('un registro que falla siempre al guardarse bloquea el estado solo 2 pasadas: a la tercera se omite con su error y la cobertura avanza', async () => {
+    const db = bdSembrada();
+    const real = placsp();
+    const roto: Fuente = { ...real, recoger: async (ctx) => { const r = await real.recoger(ctx); return { ...r, cribadas: [...r.cribadas, { descarte: null, convocatoria: { id: 'licitacion:roto', fuente: 'placsp', fuenteId: 'roto', titulo: 'x', organo: { nivel1: 'LOCAL', nivel2: null, nivel3: null }, fechaPublicacion: '2026-11-13', url: 'https://x', tipo: 'licitacion', finalidad: null, regiones: [], abierto: true, datos: { x: 1n } } }] }; } };
+    for (let i = 1; i <= 2; i++) {
+      await pasada(db, [roto], fetchPlacsp(), { ejecucion: i });
+      assert.equal(leerEstadoFuente(db, 'placsp', 'cobertura'), null, `pasada ${i}: no avanza`);
+    }
+    const r = await pasada(db, [roto], fetchPlacsp());
+    assert.ok(leerEstadoFuente(db, 'placsp', 'cobertura'), `a la tercera avanza: ${r.fuentes[0].errores.join(' | ')} ${leerEstadoFuente(db, 'placsp', 'fallo:licitacion:roto')}`);
+    assert.match(r.fuentes[0].errores.join(' '), /omitido tras 3 pasadas fallidas/);
+  });
+});

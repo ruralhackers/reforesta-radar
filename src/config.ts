@@ -100,6 +100,9 @@ export function leerConfig(env: Entorno) {
       maxBytesTotal: num('RADAR_MAX_BYTES_TOTAL_PLACSP', 300 * 1024 * 1024, { min: 1024 }),
       pausaMs: num('RADAR_PAUSA_PLACSP_MS', 2000),
       timeoutMs: num('RADAR_TIMEOUT_PLACSP_MS', 120_000, { min: 1 }),
+      /** Un hueco sin leer del feed se abandona (con aviso) tras estos días o tras 3 fallos seguidos de su URL; y no se guardan más de `maxHuecos` (se tiran los más antiguos). */
+      diasHueco: num('RADAR_DIAS_HUECO_PLACSP', 14, { min: 1 }),
+      maxHuecos: num('RADAR_MAX_HUECOS_PLACSP', 10, { min: 1 }),
     },
     /** Fundaciones vigiladas: pausa entre páginas, tiempo máximo y tamaño máximo de cada una, tope de fuentes por ejecución y de texto que se pasa al LLM. */
     fundaciones: {

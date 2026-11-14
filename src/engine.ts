@@ -3,7 +3,7 @@
 // el envío del correo será otra operación de este módulo con su propio emisor inyectado.
 import type { DatabaseSync } from 'node:sqlite';
 import {
-  guardarEstadoFuente, type ContadoresFuente, empezarEjecucion, empezarFuente, guardarConvocatoria, guardarRegistroFase, leerPerfil, reaplicarReglas,
+  guardarEstadoFuente, leerEstadoFuente, type ContadoresFuente, empezarEjecucion, empezarFuente, guardarConvocatoria, guardarRegistroFase, leerPerfil, reaplicarReglas,
   type RegistroFase, registroFaseVacio, terminarEjecucion, terminarFuente, transaccion, abortarEjecucionesColgadas,
 } from './db/repo.ts';
 import { analizarConLlm, analizarLicitaciones, FASE_ANALISIS } from './fases/analisis.ts';
@@ -34,6 +34,9 @@ import { reconsiderarVeredictos } from './perfil.ts';
 import type { Perfil, Reloj } from './types.ts';
 
 export { FUENTES };
+
+/** Pasadas seguidas en que un registro puede fallar al guardarse antes de omitirlo para que no bloquee el estado de su fuente. */
+const MAX_FALLOS_REGISTRO = 3;
 
 export interface DependenciasMotor {
   db: DatabaseSync;
@@ -311,7 +314,7 @@ async function recorrerFuente(
       log(`${r.fase.fase}: ${r.fase.procesadas} páginas leídas, ${r.fase.llamadas} llamadas (${r.fase.desdeCache} de caché), ${r.fase.costeUsd.toFixed(4)} USD, ${r.fase.errores.length} errores`);
     }
     transaccion(db, () => {
-      const erroresAntes = errores.length;
+      let bloqueantes = 0;
       for (const cribada of r.cribadas) {
         n.recibidas++;
         try { // un registro malformado no tumba la fuente: queda como error de ese registro y se sigue
@@ -321,12 +324,17 @@ async function recorrerFuente(
           if (cribada.descarte) n.descartadas++;
           else n.candidatas++;
         } catch (e) {
-          errores = [...errores, `Registro ${cribada.convocatoria.id}: ${(e as Error).message}`];
+          // Un registro que falla siempre no puede bloquear el avance del estado para siempre: tras 3 pasadas se omite (con su error) y el estado avanza.
+          const clave = `fallo:${cribada.convocatoria.id}`;
+          const fallos = Number(leerEstadoFuente(db, fuente.nombre, clave) ?? 0) + 1;
+          guardarEstadoFuente(db, fuente.nombre, clave, String(fallos), reloj.now());
+          if (fallos >= MAX_FALLOS_REGISTRO) errores = [...errores, `Registro ${cribada.convocatoria.id}: ${(e as Error).message} (omitido tras ${fallos} pasadas fallidas: el estado de la fuente avanza sin él)`];
+          else { bloqueantes++; errores = [...errores, `Registro ${cribada.convocatoria.id}: ${(e as Error).message}`]; }
         }
       }
       // El estado de la fuente (cobertura del feed) avanza en la MISMA transacción que lo guardado, y solo si se guardó todo.
       if (r.estado?.length) {
-        if (errores.length === erroresAntes) for (const x of r.estado) guardarEstadoFuente(db, fuente.nombre, x.clave, x.valor, reloj.now());
+        if (bloqueantes === 0) for (const x of r.estado) guardarEstadoFuente(db, fuente.nombre, x.clave, x.valor, reloj.now());
         else errores = [...errores, `${fuente.nombre}: no se avanza su estado porque hubo registros que no se guardaron (se reintentan en la siguiente pasada)`];
       }
     });

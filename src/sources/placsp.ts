@@ -270,6 +270,9 @@ export interface OpcionesFuentePlacsp {
   /** Pagina hasta el tope sin parar en lo ya cubierto ni guardar cobertura (relleno puntual: `npm run licitaciones`). */
   ignorarCursor?: boolean;
   filtro?: FiltroPlacsp;
+  /** Días tras los que un hueco sin leer se abandona con aviso, y máximo de huecos guardados (ver config.placsp). */
+  diasHueco?: number;
+  maxHuecos?: number;
 }
 
 export interface PaginaFeed { entradas: string[]; siguiente: string | null; actualizacionMasReciente: string | null; actualizacionMasAntigua: string | null }
@@ -338,7 +341,9 @@ export interface ContadoresPlacsp {
  * por la que seguir (la `next` a la que se llegó) y el límite inferior hasta el que hay que leer (lo que ya estaba cubierto antes de esa pasada, o el horizonte de la
  * primera carga). La siguiente pasada lee desde arriba hasta `hasta`, y después cada hueco desde su URL hasta su límite; solo así se cierran. Nunca se da por leído lo que no se leyó.
  */
-export interface Cobertura { hasta: string | null; huecos: { url: string; hasta: string }[] }
+export interface Hueco { url: string; hasta: string; /** Cuándo se abrió el hueco (ISO). */ creado?: string; /** Fallos seguidos al pedir su URL. */ fallos?: number }
+export interface Cobertura { hasta: string | null; huecos: Hueco[] }
+const MAX_FALLOS_HUECO = 3;
 
 export const CLAVE_COBERTURA = 'cobertura';
 
@@ -349,7 +354,7 @@ export function leerCobertura(db: DatabaseSync | undefined): Cobertura {
   if (crudo) {
     try {
       const c = JSON.parse(crudo) as Cobertura;
-      if ((c.hasta === null || typeof c.hasta === 'string') && Array.isArray(c.huecos)) return { hasta: c.hasta, huecos: c.huecos.filter((h) => typeof h.url === 'string' && typeof h.hasta === 'string') };
+      if ((c.hasta === null || typeof c.hasta === 'string') && Array.isArray(c.huecos)) return { hasta: c.hasta, huecos: c.huecos.filter((h) => typeof h?.url === 'string' && typeof h.hasta === 'string') };
     } catch { /* estado ilegible: se trata como primera carga */ }
     return { hasta: null, huecos: [] };
   }
@@ -368,7 +373,10 @@ export function crearFuentePlacsp(opciones: () => OpcionesFuentePlacsp = () => c
     const previa = usaCobertura ? leerCobertura(ctx.db) : { hasta: null, huecos: [] };
     // Sin cobertura (primera vez o relleno): hasta `diasAtras` días hacia atrás. El límite inferior de la lectura desde arriba es lo ya cubierto o ese horizonte.
     const horizonte = new Date(`${sumarDias(hoy, -ctx.diasAtras)}T00:00:00Z`).toISOString();
-    const tareas = [{ url: o.urlFeed, hasta: previa.hasta ?? horizonte, arriba: true }, ...previa.huecos.map((h) => ({ ...h, arriba: false }))];
+    const ahoraIso = ctx.ahora.toISOString();
+    const diasHueco = o.diasHueco ?? 14;
+    const maxHuecos = o.maxHuecos ?? 10;
+    const tareas: (Hueco & { arriba: boolean })[] = [{ url: o.urlFeed, hasta: previa.hasta ?? horizonte, arriba: true }, ...previa.huecos.map((h) => ({ ...h, arriba: false }))];
     const licitaciones = new Map<string, Licitacion>();
     const cierres = new Map<string, { l: Licitacion; estado: string }>();
     const errores: string[] = [];
@@ -380,16 +388,33 @@ export function crearFuentePlacsp(opciones: () => OpcionesFuentePlacsp = () => c
       return f !== undefined && f.a !== null && Date.parse(f.a) >= actualizada;
     };
     const esta = (id: string) => almacenada?.get(`${PREFIJO_ID}${id}`) !== undefined;
+    // Ids vistos con una versión posterior que ya no admite ofertas (guardados o no): una PUB más antigua del mismo id no se guarda como abierta.
+    const cerradasMem = new Map<string, number>();
+    const cerradaLeer = ctx.db ? ctx.db.prepare('SELECT actualizada AS a FROM licitaciones_cerradas WHERE id = ?') : null;
+    const cerradaGuardar = ctx.db ? ctx.db.prepare(`INSERT INTO licitaciones_cerradas (id, estado, actualizada, visto_en) VALUES (?, ?, ?, ?)
+      ON CONFLICT (id) DO UPDATE SET estado = excluded.estado, actualizada = excluded.actualizada, visto_en = excluded.visto_en WHERE excluded.actualizada > licitaciones_cerradas.actualizada`) : null;
+    const cerradaDespues = (id: string, actualizada: number) => {
+      const m = cerradasMem.get(id);
+      if (m !== undefined && m >= actualizada) return true;
+      const f = cerradaLeer?.get(id) as { a: string } | undefined;
+      return f !== undefined && Date.parse(f.a) >= actualizada;
+    };
+    ctx.db?.prepare('DELETE FROM licitaciones_cerradas WHERE visto_en < ?').run(new Date(ctx.ahora.getTime() - 120 * 86_400_000).toISOString());
     let masReciente: string | null = null;
     let motivoParada = '';
-    const huecosNuevos: Cobertura['huecos'] = [];
-    let paradaGlobal = false; // tope de páginas/bytes o error: las tareas que quedan se conservan tal cual
+    const huecosNuevos: Hueco[] = [];
+    let paradaGlobal = false; // tope de páginas/bytes o error al leer lo de arriba: las tareas que quedan se conservan tal cual
 
     for (const [t, tarea] of tareas.entries()) {
-      if (paradaGlobal) { if (!tarea.arriba) huecosNuevos.push({ url: tarea.url, hasta: tarea.hasta }); continue; }
+      if (paradaGlobal) { if (!tarea.arriba) huecosNuevos.push(tarea); continue; }
+      if (!tarea.arriba && tarea.creado && Date.parse(ahoraIso) - Date.parse(tarea.creado) > diasHueco * 86_400_000) {
+        avisos.push(`Hueco del feed de licitaciones abandonado por antiguo (abierto el ${tarea.creado.slice(0, 10)}, más de ${diasHueco} días): se pierden las entradas anteriores a ${tarea.hasta.slice(0, 16)}Z hasta ahí; rellena con npm run licitaciones si importa`);
+        continue;
+      }
       const limiteMs = Date.parse(tarea.hasta);
       let url: string | null = tarea.url;
       let llegoAlLimite = false;
+      let falloHueco = false;
       while (url) {
         if (n.paginas >= o.maxPaginas) { motivoParada = `tope de ${o.maxPaginas} páginas`; paradaGlobal = true; break; }
         if (n.bytes >= o.maxBytesTotal) { motivoParada = `tope de ${KB(o.maxBytesTotal)} descargados`; paradaGlobal = true; break; }
@@ -406,7 +431,7 @@ export function crearFuentePlacsp(opciones: () => OpcionesFuentePlacsp = () => c
           if (t === 0 && n.paginas === 0) throw new Error(`Feed de licitaciones: ${(e as Error).message}`); // sin la primera página no hay nada: fallo total (aislado de las demás fuentes)
           errores.push(`Página ${n.paginas + 1} del feed de licitaciones: ${(e as Error).message}`);
           motivoParada = 'error';
-          paradaGlobal = true;
+          if (tarea.arriba) paradaGlobal = true; else falloHueco = true; // un hueco que falla no impide leer lo de arriba ni los demás huecos
           break;
         }
         n.paginas++;
@@ -424,17 +449,23 @@ export function crearFuentePlacsp(opciones: () => OpcionesFuentePlacsp = () => c
           try {
             const estado = /ContractFolderStatusCode[^>]*>\s*([A-Z]+)\s*</.exec(e)?.[1] ?? '';
             if (estado !== 'PUB') {
-              // Una versión posterior (anulada, adjudicada, en evaluación) de una licitación ya guardada la retira de la lista de abiertas.
-              if (!ctx.db) continue;
               const id = /licitacionesPerfilContratante\/(\d+)/.exec(e)?.[1];
-              if (!id || !esta(id) || cierres.has(id) || yaTieneAlgoMasReciente(id, actualizada)) continue;
+              if (!id) continue;
+              // Se anota que hay una versión no vigente más reciente (aunque no esté guardada): una PUB anterior que se lea después no se guarda como abierta.
+              if (estado !== 'PRE' && Number.isFinite(actualizada) && !cerradaDespues(id, actualizada)) {
+                cerradasMem.set(id, actualizada);
+                cerradaGuardar?.run(id, estado, new Date(actualizada).toISOString(), ahoraIso);
+              }
+              // Una versión posterior de una licitación ya guardada la retira de la lista de abiertas.
+              if (!ctx.db || !esta(id) || cierres.has(id) || yaTieneAlgoMasReciente(id, actualizada)) continue;
               const l = aLicitacion(parsearXml(e).h[0]);
               if (l) { cierres.set(l.id, { l: { ...l, huella: huellaLicitacion(l) }, estado: l.estado || estado }); n.actualizadas++; }
               continue;
             }
             n.publicadas++;
             const l0 = aLicitacion(parsearXml(e).h[0]);
-            if (!l0 || licitaciones.has(l0.id) || cierres.has(l0.id)) continue; // la primera vista es la más reciente: una versión anterior no la pisa
+            if (!l0 || licitaciones.has(l0.id) || cierres.has(l0.id)) continue;
+            if (cerradaDespues(l0.id, actualizada)) continue; // ya se vio una versión posterior que no admite ofertas // la primera vista es la más reciente: una versión anterior no la pisa
             if (yaTieneAlgoMasReciente(l0.id, actualizada)) continue; // lo guardado ya es esta versión o una posterior (p. ej. anulada)
             const l = { ...l0, huella: huellaLicitacion(l0) };
             if (l.plazoOfertas && l.plazoOfertas.fecha < hoy) continue;
@@ -455,10 +486,15 @@ export function crearFuentePlacsp(opciones: () => OpcionesFuentePlacsp = () => c
         if (masAntigua <= limiteMs) { llegoAlLimite = true; motivoParada = tarea.arriba ? (previa.hasta ? 'llegó a lo ya leído' : `llegó a ${ctx.diasAtras} días atrás`) : 'cerró un hueco'; break; }
         url = enlaceSiguiente(xml);
         if (!url) { llegoAlLimite = true; motivoParada = 'fin del feed'; }
-        else if (!urlSindicacionValida(url)) { errores.push(`Página ${n.paginas + 1} del feed de licitaciones: enlace "next" no permitido: ${url}`); motivoParada = 'error'; paradaGlobal = true; llegoAlLimite = true; break; } // no se puede seguir por un enlace así: el hueco no se podría retomar nunca
+        else if (!urlSindicacionValida(url)) { errores.push(`Página ${n.paginas + 1} del feed de licitaciones: enlace "next" no permitido: ${url}`); motivoParada = 'error'; if (tarea.arriba) paradaGlobal = true; llegoAlLimite = true; break; } // no se puede seguir por un enlace así: el hueco no se podría retomar nunca
       }
       // Esta tarea no llegó a su límite: queda un hueco desde la página por la que seguir (la que no se pudo leer o no se llegó a pedir).
-      if (!llegoAlLimite && url) huecosNuevos.push({ url, hasta: tarea.hasta });
+      if (!llegoAlLimite && url) {
+        const fallos = falloHueco ? (url === tarea.url ? (tarea.fallos ?? 0) + 1 : 1) : 0;
+        if (fallos >= MAX_FALLOS_HUECO) {
+          avisos.push(`Hueco del feed de licitaciones abandonado tras ${fallos} fallos seguidos de su página (${url}): se pierden las entradas anteriores a ${tarea.hasta.slice(0, 16)}Z hasta ahí; rellena con npm run licitaciones si importa`);
+        } else huecosNuevos.push({ url, hasta: tarea.hasta, creado: tarea.creado ?? ahoraIso, ...(fallos ? { fallos } : {}) });
+      }
     }
 
     avisos.push(
@@ -468,6 +504,11 @@ export function crearFuentePlacsp(opciones: () => OpcionesFuentePlacsp = () => c
     );
     if (huecosNuevos.length > 0) avisos.push(`El feed de licitaciones quedó sin leer en ${huecosNuevos.length} ${huecosNuevos.length === 1 ? 'tramo' : 'tramos'} (${motivoParada}): la siguiente pasada los retoma desde donde se quedó (la cobertura es continua; sube RADAR_MAX_PAGINAS_PLACSP o usa npm run licitaciones si van acumulándose)`);
 
+    if (huecosNuevos.length > maxHuecos) {
+      huecosNuevos.sort((a, b) => (a.creado ?? '').localeCompare(b.creado ?? '')); // los más antiguos primero: son los que se tiran
+      const tirados = huecosNuevos.splice(0, huecosNuevos.length - maxHuecos);
+      avisos.push(`Demasiados huecos sin leer en el feed de licitaciones (máximo ${maxHuecos}): se abandonan los ${tirados.length} más antiguos (hasta ${tirados.map((h) => h.hasta.slice(0, 10)).join(', ')})`);
+    }
     const cribadas: Cribada[] = [...licitaciones.values()].map((l) => {
       const conv = aConvocatoria(l);
       return { convocatoria: conv, descarte: ctx.cribar(conv) };
@@ -478,7 +519,7 @@ export function crearFuentePlacsp(opciones: () => OpcionesFuentePlacsp = () => c
     }
     // La cobertura nueva la guarda el motor en la misma transacción que las licitaciones; nunca se da por leído lo que no se leyó.
     const estadoNuevo = usaCobertura && n.paginas > 0
-      ? [{ clave: CLAVE_COBERTURA, valor: JSON.stringify({ hasta: masReciente && (!previa.hasta || Date.parse(masReciente) > Date.parse(previa.hasta)) ? masReciente : previa.hasta ?? masReciente, huecos: huecosNuevos } satisfies Cobertura) }]
+      ? [{ clave: CLAVE_COBERTURA, valor: JSON.stringify({ hasta: masReciente && (!previa.hasta || Date.parse(masReciente) > Date.parse(previa.hasta)) ? masReciente : previa.hasta ?? masReciente, huecos: huecosNuevos.sort((a, b) => Date.parse(b.hasta) - Date.parse(a.hasta)) } satisfies Cobertura) }]
       : undefined;
     return { cribadas, errores, avisos, ...(estadoNuevo ? { estado: estadoNuevo } : {}) };
   }

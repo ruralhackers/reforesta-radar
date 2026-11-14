@@ -158,8 +158,8 @@ function criterioLicitacion(c: Convocatoria, p: Perfil): string[] {
     ...p.lineas.map((l) => `  · ${l.nombre}: ${l.descripcion}`),
     `  "puede_encajar" solo si se cumplen ${maximo === null ? 'las dos' : 'las tres'} cosas:`,
     '  (1) el OBJETO del contrato (lo que se contrata, no el CPV) es una de esas líneas o una parte esencial de ellas (lo que describe cada línea, no cualquier trabajo con plantas, obras o formación).',
-    '  Jardinería y paisajismo solo si el contrato planta, restaura o mejora vegetación o hábitat; NO el mantenimiento rutinario de jardines y zonas verdes urbanas, la poda o tala de arbolado',
-    '  urbano, la limpieza, los suministros, la obra civil o de edificación, la informática, los eventos ni nada ajeno a las líneas, aunque el CPV sea cercano;',
+    '  El contrato debe ejecutar de verdad lo que describe alguna línea; NO cuentan el mantenimiento rutinario, la limpieza, los suministros, la obra civil o de edificación, la informática,',
+    '  los eventos ni nada que las líneas no describan, aunque el CPV o una palabra del título sean cercanos;',
     ...(maximo === null ? [] : [
       `  (2) ${quien}${ingresos ? `, con unos ${euros(ingresos)} anuales de ingresos por servicios,` : ''} puede ejecutarlo y acreditar su solvencia: el presupuesto base de licitación SIN IVA no pasa de ${euros(maximo)}.`,
       '  Si lo supera (y, con lotes, tampoco hay un lote que quede por debajo), la decisión es "descartar" y el motivo empieza por «Probablemente fuera de escala:» con el importe (esa frase SOLO cuando se supera el umbral: si descartas por otro motivo, no la uses). Un presupuesto de 0 o ausente (acuerdo marco, precios unitarios) no cuenta para esto;',
