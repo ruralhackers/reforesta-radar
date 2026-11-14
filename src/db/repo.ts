@@ -182,6 +182,8 @@ const OBSOLETA = `IFNULL(json_extract(f.datos, '$.obsoleta'), 0) = 1`;
 export interface OpcionesPendientes {
   /** Además de la ventana, estas convocatorias (por id) aunque sean antiguas (`npm run cargar`). */
   incluirIds?: string[];
+  /** Solo las de `incluirIds` (nada de la ventana): `npm run cargar` no procesa lo pendiente de otras fuentes. */
+  soloIncluidas?: boolean;
   /** Las que ya fallaron por error del LLM en esta fase tantas veces (entre ejecuciones) dejan de reintentarse. */
   maxIntentos?: number;
 }
@@ -199,7 +201,7 @@ export function pendientesDeFase(
   const incluir = JSON.stringify(opciones.incluirIds ?? []);
   const filas = db.prepare(`
     SELECT * FROM convocatorias c
-    WHERE (c.fecha_publicacion >= ? OR EXISTS (SELECT 1 FROM origenes_convocatoria o WHERE o.convocatoria_id = c.id)
+    WHERE (? = 0 OR c.id IN (SELECT value FROM json_each(?))) AND (c.fecha_publicacion >= ? OR EXISTS (SELECT 1 FROM origenes_convocatoria o WHERE o.convocatoria_id = c.id)
         OR (c.fuente IN (${FUENTES_VIGENTES.map((f) => `'${f}'`).join(',')}) AND c.ultima_vez >= ?)
         OR c.id IN (SELECT value FROM json_each(?))) AND c.descarte_regla IS NULL
       AND NOT EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND f.fase = ? AND NOT (${OBSOLETA}))
@@ -208,7 +210,7 @@ export function pendientesDeFase(
       AND (? IS NULL OR EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND f.fase = ? AND f.descarta = 0 AND NOT (${OBSOLETA})))
       AND (? IS NULL OR NOT EXISTS (SELECT 1 FROM llm_fallos lf WHERE lf.convocatoria_id = c.id AND lf.fase = ? AND lf.intentos >= ?))
     ORDER BY c.fecha_publicacion DESC, c.id
-  `).all(publicadasDesde, publicadasDesde, incluir, fase, fase, requiereFase, requiereFase, opciones.maxIntentos ?? null, fase, opciones.maxIntentos ?? null) as Record<string, unknown>[];
+  `).all(opciones.soloIncluidas ? 1 : 0, incluir, publicadasDesde, publicadasDesde, incluir, fase, fase, requiereFase, requiereFase, opciones.maxIntentos ?? null, fase, opciones.maxIntentos ?? null) as Record<string, unknown>[];
   return filas.map((f) => ({ convocatoria: filaAConvocatoria(f), condicion: (f.condicion as string | null) ?? null }));
 }
 

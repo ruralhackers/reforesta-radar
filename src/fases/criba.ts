@@ -45,7 +45,7 @@ export async function cribarConLlm(
   ctx: ContextoFase, perfil: Perfil, modelo: string, publicadasDesde: string, fuentes?: Fuente[],
 ): Promise<RegistroFase> {
   const registro = registroFaseVacio(FASE_CRIBA, modelo);
-  const pendientes = pendientesDeFase(ctx.db, FASE_CRIBA, publicadasDesde, null, { incluirIds: ctx.incluirIds, maxIntentos: ctx.maxIntentos });
+  const pendientes = pendientesDeFase(ctx.db, FASE_CRIBA, publicadasDesde, null, { incluirIds: ctx.incluirIds, soloIncluidas: ctx.soloIncluidas, maxIntentos: ctx.maxIntentos });
   await enParalelo(pendientes, EN_PARALELO, async ({ convocatoria: c, condicion }) => {
     try {
       const peticion = peticionCriba(perfil, c, condicion, modelo, ctx.ejemplos, fuentes);

@@ -20,6 +20,8 @@ export interface ContextoFase {
   maxIntentos?: number;
   /** Convocatorias que se procesan aunque estén fuera de la ventana de pendientes (`npm run cargar`). */
   incluirIds?: string[];
+  /** Solo esas convocatorias, nada de la ventana de pendientes. */
+  soloIncluidas?: boolean;
 }
 
 /** Apunta el fallo de una convocatoria en una fase y avisa si llega al tope de intentos. */

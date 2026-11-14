@@ -23,7 +23,7 @@ export async function analizarConLlm(
   maxCaracteres: number = CONFIG_LLM_POR_DEFECTO.maxCaracteresAnalisis,
 ): Promise<RegistroFase> {
   const registro = registroFaseVacio(FASE_ANALISIS, modelo);
-  const pendientes = pendientesDeFase(ctx.db, FASE_ANALISIS, publicadasDesde, FASE_CRIBA, { incluirIds: ctx.incluirIds, maxIntentos: ctx.maxIntentos });
+  const pendientes = pendientesDeFase(ctx.db, FASE_ANALISIS, publicadasDesde, FASE_CRIBA, { incluirIds: ctx.incluirIds, soloIncluidas: ctx.soloIncluidas, maxIntentos: ctx.maxIntentos });
   const esquema = esquemaAnalisis(perfil);
   let reservadas = 0; // llamadas reales comprometidas (se cuenta antes de esperar, por el paralelismo)
 

@@ -281,3 +281,26 @@ function datosPlazo(c: Convocatoria): DatosPlazo {
 }
 
 export const bdns: Fuente = { nombre: 'bdns', recoger, documentos, enlaces, datosPlazo };
+
+/**
+ * BDNS por números de convocatoria concretos (`npm run cargar`): pide el detalle de cada una (aunque sea antigua o esté cerrada) y la
+ * devuelve con las reglas aplicadas, para que siga el camino normal. Documentos, enlaces y plazo, los de la fuente BDNS.
+ */
+export function crearFuenteBdnsNumeros(numeros: string[]): Fuente {
+  return {
+    ...bdns,
+    async recoger(ctx) {
+      const cribadas: Cribada[] = [];
+      const errores: string[] = [];
+      for (const n of numeros) {
+        try {
+          const c = await convocatoriaDeNumero(ctx.fetch, n);
+          cribadas.push({ convocatoria: c, descarte: ctx.cribar(c) });
+        } catch (e) {
+          errores.push(`Convocatoria ${n}: ${(e as Error).message}`);
+        }
+      }
+      return { cribadas, errores };
+    },
+  };
+}

@@ -108,6 +108,8 @@ export interface OpcionesEjecucion {
    * (`npm run cargar`). El análisis sigue sujeto al tope y al presupuesto.
    */
   incluirIds?: string[];
+  /** Criba y análisis solo de `incluirIds` (sin lo pendiente de la ventana). */
+  soloIncluidas?: boolean;
 }
 
 export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: OpcionesEjecucion = {}): Promise<ResumenEjecucion> {
@@ -167,7 +169,7 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
       log(`ganadores: ${ganadores.consultas} consultas, ${ganadores.peticiones} peticiones a BDNS (${ganadores.desdeCache} consultas en caché, ${ganadores.omitidasPorTope} sin hacer por el tope), ${ganadores.concesiones} concesiones, ${ganadores.parecidas} organizaciones parecidas, ${ganadores.errores.length} errores`);
       for (const e of ganadores.errores) log(`  ! ${e}`);
     };
-    fases = [...fasesDeFuentes, ...(await fasesLlm(deps, ejecucionId, perfil, inicio, pedirGanadores, opciones.incluirIds))];
+    fases = [...fasesDeFuentes, ...(await fasesLlm(deps, ejecucionId, perfil, inicio, pedirGanadores, opciones.incluirIds, opciones.soloIncluidas))];
     if (deps.empresas || deps.huella) {
       // Filas guardadas antes del filtro de persona jurídica: se ocultan (con motivo), no se borran.
       const ocultadas = ocultarSinFormaJuridica(db);
@@ -229,7 +231,7 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
  * veredicto (no se repiten llamadas). Sin LLM, ambas se registran como omitidas con un aviso.
  */
 async function fasesLlm(
-  deps: DependenciasMotor, ejecucionId: number, perfil: Perfil, inicio: Date, entreCribaYAnalisis: () => Promise<void>, incluirIds?: string[],
+  deps: DependenciasMotor, ejecucionId: number, perfil: Perfil, inicio: Date, entreCribaYAnalisis: () => Promise<void>, incluirIds?: string[], soloIncluidas?: boolean,
 ): Promise<RegistroFase[]> {
   const log = deps.log ?? (() => {});
   const cfg = { ...CONFIG_LLM_POR_DEFECTO, ...deps.configLlm };
@@ -241,7 +243,7 @@ async function fasesLlm(
     await entreCribaYAnalisis();
   } else {
     const ctx = {
-      db: deps.db, llm: deps.llm, reloj: deps.reloj, fetch: deps.fetch, resolver: deps.resolver, maxIntentos: cfg.maxIntentos, incluirIds,
+      db: deps.db, llm: deps.llm, reloj: deps.reloj, fetch: deps.fetch, resolver: deps.resolver, maxIntentos: cfg.maxIntentos, incluirIds, soloIncluidas,
       ejemplos: ejemplosDecisiones(deps.db, deps.maxEjemplosDecisiones ?? config.decisiones.maxEjemplos),
     };
     const publicadasDesde = sumarDias(diaLocal(inicio), -(cfg.diasPendientes - 1));
