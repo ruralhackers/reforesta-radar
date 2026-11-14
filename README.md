@@ -58,7 +58,7 @@ Sobre el historial de Reforesta, solo lo verificado en BDNS: ganó las convocato
 
 ## Vídeo y demo
 
-- [Vídeo de la demo](ENLACE_VIDEO)
+- [Vídeo de la demo](https://youtu.be/lqEiin8vH50)
 - Demo en vivo: **https://reforesta.ruralhackers.com** — acceso con código por email (Cloudflare Access); pide acceso si no estás en la lista.
 
 El vídeo se genera con `npm run video` (guion en [`docs/guion-video.md`](docs/guion-video.md)); las capturas de este README, con `npm run capturas` ([`docs/capturas/`](docs/capturas/LEEME.md)).
