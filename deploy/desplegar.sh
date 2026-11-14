@@ -15,7 +15,7 @@ docker build -t "$IMAGEN" .
 echo "== Preparando $DIR en $SERVIDOR"
 ssh "$SERVIDOR" "mkdir -p '$DIR/data' '$DIR/logs' '$DIR/deploy'"
 scp -q compose.yaml "$SERVIDOR:$DIR/compose.yaml"
-scp -q deploy/logrotate.conf deploy/crontab.txt "$SERVIDOR:$DIR/deploy/"
+scp -q deploy/logrotate.conf deploy/crontab.txt deploy/instalar-cron.sh "$SERVIDOR:$DIR/deploy/"
 
 echo "== Copiando la imagen"
 docker save "$IMAGEN" | gzip | ssh "$SERVIDOR" 'gunzip | docker load'

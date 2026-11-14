@@ -44,12 +44,12 @@ hostname `radar-reforesta.ruralhackers.com`, servicio `HTTP` → `localhost:8116
 
 ## 7. Cron (usuario anceu)
 ```bash
-timedatectl | grep 'Time zone'        # si no es Europe/Madrid, CRON_TZ de la primera línea lo cubre (cron de Ubuntu/Debian)
-( crontab -l 2>/dev/null; cat /opt/apps/reforesta-radar/deploy/crontab.txt ) | crontab -   # el script ya copia crontab.txt al servidor
-crontab -l
+timedatectl | grep 'Time zone'
+chmod +x /opt/apps/reforesta-radar/deploy/instalar-cron.sh   # el script de despliegue ya copió la carpeta deploy/
+/opt/apps/reforesta-radar/deploy/instalar-cron.sh            # idempotente: reemplaza el bloque BEGIN/END reforesta-radar
 ```
-Si ya hay otro `CRON_TZ` en el crontab, afecta a las líneas siguientes: pon el bloque del radar al final o fija la zona en cada línea.
-Probar la línea de cron a mano: copiar el comando de la línea del radar de `crontab -l` y ejecutarlo en una shell; deja registro en `logs/radar.log`.
+Zona horaria: el bloque fija `CRON_TZ=Europe/Madrid` (cron de Ubuntu/Debian) y se deja siempre al final del crontab para que no afecte a otras entradas (CRON_TZ vale para las líneas siguientes). Si en el futuro se añaden entradas, ponerlas antes del bloque. Radar y digest comparten `flock -n logs/.radar.lock`: si una pasada sigue en marcha, la siguiente se salta (queda sin línea de resultado en el log).
+Probar la línea de cron a mano: copiar el comando del radar de `crontab -l` y ejecutarlo en una shell; deja registro en `logs/radar.log`.
 
 ## 8. Verificación pública
 ```bash
