@@ -315,7 +315,8 @@ export interface Empresa {
   /** 3 = DIA del BOE, 2 = registro con compensación, 1 = registro solo por zona y sector (baja confianza). */
   prioridad: number;
   primeraVezVista: string;
-  estado: EstadoEmpresa;
+  /** Ausente en la lectura pública en modo privado (es trabajo del equipo). */
+  estado?: EstadoEmpresa;
   /** Solo si se lee como equipo. */
   nota?: string | null;
   senales: SenalEmpresa[];

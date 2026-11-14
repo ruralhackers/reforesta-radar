@@ -32,9 +32,11 @@ function Tarjeta({ e, puedeEditar, alCambiar }: { e: Empresa; puedeEditar: boole
           {e.nombre}
           {e.provincia && <span className="ml-2 rounded-full bg-stone-100 px-2 py-0.5 align-middle text-[11px] font-medium text-stone-600">{e.provincia}</span>}
         </p>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${e.estado === 'contactada' ? 'bg-emerald-100 text-emerald-800' : e.estado === 'descartada' ? 'bg-stone-200 text-stone-600' : 'bg-amber-100 text-amber-800'}`}>
-          {ESTADOS.find((s) => s.valor === e.estado)?.etiqueta}
-        </span>
+        {puedeEditar && e.estado && (
+          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${e.estado === 'contactada' ? 'bg-emerald-100 text-emerald-800' : e.estado === 'descartada' ? 'bg-stone-200 text-stone-600' : 'bg-amber-100 text-amber-800'}`}>
+            {ESTADOS.find((s) => s.valor === e.estado)?.etiqueta}
+          </span>
+        )}
       </div>
       <p className="mt-1 text-sm [overflow-wrap:anywhere]">{e.motivo}</p>
       <blockquote className="mt-2 border-l-2 border-emerald-300 pl-3 text-sm italic text-stone-700 [overflow-wrap:anywhere]">«{e.cita}»</blockquote>
@@ -70,7 +72,7 @@ function Tarjeta({ e, puedeEditar, alCambiar }: { e: Empresa; puedeEditar: boole
   );
 }
 
-/** Empresas obligadas por una DIA del BOE a restaurar o compensar, o del registro de huella de carbono del MITECO: las nuevas primero, con filtro por estado y, para el equipo, estado y nota. */
+/** Empresas obligadas por una DIA del BOE a restaurar o compensar, o del registro de huella de carbono del MITECO: las nuevas primero; para el equipo (o en la demo abierta), estado, filtro por estado y nota. */
 export function Empresas() {
   const { puedeEditar, cargada } = useSesion();
   const [lista, setLista] = useState<Empresa[] | null>(null);
@@ -85,7 +87,7 @@ export function Empresas() {
     leerEmpresas(puedeEditar, verBaja).then((r) => { setLista(r.empresas); setOcultas(r.ocultas); }, (e: Error) => setError(e.message));
   }, [cargada, puedeEditar, verBaja]);
 
-  const visibles = (lista ?? []).filter((e) => filtro === 'todas' || e.estado === filtro);
+  const visibles = (lista ?? []).filter((e) => !puedeEditar || filtro === 'todas' || e.estado === filtro);
   const cambiar = (n: Empresa) => setLista((l) => l && l.map((e) => (e.id === n.id ? n : e)));
 
   return (
@@ -101,7 +103,7 @@ export function Empresas() {
 
       {error && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-red-800">{error}</p>}
 
-      <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filtrar por estado">
+      {puedeEditar && <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filtrar por estado">
         {(['todas', ...ESTADOS.map((s) => s.valor)] as const).map((v) => (
           <button key={v} type="button" onClick={() => setFiltro(v)} aria-pressed={filtro === v}
             className={`rounded-full border px-3 py-1 text-xs ${filtro === v ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-stone-300 text-stone-700'}`}>
@@ -109,7 +111,7 @@ export function Empresas() {
             {lista && <span className="ml-1 opacity-70">({v === 'todas' ? lista.length : lista.filter((e) => e.estado === v).length})</span>}
           </button>
         ))}
-      </div>
+      </div>}
 
       {!lista && !error && <p className="text-stone-500">Cargando…</p>}
       {lista && visibles.length === 0 && <p className="rounded-md bg-white p-4 text-stone-600 shadow-sm">{lista.length === 0 ? 'Todavía no se ha encontrado ninguna empresa.' : 'No hay empresas con ese estado.'}</p>}

@@ -219,12 +219,19 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
   api.route('/decisiones', privadaDecisiones);
 
   // --- Empresas (canal de empresas: DIA del BOE con medidas de restauración) ---
-  // GET público (empresa, motivo, cita, enlace al BOE, provincia, estado y señales; SIN la nota del equipo). La nota va solo en la lectura del equipo
-  // (/api/equipo/empresas). Estado y nota se escriben en `privadaEmpresas` (cuerpo { estado?, nota? }). `?estado=` filtra. Orden: DIA, registro con compensación, y (solo con `?baja=1`) registro de baja confianza; `ocultas` = cuántas de baja confianza no se devuelven.
+  // GET público (empresa, motivo, cita, enlace al BOE, provincia y señales; SIN la nota del equipo). La nota va solo en la lectura del equipo
+  // (/api/equipo/empresas). Estado y nota se escriben en `privadaEmpresas` (cuerpo { estado?, nota? }). Orden: DIA, registro con compensación, y
+  // (solo con `?baja=1`) registro de baja confianza; `ocultas` = cuántas de baja confianza no se devuelven.
+  // El estado (pendiente/contactada/descartada) es trabajo del equipo: en modo demo va en la lectura pública y `?estado=` filtra; en modo privado
+  // la lectura pública no lo lleva y `?estado=` da 401 (el equipo lo lee y filtra en /api/equipo/empresas).
   api.get('/empresas', (c) => {
+    const incluirBaja = c.req.query('baja') === '1';
+    if (acceso.modoPrivado) {
+      if (c.req.query('estado')) return c.json({ error: 'El filtro por estado es del equipo: entra con la contraseña (/api/equipo/empresas)' }, 401);
+      return c.json({ empresas: leerEmpresas(db, { incluirBaja }).map(({ estado: _e, ...e }) => e), ocultas: incluirBaja ? 0 : contarEmpresasBaja(db, null) });
+    }
     const estado = filtroEstado(c);
     if (estado === 'invalido') return c.json({ error: `"estado" debe ser uno de: ${ESTADOS_EMPRESA.join(', ')}` }, 400);
-    const incluirBaja = c.req.query('baja') === '1';
     return c.json({ empresas: leerEmpresas(db, { estado, incluirBaja }), ocultas: incluirBaja ? 0 : contarEmpresasBaja(db, estado) });
   });
   const privadaEmpresas = new Hono();

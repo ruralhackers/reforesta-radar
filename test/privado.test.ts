@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { crearApi } from '../src/api/app.ts';
 import { guardarConvocatoria } from '../src/db/repo.ts';
+import { actualizarEmpresa, registrarSenal } from '../src/db/empresas.ts';
 import type { Convocatoria } from '../src/types.ts';
 import { bdSembrada } from './support/bd.ts';
 
@@ -174,5 +175,37 @@ describe('modo privado (con TEAM_PASSWORD)', () => {
     await pedir(api, ['PUT', '/decisiones/bdns%3A1', { decision: 'descartada', motivo: 'Otro', detalle: 'no' }], cookie);
     const semana = await (await api.request('/semana')).json() as { convocatorias: { id: string }[] };
     assert.equal(semana.convocatorias.some((c) => c.id === 'bdns:1'), false);
+  });
+});
+
+describe('estado de las empresas (trabajo del equipo)', () => {
+  function conEmpresa(password: string | null) {
+    const r = nueva(password);
+    const { empresaId: id } = registrarSenal(r.db, {
+      nombre: 'Eólica Ejemplo SL', cif: null, origen: 'dia_boe', motivo: 'Obligada a compensar', cita: 'cita literal de ejemplo', provincia: 'Soria',
+      senal: { boeId: 'BOE-A-2026-1', titulo: 'Resolución', proyecto: 'Parque', provincia: 'Soria', medidas: [{ tipo: 'compensacion_habitat', cita: 'cita literal de ejemplo' }], enlace: 'https://www.boe.es/x', fechaPublicacion: '2026-11-01' },
+    }, AHORA);
+    actualizarEmpresa(r.db, id, { estado: 'contactada' }, AHORA);
+    return r;
+  }
+  type Lista = { empresas: Record<string, unknown>[] };
+
+  test('modo privado: la lectura pública no lleva el estado y ?estado= es del equipo (401); con sesión, /equipo/empresas sí', async () => {
+    const { api } = conEmpresa('abrete-sesamo');
+    const publica = (await (await api.request('/empresas')).json()) as Lista;
+    assert.equal(publica.empresas.length, 1);
+    assert.equal('estado' in publica.empresas[0], false);
+    assert.equal((await api.request('/empresas?estado=contactada')).status, 401);
+    assert.equal((await api.request('/empresas?estado=descartada')).status, 401);
+    const cookie = galleta(await entrar(api, 'abrete-sesamo'));
+    const equipo = (await (await api.request('/equipo/empresas?estado=contactada', con(cookie))).json()) as Lista;
+    assert.equal(equipo.empresas[0].estado, 'contactada');
+  });
+
+  test('modo demo: todo abierto, el estado se ve y se filtra', async () => {
+    const { api } = conEmpresa(null);
+    const r = (await (await api.request('/empresas?estado=contactada')).json()) as Lista;
+    assert.equal(r.empresas[0].estado, 'contactada');
+    assert.equal(((await (await api.request('/empresas?estado=pendiente')).json()) as Lista).empresas.length, 0);
   });
 });
