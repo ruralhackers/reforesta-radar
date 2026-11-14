@@ -41,6 +41,8 @@ export interface SenalEmpresa {
   enlace: string;
   fechaPublicacion: string;
   vistaEn: string;
+  /** Compra de absorciones: tCO2 compradas en proyectos de los territorios del perfil en la ventana reciente (0 en las demás señales). */
+  tco2: number;
 }
 
 export interface Empresa {
@@ -99,7 +101,7 @@ export interface NuevaSenal {
   provincia: string | null;
   /** Por defecto: DIA → 3, registro → 2. El registro solo por zona y sector es 1. La de la empresa es la mayor de sus señales (una criba posterior puede bajar la de una señal del registro). */
   prioridad?: number;
-  senal: Omit<SenalEmpresa, 'tipo' | 'vistaEn' | 'motivo'>;
+  senal: Omit<SenalEmpresa, 'tipo' | 'vistaEn' | 'motivo' | 'tco2'> & { tco2?: number };
 }
 
 /** Guarda la señal y la empresa (la crea o la une a la existente). `nueva` = la empresa se ve por primera vez. */
@@ -133,10 +135,10 @@ export function registrarSenal(db: DatabaseSync, n: NuevaSenal, ahora: Date): { 
     }
     // Una señal que ya estaba se actualiza (prioridad y motivo): así una criba nueva puede subirla o bajarla; la de la empresa es la mayor de sus señales.
     db.prepare(`
-      INSERT INTO empresa_senales (empresa_id, tipo, boe_id, titulo, proyecto, provincia, motivo, medidas, enlace, fecha_publicacion, vista_en, prioridad)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (empresa_id, boe_id) DO UPDATE SET prioridad = excluded.prioridad, motivo = excluded.motivo
-    `).run(empresaId, n.origen, n.senal.boeId, n.senal.titulo, n.senal.proyecto, n.senal.provincia, n.motivo, JSON.stringify(n.senal.medidas), n.senal.enlace, n.senal.fechaPublicacion, ahora.toISOString(), prioridad);
+      INSERT INTO empresa_senales (empresa_id, tipo, boe_id, titulo, proyecto, provincia, motivo, medidas, enlace, fecha_publicacion, vista_en, prioridad, tco2)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT (empresa_id, boe_id) DO UPDATE SET prioridad = excluded.prioridad, motivo = excluded.motivo, tco2 = excluded.tco2
+    `).run(empresaId, n.origen, n.senal.boeId, n.senal.titulo, n.senal.proyecto, n.senal.provincia, n.motivo, JSON.stringify(n.senal.medidas), n.senal.enlace, n.senal.fechaPublicacion, ahora.toISOString(), prioridad, n.senal.tco2 ?? 0);
     recalcularPrioridad(db, empresaId, n.motivo);
     return { empresaId, nueva };
   });
@@ -177,7 +179,7 @@ export function ocultarSinFormaJuridica(db: DatabaseSync): string[] {
 function aSenal(f: Record<string, unknown>): SenalEmpresa {
   return {
     tipo: f.tipo as OrigenEmpresa, boeId: String(f.boe_id), titulo: String(f.titulo), proyecto: (f.proyecto as string | null) ?? null, provincia: (f.provincia as string | null) ?? null,
-    motivo: String(f.motivo), medidas: JSON.parse(String(f.medidas)) as MedidaDia[], enlace: String(f.enlace), fechaPublicacion: String(f.fecha_publicacion), vistaEn: String(f.vista_en),
+    motivo: String(f.motivo), medidas: JSON.parse(String(f.medidas)) as MedidaDia[], enlace: String(f.enlace), fechaPublicacion: String(f.fecha_publicacion), vistaEn: String(f.vista_en), tco2: Number(f.tco2 ?? 0),
   };
 }
 
@@ -214,13 +216,13 @@ function diaCompensacion(e: Empresa): string {
 }
 
 /**
- * Orden del grupo "Compensan su huella" (prioridad 2): primero las de los territorios del perfil (en el orden del perfil: el de casa y luego los limítrofes),
+ * Orden del grupo "Compensan su huella" (prioridad 2): primero los compradores de absorciones por las tCO2 compradas en territorio (de más a menos); luego las de los territorios del perfil (en el orden del perfil: el de casa y luego los limítrofes),
  * después el resto; dentro de cada zona, la compensación más reciente primero. Las demás prioridades conservan su orden y su sitio.
  */
 export function ordenarPorZona(lista: Empresa[], perfil: Perfil): Empresa[] {
   const compensan = lista.filter((e) => e.prioridad === PRIORIDAD_REGISTRO_COMPENSA)
-    .map((e, i) => ({ e, i, rango: rangoEmpresa(e, perfil) ?? Number.MAX_SAFE_INTEGER, dia: diaCompensacion(e) }))
-    .sort((a, b) => a.rango - b.rango || (a.dia < b.dia ? 1 : a.dia > b.dia ? -1 : 0) || a.i - b.i)
+    .map((e, i) => ({ e, i, tco2: e.senales.reduce((s, x) => s + x.tco2, 0), rango: rangoEmpresa(e, perfil) ?? Number.MAX_SAFE_INTEGER, dia: diaCompensacion(e) }))
+    .sort((a, b) => b.tco2 - a.tco2 || a.rango - b.rango || (a.dia < b.dia ? 1 : a.dia > b.dia ? -1 : 0) || a.i - b.i)
     .map((x) => x.e);
   let k = 0;
   return lista.map((e) => (e.prioridad === PRIORIDAD_REGISTRO_COMPENSA ? compensan[k++] : e));

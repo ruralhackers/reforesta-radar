@@ -127,9 +127,9 @@ export function leerConfig(env: Entorno) {
       /** Letras CNAE de los sectores afines para el nivel B (zona + sector sin compensación). Por defecto B,D,E,F,G,H: extractivas, energía, agua y residuos, construcción, comercio, transporte. La zona sale del ámbito del perfil. */
       sectores: (env.RADAR_SECTORES_HUELLA || 'B,D,E,F,G,H').split(',').map((x) => x.trim().toUpperCase()).filter(Boolean),
     },
-    /** Empresas que compran absorciones (compensaciones del registro del MITECO, sin LLM): años que cuentan como compra reciente y tiempo máximo por descarga. */
+    /** Empresas que compran absorciones (compensaciones del registro del MITECO, sin LLM): años que cuentan como compra reciente en territorio y tiempo máximo por descarga. */
     compras: {
-      aniosRecientes: num('RADAR_ANIOS_COMPRAS', 2, { min: 1 }),
+      aniosRecientes: num('RADAR_ANIOS_COMPRAS', 3, { min: 1 }),
       timeoutMs: num('RADAR_TIMEOUT_COMPRAS_MS', 60_000, { min: 1 }),
     },
     /** Aprendizaje ligero: cuántas de las últimas decisiones del equipo se pasan como ejemplos a la criba y el análisis de lo nuevo. */

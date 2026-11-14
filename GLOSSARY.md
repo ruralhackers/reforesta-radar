@@ -99,7 +99,7 @@ funciones y tablas usan estas mismas palabras.
 - **Compra de absorción**: señal de una empresa que compensó su huella con créditos (tCO2) de un proyecto de absorción forestal, del listado de compensaciones del MITECO (origen `compra_absorcion`; sin LLM). Es un buen
   prospecto de RSC: ya paga por restauración. El motivo dice cuántas tCO2, cuándo, con qué proyecto y en qué provincia; la cita es la fila literal del registro. Compensar con un proyecto que la empresa misma promueve no cuenta como compra.
 - **Proyecto de absorción**: proyecto forestal inscrito en el registro del MITECO (nombre, provincia, promotor, tCO2 previstas y retiradas). Se une a las compensaciones por su código; el promotor sale en el desplegable de la empresa.
-- **Comprador relevante**: prioridad 2 (como el nivel A): compró en un proyecto dentro de los territorios del perfil, o hace menos de 2 años. Con una DIA además, sigue en 3. Sin NIF en el listado, se une a otras empresas solo por nombre con forma societaria y nunca con un CIF distinto.
+- **Comprador relevante**: prioridad 2 (como el nivel A): compró en un proyecto dentro de los territorios del perfil en los últimos 3 años (las compras recientes de fuera quedan en baja confianza); se ordenan por las tCO2 compradas en territorio. Con una DIA además, sigue en 3. Sin NIF en el listado, se une a otras empresas solo por nombre con forma societaria y nunca con un CIF distinto.
 - **Estado de empresa**: pendiente, contactada o descartada. Trabajo del equipo: privado con `TEAM_PASSWORD`.
 
 ## Coste y control

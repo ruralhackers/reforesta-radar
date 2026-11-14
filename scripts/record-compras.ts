@@ -24,6 +24,8 @@ const orgs = new Set<string>([
   'EULEN, S.A.', // promueve sus propios proyectos
   'MANCOMUNIDAD DE LA COMARCA DE PAMPLONA (MCP/SCPSA)', // administración
   'KAURA COPRODUCTS, S.L.',
+  'EDP RENOVABLES ESPAÑA, S.L.U. Y SOCIEDADES GESTIONADAS', // muchas tCO2 en Ávila, reciente
+  'COARSA, S.A.', // pocas tCO2 en Madrid, reciente
 ]);
 const MAX_POR_ORG = 12;
 const elegidas = [...orgs].flatMap((o) => compensaciones.filter((x) => x.organizacion === o).slice(-MAX_POR_ORG));

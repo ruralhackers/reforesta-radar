@@ -4,7 +4,7 @@
 //   - listadoproyectosdeabsorcion.xlsx: dónde está cada proyecto (provincia, CCAA) y quién lo promueve. Se une por el código del proyecto
 //     (prefijo de «CÓDIGO TONELADAS RETIRADAS»); si el proyecto no está en el listado (ni en BAJAS) se prueba por nombre, y si no, la provincia queda desconocida.
 // Cada comprador (nombre con su forma societaria) es una señal `compra_absorcion` con la fila literal del registro como cita. Prioridad 2 si alguna compra
-// fue en un proyecto de los territorios del perfil o la última es reciente (`aniosRecientes`); si no, 1 (baja confianza, oculta por defecto). La empresa
+// fue en un proyecto de los territorios del perfil en los últimos `aniosRecientes` (3) años; si no (también si es reciente pero de fuera), 1 (baja confianza, oculta por defecto). Se ordenan por las tCO2 compradas en territorio. La empresa
 // se une por nombre a las que ya hay (DIA, huella): con una DIA sigue siendo 3. Sin NIF no se une jamás con una empresa de otro CIF.
 import type { DatabaseSync } from 'node:sqlite';
 import { claveEmpresa, esEntidadJuridica, PRIORIDAD_REGISTRO_COMPENSA, PRIORIDAD_REGISTRO_ZONA, registrarSenal } from '../db/empresas.ts';
@@ -17,13 +17,13 @@ import { diaLocal } from '../dates.ts';
 export const FASE_COMPRAS = 'empresas_compra_absorcion';
 
 export interface ConfigCompras {
-  /** Una compra de hace menos de tantos años cuenta como reciente. */
+  /** Una compra de hace menos de tantos años cuenta como reciente (y solo las recientes en territorio dan prioridad visible). */
   aniosRecientes: number;
   timeoutMs: number;
   maxBytes: number;
 }
 
-export const CONFIG_COMPRAS_POR_DEFECTO: ConfigCompras = { aniosRecientes: 2, timeoutMs: 60_000, maxBytes: 20 * 1024 * 1024 };
+export const CONFIG_COMPRAS_POR_DEFECTO: ConfigCompras = { aniosRecientes: 3, timeoutMs: 60_000, maxBytes: 20 * 1024 * 1024 };
 
 export interface ResumenCompras {
   compensacionesLeidas: number;
@@ -39,7 +39,7 @@ export interface ResumenCompras {
   /** De los compradores, los que han comprado en un proyecto de los territorios del perfil. */
   enTerritorio: number;
   recientes: number;
-  /** Con prioridad visible (2): en territorio o reciente. */
+  /** Con prioridad visible (2): compra en territorio dentro de la ventana de años. */
   relevantes: number;
   /** No guardados porque ya hay dos o más empresas con ese nombre y CIF distintos: sin NIF no se sabe a cuál pertenece la compra. */
   ambiguos: number;
@@ -69,10 +69,14 @@ export interface Comprador {
   /** Más reciente primero. */
   compras: Compra[];
   tco2Total: number;
-  /** La compra que da el motivo: la más reciente de las de territorio, o si no la más reciente. */
+  /** La compra que da el motivo: la más reciente de las de territorio dentro de la ventana, o si no la más reciente. */
   principal: Compra;
   enTerritorio: boolean;
   reciente: boolean;
+  /** Compró en un proyecto de los territorios dentro de la ventana de años: lo que da prioridad visible. */
+  enTerritorioReciente: boolean;
+  /** tCO2 compradas en territorio dentro de la ventana: el orden entre compradores. */
+  tco2Territorio: number;
   prioridad: number;
 }
 
@@ -123,12 +127,13 @@ export function derivarCompradores(compensaciones: FilaCompensacion[], proyectos
     }
     if (compras.length === 0) { soloProyectosPropios++; continue; }
     compras.sort((a, b) => b.compensacion.fecha.localeCompare(a.compensacion.fecha) || b.compensacion.fila - a.compensacion.fila);
-    const principal = compras.find((x) => x.enTerritorio) ?? compras[0];
+    const enVentana = compras.filter((x) => x.enTerritorio && x.compensacion.fecha >= desde);
+    const principal = enVentana[0] ?? compras.find((x) => x.enTerritorio) ?? compras[0];
     const enTerritorio = compras.some((x) => x.enTerritorio);
     const reciente = compras[0].compensacion.fecha >= desde;
     compradores.push({
-      nombre: g.nombre, clave, compras, tco2Total: compras.reduce((s, x) => s + x.tco2, 0), principal, enTerritorio, reciente,
-      prioridad: enTerritorio || reciente ? PRIORIDAD_REGISTRO_COMPENSA : PRIORIDAD_REGISTRO_ZONA,
+      nombre: g.nombre, clave, compras, tco2Total: compras.reduce((s, x) => s + x.tco2, 0), principal, enTerritorio, reciente, enTerritorioReciente: enVentana.length > 0, tco2Territorio: enVentana.reduce((s, x) => s + x.tco2, 0),
+      prioridad: enVentana.length > 0 ? PRIORIDAD_REGISTRO_COMPENSA : PRIORIDAD_REGISTRO_ZONA,
     });
   }
   return { compradores, sinProyecto, sinFormaJuridica, administraciones, soloProyectosPropios };
@@ -194,7 +199,7 @@ export async function recogerEmpresasCompras(ctx: ContextoCompras, cfg: ConfigCo
       const provincia = p.proyecto?.provincia || null;
       const { nueva } = registrarSenal(db, {
         nombre: c.nombre, cif: null, origen: 'compra_absorcion', prioridad: c.prioridad, motivo: motivoCompra(c), cita, provincia,
-        senal: { boeId: `compra:${c.clave}`, titulo: `Compra de absorciones (MITECO): ${c.nombre}`, proyecto: descripcionProyecto(c), provincia, medidas, enlace: URL_COMPENSACION, fechaPublicacion: c.compras[0].compensacion.fecha },
+        senal: { boeId: `compra:${c.clave}`, titulo: `Compra de absorciones (MITECO): ${c.nombre}`, proyecto: descripcionProyecto(c), provincia, tco2: c.tco2Territorio, medidas, enlace: URL_COMPENSACION, fechaPublicacion: c.compras[0].compensacion.fecha },
       }, ahora);
       (nueva ? r.empresasNuevas : r.empresasUnidas).push(c.nombre);
     } catch (e) {

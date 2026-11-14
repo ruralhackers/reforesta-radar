@@ -451,7 +451,7 @@ describe('prioridad y orden de las empresas', () => {
   test('migración: recalcula la prioridad de lo ya guardado (DIA 3, compensación 2, solo zona y sector 1), acorta motivos largos y fuerza recorrer el registro de nuevo', async () => {
     const { abrirBd, migrar } = await import('../src/db/schema.ts');
     const db = abrirBd(':memory:');
-    db.exec('DROP INDEX empresas_por_prioridad; ALTER TABLE empresas DROP COLUMN prioridad; ALTER TABLE empresas DROP COLUMN oculta; ALTER TABLE empresa_senales DROP COLUMN prioridad; PRAGMA user_version = 14');
+    db.exec('DROP INDEX empresas_por_prioridad; ALTER TABLE empresas DROP COLUMN prioridad; ALTER TABLE empresas DROP COLUMN oculta; ALTER TABLE empresa_senales DROP COLUMN prioridad; ALTER TABLE empresa_senales DROP COLUMN tco2; PRAGMA user_version = 14');
     const largo = `Registro de huella de carbono (MITECO), 2024: Gran empresa de sector afín. ${'Datos repetidos del prompt. '.repeat(15)}`;
     const ins = (clave: string, origen: string, motivo: string, cita: string) => Number(db.prepare(
       `INSERT INTO empresas (clave, nombre, origen, motivo, cita, enlace, primera_vez_vista) VALUES (?, ?, ?, ?, ?, 'https://x', '2026-11-14T00:00:00Z')`).run(clave, clave, origen, motivo, cita).lastInsertRowid);

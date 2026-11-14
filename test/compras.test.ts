@@ -72,17 +72,27 @@ describe('compradores derivados', () => {
     assert.equal(solo.soloProyectosPropios, 1);
   });
 
-  test('prioridad 2 si compró en un proyecto de los territorios (aunque sea antiguo) o hace menos de dos años; si no, 1', () => {
+  test('prioridad 2 solo si compró en un proyecto de los territorios en los últimos 3 años; reciente pero de fuera, o en territorio pero antiguo, es 1', () => {
     const kaura = comprador('KAURA COPRODUCTS, S.L.');
     assert.equal(kaura.compras[0].compensacion.fecha.slice(0, 4), '2023');
-    assert.deepEqual([kaura.enTerritorio, kaura.reciente, kaura.prioridad], [true, false, 2]); // Ávila, compra de 2023
+    assert.deepEqual([kaura.enTerritorioReciente, kaura.prioridad], [true, 2]); // Ávila, noviembre de 2023
     const crisma = comprador('CRISMACHEM, S.L.');
-    assert.deepEqual([crisma.enTerritorio, crisma.reciente, crisma.prioridad], [false, true, 2]); // Pontevedra, 2025
-    const fal = comprador('FAL CALZADOS DE SEGURIDAD, S.A.');
-    assert.deepEqual([fal.enTerritorio, fal.reciente, fal.prioridad], [false, false, 1]); // La Rioja, 2023
-    // Con el reloj en 2029 ya no hay compras recientes: solo cuentan las de territorio.
-    assert.equal(comprador('CRISMACHEM, S.L.', new Date('2029-01-01T00:00:00Z')).prioridad, 1);
-    assert.equal(comprador('KAURA COPRODUCTS, S.L.', new Date('2029-01-01T00:00:00Z')).prioridad, 2);
+    assert.deepEqual([crisma.enTerritorio, crisma.reciente, crisma.prioridad], [false, true, 1]); // Pontevedra, 2025: reciente pero fuera
+    const enagas = comprador('ENAGÁS, S.A.');
+    assert.deepEqual([enagas.enTerritorio, enagas.enTerritorioReciente, enagas.prioridad], [true, false, 1]); // Madrid, pero de 2020
+    assert.equal(comprador('FAL CALZADOS DE SEGURIDAD, S.A.').prioridad, 1);
+    // Con el reloj en 2029 la compra de KAURA (2023) ya no cuenta; la de COARSA (febrero de 2026) sí.
+    const luego = new Date('2029-01-01T00:00:00Z');
+    assert.equal(comprador('KAURA COPRODUCTS, S.L.', luego).prioridad, 1);
+    assert.equal(comprador('COARSA, S.A.', luego).prioridad, 2);
+  });
+
+  test('tco2Territorio suma solo lo comprado en territorio dentro de la ventana', () => {
+    const e = comprador('EDP RENOVABLES ESPAÑA, S.L.U. Y SOCIEDADES GESTIONADAS');
+    const suma = e.compras.filter((c) => c.enTerritorio && c.compensacion.fecha >= '2023-11-14').reduce((s, c) => s + c.tco2, 0);
+    assert.ok(suma > 400);
+    assert.equal(e.tco2Territorio, suma);
+    assert.ok(e.tco2Total >= e.tco2Territorio);
   });
 
   test('una comunidad con solo algunas provincias en el perfil (Castilla y León) no cuenta entera: Palencia está fuera, Ávila dentro', () => {
@@ -102,16 +112,17 @@ describe('fase por el motor', () => {
     const r = await pasada(db, fetchCompras());
     assert.deepEqual(r.compras!.errores, []);
     const c = r.compras!;
-    assert.equal(c.compensacionesLeidas, 82);
-    assert.equal(c.proyectosLeidos, 44);
-    assert.equal(c.compradores, 11);
-    assert.equal(c.relevantes, 9);
-    assert.equal(c.enTerritorio, 3); // ALSA, KAURA y ENAGÁS
-    assert.equal(c.empresasNuevas.length, 11);
+    assert.equal(c.compensacionesLeidas, 90);
+    assert.equal(c.proyectosLeidos, 50);
+    assert.equal(c.compradores, 13);
+    assert.equal(c.relevantes, 3); // EDP, COARSA y KAURA: territorio y menos de 3 años
+    assert.equal(c.enTerritorio, 5); // más ALSA y ENAGÁS, cuyas compras en territorio son de 2020
+    assert.equal(c.empresasNuevas.length, 13);
     assert.equal(r.fases.find((f) => f.fase === FASE_COMPRAS)!.costeUsd, 0);
 
-    const enagas = leerEmpresas(db).find((e) => e.nombre === 'ENAGÁS, S.A.')!;
-    assert.equal(enagas.prioridad, 2);
+    assert.deepEqual(leerEmpresas(db).map((e) => e.nombre).sort(), ['COARSA, S.A.', 'EDP RENOVABLES ESPAÑA, S.L.U. Y SOCIEDADES GESTIONADAS', 'KAURA COPRODUCTS, S.L.']);
+    const enagas = todas(db).find((e) => e.nombre === 'ENAGÁS, S.A.')!;
+    assert.equal(enagas.prioridad, 1); // en Madrid, pero de 2020: baja confianza
     assert.equal(enagas.origen, 'compra_absorcion');
     assert.equal(enagas.provincia, 'Madrid');
     assert.equal(enagas.enlace, URL_COMPENSACION);
@@ -134,7 +145,7 @@ describe('fase por el motor', () => {
     const antes = todas(db).map((e) => [e.nombre, e.senales.length]);
     const r = await pasada(db, fetchCompras());
     assert.equal(r.compras!.empresasNuevas.length, 0);
-    assert.equal(r.compras!.empresasUnidas.length, 11);
+    assert.equal(r.compras!.empresasUnidas.length, 13);
     assert.deepEqual(todas(db).map((e) => [e.nombre, e.senales.length]), antes);
   });
 
@@ -158,16 +169,16 @@ describe('fase por el motor', () => {
   test('una empresa de baja confianza que compró en territorio sube a visible y su motivo pasa a ser el de la compra', async () => {
     const db = bdSembrada();
     registrarSenal(db, {
-      nombre: 'Alsa Grupo, S.L.U.', cif: null, origen: 'huella_carbono', prioridad: 1, motivo: 'Registro de huella de carbono (MITECO), 2025: gran empresa; no consta compensación (baja confianza)', cita: 'x', provincia: 'Asturias',
-      senal: { boeId: 'huella:alsa grupo slu', titulo: 't', proyecto: null, provincia: 'Asturias', medidas: [], enlace: 'https://www.miteco.gob.es/x', fechaPublicacion: '2026-10-01' },
+      nombre: 'Kaura Coproducts, S.L.', cif: null, origen: 'huella_carbono', prioridad: 1, motivo: 'Registro de huella de carbono (MITECO), 2025: gran empresa; no consta compensación (baja confianza)', cita: 'x', provincia: 'Asturias',
+      senal: { boeId: 'huella:kaura coproducts sl', titulo: 't', proyecto: null, provincia: 'Asturias', medidas: [], enlace: 'https://www.miteco.gob.es/x', fechaPublicacion: '2026-10-01' },
     }, AHORA);
     assert.equal(leerEmpresas(db).length, 0);
     await pasada(db, fetchCompras());
-    const alsa = leerEmpresas(db).find((e) => /^alsa grupo/i.test(e.nombre))!;
+    const alsa = leerEmpresas(db).find((e) => /^kaura/i.test(e.nombre))!;
     assert.equal(alsa.prioridad, 2);
     assert.match(alsa.motivo, /^Compensó/);
     assert.equal(alsa.senales.length, 2);
-    assert.equal(todas(db).filter((e) => /alsa grupo/i.test(e.nombre)).length, 1);
+    assert.equal(todas(db).filter((e) => /kaura/i.test(e.nombre)).length, 1);
   });
 
   test('una empresa con DIA que además compra absorciones sigue en prioridad 3', async () => {
@@ -189,18 +200,19 @@ describe('fase por el motor', () => {
     assert.equal(todas(db).filter((e) => /^enag/i.test(e.nombre)).length, 2);
     const r = await pasada(db, fetchCompras());
     assert.equal(r.compras!.ambiguos, 1);
-    assert.equal(r.compras!.empresasNuevas.length, 10);
+    assert.equal(r.compras!.empresasNuevas.length, 12);
     const e = todas(db).filter((x) => /^enag/i.test(x.nombre));
     assert.equal(e.length, 2);
     assert.ok(e.every((x) => x.senales.every((s) => s.tipo === 'dia_boe')));
     assert.ok(r.compras!.fase.avisos.some((a) => /ENAGÁS.*CIF distintos/.test(a)));
   });
 
-  test('el orden del grupo «compensan»: las compras en territorio van antes que las de fuera', async () => {
+  test('el orden entre compradores: las tCO2 compradas en territorio (EDP, 400+) por delante de las de 2–4 tCO2, aunque estas sean más recientes', async () => {
     const db = bdSembrada();
     await pasada(db, fetchCompras());
     const orden = leerEmpresas(db, { perfil: PERFIL }).map((e) => e.nombre);
-    const pos = (n: string) => orden.indexOf(n);
-    assert.ok(pos('ENAGÁS, S.A.') < pos('CRISMACHEM, S.L.') && pos('KAURA COPRODUCTS, S.L.') < pos('URBASER, S.A.'));
+    assert.deepEqual(orden, ['EDP RENOVABLES ESPAÑA, S.L.U. Y SOCIEDADES GESTIONADAS', 'COARSA, S.A.', 'KAURA COPRODUCTS, S.L.']);
+    const edp = leerEmpresas(db).find((e) => /^EDP/.test(e.nombre))!.senales[0];
+    assert.equal(edp.tco2, comprador('EDP RENOVABLES ESPAÑA, S.L.U. Y SOCIEDADES GESTIONADAS').tco2Territorio);
   });
 });

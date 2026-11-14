@@ -500,6 +500,10 @@ const MIGRACIONES: string[] = [
     visto_en TEXT NOT NULL
   );
   `,
+  // 18: tCO2 compradas en territorio (compra de absorciones): ordena a los compradores
+  `
+  ALTER TABLE empresa_senales ADD COLUMN tco2 REAL NOT NULL DEFAULT 0;
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

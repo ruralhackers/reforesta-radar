@@ -459,6 +459,8 @@ export interface SenalEmpresa {
   medidas: { tipo: string; cita: string }[];
   enlace: string;
   fechaPublicacion: string;
+  /** tCO2 compradas en territorio (solo compra de absorciones). */
+  tco2?: number;
 }
 export interface Empresa {
   id: number;
