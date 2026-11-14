@@ -449,8 +449,8 @@ export const quitarFundacion = (id: number) => pedir<object>(`/api/fundaciones/$
 // --- Empresas (DIA del BOE con medidas de restauración): GET público sin nota; la nota solo en la lectura del equipo; PATCH del equipo ---
 export type EstadoEmpresa = 'pendiente' | 'contactada' | 'descartada';
 export interface SenalEmpresa {
-  /** De dónde viene la señal: una DIA del BOE o el registro de huella de carbono del MITECO. */
-  tipo: 'dia_boe' | 'huella_carbono';
+  /** De dónde viene la señal: una DIA del BOE, el registro de huella de carbono del MITECO o una compra de absorciones (compensaciones del mismo registro). */
+  tipo: 'dia_boe' | 'huella_carbono' | 'compra_absorcion';
   boeId: string;
   titulo: string;
   proyecto: string | null;

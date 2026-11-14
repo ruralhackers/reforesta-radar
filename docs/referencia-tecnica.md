@@ -15,7 +15,7 @@ explicable y lo enseña en una **web** (que se puede abrir desde el primer día)
 | Licitaciones | Contratos públicos de servicios y obras (restauración, plantación, invasoras, charcas, educación ambiental, mantenimiento forestal) de la Plataforma de Contratación del Sector Público (PLACSP), en su propia página y puntuación |
 | Fundaciones y RSC | Páginas de convocatorias de fundaciones privadas vigiladas (Montemadrid, Repsol, Iberdrola, BBVA…; editable desde la web). Solo se llama al LLM cuando la página cambia |
 | Descubrimiento | Lo que han ganado desde 2022 organizaciones parecidas a Reforesta (GREFA, Grupo Brinzal, SEO/BirdLife…): si su serie tiene una edición nueva, entra como candidata |
-| Empresas | (1) Declaraciones de impacto ambiental del BOE que obligan a una empresa a restaurar o compensar hábitat; (2) Registro de huella de carbono del MITECO, en dos niveles: A (compensan, motivo concreto) y B (gran empresa afín de la zona, baja confianza, oculto por defecto) |
+| Empresas | (1) Declaraciones de impacto ambiental del BOE que obligan a una empresa a restaurar o compensar hábitat; (2) Registro de huella de carbono del MITECO, en dos niveles: A (compensan, motivo concreto) y B (gran empresa afín de la zona, baja confianza, oculto por defecto); (3) empresas que compran créditos de absorción de proyectos forestales (compensaciones del mismo registro, sin LLM) |
 
 Por cada convocatoria: criba barata (Claude Haiku) y análisis con **cita literal** de importe, plazo y requisitos (Claude Sonnet). Lo que
 no consta se marca como *desconocido*, nunca se inventa. Además: plazos de cierre calculados en código (con festivos), ganadores
@@ -149,6 +149,7 @@ claro (código 1), en vez de quitar un tope sin avisar.
 | `RADAR_PAUSA_FUNDACIONES_MS`, `RADAR_TIMEOUT_FUNDACIONES_MS`, `RADAR_MAX_BYTES_FUNDACIONES`, `RADAR_MAX_FUNDACIONES`, `RADAR_MAX_CARACTERES_FUNDACIONES` | no | `1000`, `30000`, `3145728`, `60`, `60000` | Fundaciones vigiladas |
 | `RADAR_DIAS_DIA_BOE`, `RADAR_MAX_DIA_BOE`, `RADAR_PAUSA_BOE_MS`, `RADAR_MAX_CARACTERES_DIA_BOE` | no | `60`, `40`, `300`, `150000` | Empresas desde las DIA del BOE |
 | `RADAR_MAX_HUELLA`, `RADAR_SECTORES_HUELLA`, `RADAR_ANIOS_HUELLA`, `RADAR_TIMEOUT_HUELLA_MS` | no | `50`, `B,D,E,F,G,H`, `3`, `60000` | Registro de huella de carbono |
+| `RADAR_ANIOS_COMPRAS`, `RADAR_TIMEOUT_COMPRAS_MS` | no | `2`, `60000` | Compra de absorciones: años que cuentan como compra reciente y tiempo máximo por descarga |
 | `BACKTEST_DB`, `BACKTEST_MAX_B`, `BACKTEST_MAX_DETALLES_B`, `BACKTEST_FILE` | no | `data/backtest/trabajo.sqlite`, `150`, `400`, `seed/backtest.json` | Backtest "Cómo sabemos" |
 
 ## Modo privado
@@ -244,7 +245,7 @@ una pasada.
 - **Fundaciones**: algunas webs bloquean a los clientes automáticos (p. ej. "la Caixa", HTTP 403; en la semilla, desactivada con su nota).
   La lista de la semilla es corta: hay que ir ampliándola desde la web.
 - **Empresas**: las DIA dan un motivo verificable pero no un contacto; no se guardan personas ni se leen webs de RSC. El nivel B de la
-  huella es de baja confianza.
+  huella es de baja confianza. En la compra de absorciones el listado no trae NIF (unión solo por nombre con forma societaria; con nombre ambiguo entre CIF distintos no se une) y ~10 % de las compensaciones citan un proyecto que no consta en el listado de proyectos (provincia desconocida: solo cuenta la recencia). No se ha usado ninguna plataforma de mercado voluntario: no hay listados públicos estables de quién retira créditos.
 - **Licitaciones**: el feed de PLACSP son ~14 MB por página y la primera carga solo cubre unas 2 jornadas (`npm run licitaciones` rellena más atrás); las plataformas agregadas (certificado de cliente) no se leen; los PDF de los
   pliegos los rechaza a veces el cortafuegos de la Plataforma («Request Rejected») y entonces el análisis usa solo el anuncio del feed; una licitación anulada o adjudicada sigue guardada hasta que pasa su plazo.
 - **No redacta propuestas ni presenta solicitudes.** Tampoco gestiona sedes electrónicas.
@@ -551,6 +552,21 @@ Segunda fuente del canal: el [Registro de huella de carbono, compensación y pro
 - `.../listadodecompensacion.xlsx`, hoja «Listado COMPENSACIONES»: quién compensó con qué proyecto de absorción (sin NIF; se casa por nombre y solo si es inequívoco).
 
 Fase `empresas_huella_carbono` (`src/fases/huella.ts`), tras la de las DIA: pre-filtro **en código** (persona jurídica, mediana o gran empresa, huella reciente, no administración, y uno de dos niveles). **Nivel A** (prioridad 2): compensa —sello COMPENSO o compensaciones con proyectos de absorción—, es el motivo concreto. **Nivel B** (prioridad 1, baja confianza): gran empresa de un sector afín en la zona del perfil (comunidades del `ámbito`; sectores CNAE en `RADAR_SECTORES_HUELLA`, por defecto `B,D,E,F,G,H`) sin compensación: se guarda sin LLM y no se muestra por defecto (`/api/empresas?baja=1`, «Ver más» en la web). Las DIA del BOE tienen prioridad 3. `leerEmpresas` y la página ordenan DIA, nivel A, nivel B; el correo muestra como máximo 5 (DIA y nivel A). Solo las de nivel A, ordenadas por prioridad y hasta `RADAR_MAX_HUELLA` (50) por ejecución, llegan a Haiku, que puede degradarlas y solo si lo que el registro dice de ellas es nuevo o ha cambiado (hash en `huella_cribadas`). Haiku decide «posible financiadora» con un motivo de una línea; el código lo antepone con la fuente y el año, la cita es el texto literal de la fila y la empresa se guarda como origen `huella_carbono` (se une a una de las DIA por CIF o nombre con las mismas reglas). El coste cuenta en el registro de la ejecución como fase propia. Si ningún fichero ha cambiado y no queda nada pendiente, no se vuelve a bajar.
+
+#### Empresas que compran absorciones (listado de compensaciones del MITECO)
+
+Tercera señal del canal, **sin LLM** (coste 0): el mismo registro dice quién compensó y con qué proyecto, y el listado de proyectos de absorción dice dónde está y quién lo promueve. Fase `empresas_compra_absorcion` (`src/fases/compras.ts`), tras la de huella, activa en `npm run radar` (`compras` en las dependencias del motor; `RADAR_ANIOS_COMPRAS`, `RADAR_TIMEOUT_COMPRAS_MS`). Ficheros (mismo host y descarga por trozos que la huella, `src/sources/huella.ts`):
+
+- `.../listadodecompensacion.xlsx`, hoja «Listado COMPENSACIONES»: organización, año de la huella, proyecto, tCO2 retiradas, **fecha de la compensación** y «código toneladas retiradas» (`<código del proyecto>/<tramo>`).
+- `.../listadoproyectosdeabsorcion.xlsx`, hojas «PROYECTOS DE ABSORCIÓN» y «BAJAS» (~1 MB, 1 448 proyectos): nombre, localización, provincia, CCAA, **promotor**, tCO2 previstas, código. La compensación se une al proyecto por el código; si no consta, por el nombre del proyecto; si tampoco, la provincia queda desconocida (en vivo, 149 de 1 480 compensaciones).
+
+Un **comprador** es un nombre del listado (con su forma societaria; «S.L.» y «S.A.» son sociedades distintas). Se descartan sin guardar: sin forma jurídica identificable (`esEntidadJuridica`, p. ej. «GRUPO OHLA»), administraciones (ayuntamientos, universidades, mancomunidades…) y compras en proyectos que la propia empresa promueve (no es comprar). Cada comprador es **una señal** `compra_absorcion` (id `compra:<nombre normalizado>`): motivo «Compensó 130 tCO2 en 2026 con el proyecto de absorción «…» (Ávila)» (la compra más reciente de las de territorio, o la más reciente; más «N compensaciones más, X tCO2 en total»), cita = fila literal de la compensación y, en `medidas`, también la del proyecto; `proyecto` de la señal = «proyecto (lugar, provincia), promovido por X», que la web muestra al desplegar la fila («compró en un proyecto de X en Segovia»); enlace = el listado de compensaciones.
+
+**Prioridad**: 2 (nivel A) si alguna compra fue en un proyecto de los territorios del perfil (`rangoLugar` en `src/zona.ts`: la provincia, o la comunidad si el territorio es entero; Castilla y León con solo Segovia y Ávila no cuenta entera) o si la última compra tiene menos de `RADAR_ANIOS_COMPRAS` (2) años; si no, 1 (baja confianza, oculta). Una empresa con DIA y compra sigue en 3 (la de la empresa es la mayor de sus señales). El grupo «Compensan su huella» se ordena por zona con la provincia de la empresa y de sus señales.
+
+**Unión** con empresas existentes por `registrarSenal`: el listado no trae NIF, así que se une por nombre normalizado con forma societaria y nunca contradice un CIF (no lo cambia). Si hay dos o más empresas con ese nombre y CIF distintos, la compra no se une a ninguna (`ambiguos`, con aviso). Una empresa de baja confianza que una señal sube a visible adopta el motivo, la cita y el enlace de esa señal (antes se quedaba con «no consta compensación»). Idempotente: repetir la pasada actualiza prioridad y motivo sin duplicar.
+
+Web (`/empresas`): chips de origen (Todos, DIA, Compensa huella, Compra absorción) que filtran por las señales de la empresa; las compras salen en el grupo «Compensan su huella o compran absorciones» con la etiqueta «Compra absorción». Los contadores cuentan las visibles (prioridad ≥ 2) y el correo, las nuevas relevantes (DIA, o prioridad ≥ 2 con alguna señal dentro de los territorios).
 
 ### Cómo sabemos (backtest)
 

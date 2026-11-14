@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { crc32, deflateRawSync } from 'node:zlib';
-import { URL_COMPENSACION, URL_HUELLA } from '../../src/sources/huella.ts';
+import { URL_COMPENSACION, URL_HUELLA, URL_PROYECTOS } from '../../src/sources/huella.ts';
 
 export interface Extracto {
   descargado: string;
@@ -60,6 +60,8 @@ export const xlsxCompensacion = (filas = extracto.compensacion.filas) => constru
 export interface OpcionesFetchHuella {
   huella?: Buffer;
   compensacion?: Buffer;
+  /** Listado de proyectos de absorción (sin él, 404). */
+  proyectos?: Buffer;
   /** Estado HTTP que sustituye al fichero (p. ej. 503). */
   fallo?: { huella?: number; compensacion?: number };
   /** El servidor ignora Range y devuelve el cuerpo entero. */
@@ -74,6 +76,7 @@ export function fetchHuella(o: OpcionesFetchHuella = {}): typeof fetch {
   const ficheros = new Map<string, { datos: Buffer; fallo?: number; etag: string }>([
     [URL_HUELLA, { datos: o.huella ?? xlsxHuella(), fallo: o.fallo?.huella, etag: `"huella-${o.version ?? 'v1'}"` }],
     [URL_COMPENSACION, { datos: o.compensacion ?? xlsxCompensacion(), fallo: o.fallo?.compensacion, etag: '"comp-v1"' }],
+    ...(o.proyectos ? [[URL_PROYECTOS, { datos: o.proyectos, etag: '"proy-v1"' }] as [string, { datos: Buffer; fallo?: number; etag: string }]] : []),
   ]);
   return (async (entrada: string | URL | Request, init?: RequestInit) => {
     const url = String(entrada instanceof Request ? entrada.url : entrada);

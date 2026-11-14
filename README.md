@@ -33,7 +33,7 @@ El flujo de un lunes:
 - **Fundaciones vigiladas** (Montemadrid, Repsol…): páginas que se editan desde la web; solo se llama al modelo cuando la página cambia.
 - **Descubrimiento por organizaciones parecidas** (GREFA, Grupo Brinzal, SEO/BirdLife…): si lo que ganaron desde 2022 tiene una edición nueva, entra como candidata.
 
-**Canal de empresas (RSC)**: empresas con un motivo verificable para financiar restauración, no una lista fría. (1) Las **declaraciones de impacto ambiental (DIA) del BOE** que obligan a una empresa a restaurar o compensar hábitat; (2) el **registro de huella de carbono** del MITECO (nivel A: compensan, con motivo concreto; nivel B: gran empresa afín de la zona, baja confianza, oculto por defecto).
+**Canal de empresas (RSC)**: empresas con un motivo verificable para financiar restauración, no una lista fría. (1) Las **declaraciones de impacto ambiental (DIA) del BOE** que obligan a una empresa a restaurar o compensar hábitat; (2) el **registro de huella de carbono** del MITECO (nivel A: compensan, con motivo concreto; nivel B: gran empresa afín de la zona, baja confianza, oculto por defecto); (3) las **empresas que compran créditos de absorción** de proyectos forestales (listado de compensaciones y proyectos de absorción del MITECO, sin LLM): «compensó 130 tCO2 en 2026 con el proyecto «…» (Ávila)», con prioridad si el proyecto está en los territorios del perfil o la compra es de los últimos 2 años.
 
 ## Cómo decide
 
@@ -113,7 +113,7 @@ Solo se paga la API de Claude (Haiku 5.5: 0,10 / 0,50 USD por millón de tokens 
 
 - Criba de una pasada completa con BDNS + UE (148 convocatorias): **0,075 USD**.
 - Análisis con citas: **≈ 0,15 USD** cada uno.
-- Empresas: DIA del BOE (60 días) 0,063 USD la primera vez; huella de carbono 0,018 USD.
+- Empresas: DIA del BOE (60 días) 0,063 USD la primera vez; huella de carbono 0,018 USD; compra de absorciones 0 USD (sin LLM).
 - Backtest completo: 0,014 USD.
 
 Todo se cachea: repetir una pasada sin novedades cuesta 0 USD. Estimación en régimen (no medida a un mes completo): **unos 3–10 USD al mes**. Techo duro: `RADAR_PRESUPUESTO_USD` por ejecución (1 USD por defecto, una ejecución al día: peor caso ≈ 30 USD/mes); al agotarse, lo que falta queda para la siguiente. Detalle en la [referencia técnica](docs/referencia-tecnica.md#coste-mensual-estimado).
@@ -134,7 +134,7 @@ Todo lo específico de Reforesta está en [`seed/`](seed/), no en el código: `p
 - Sin el análisis, la puntuación es parcial; los plazos ambiguos se muestran sin calcular y no incluyen fiestas locales.
 - Algunas webs de fundaciones bloquean a clientes automáticos (p. ej. «la Caixa», desactivada en la semilla); la lista es corta.
 - Licitaciones: el feed de la Plataforma pesa ~14 MB por página y la primera carga cubre unas dos jornadas; las plataformas agregadas no se pueden leer (piden certificado) y la Plataforma rechaza a veces la descarga automática de los pliegos PDF («Request Rejected»), así que el análisis se apoya entonces en los datos estructurados del anuncio.
-- Empresas: las DIA dan un motivo verificable, no un contacto; el nivel B de la huella es de baja confianza.
+- Empresas: las DIA dan un motivo verificable, no un contacto; el nivel B de la huella es de baja confianza; el listado de compensaciones no trae NIF (las compras se unen a otras empresas solo por nombre con forma societaria) y ~10 % de las compensaciones citan un proyecto que no consta en el listado de proyectos (provincia desconocida).
 - Un único usuario «equipo», sin cuentas individuales. No redacta propuestas ni presenta solicitudes.
 - Pendientes: el correo del lunes aún no sigue el rediseño de la web.
 

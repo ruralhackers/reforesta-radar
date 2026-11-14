@@ -23,3 +23,16 @@ export function rangoTerritorio(lugar: string | null | undefined, perfil: Perfil
   const i = (perfil.ambito.territorios ?? []).findIndex((t) => palabrasZona(t.comunidad) === p || t.provincias.some((x) => palabrasZona(x) === p));
   return i < 0 ? null : i;
 }
+
+/**
+ * Como `rangoTerritorio` para un sitio dado por provincia y comunidad (un proyecto del registro): cuenta si la provincia es de un territorio del perfil, o si la comunidad es
+ * un territorio entero (sin provincias: Madrid). Una comunidad con solo algunas provincias (Castilla y León con Segovia y Ávila) no vale por la comunidad.
+ */
+export function rangoLugar(provincia: string | null | undefined, ccaa: string | null | undefined, perfil: Perfil): number | null {
+  const porProvincia = rangoTerritorio(provincia, perfil);
+  if (porProvincia !== null) return porProvincia;
+  const p = palabrasZona(ccaa ?? '');
+  if (!p) return null;
+  const i = (perfil.ambito.territorios ?? []).findIndex((t) => t.provincias.length === 0 && palabrasZona(t.comunidad) === p);
+  return i < 0 ? null : i;
+}

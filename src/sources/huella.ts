@@ -2,7 +2,8 @@
 // El MITECO publica tres listados en Excel (.xlsx) que actualiza de forma periódica; aquí se usan los dos que dicen QUIÉN es la organización:
 //   - listadohuelladecarbono.xlsx  hoja «LISTADO»: una fila por huella inscrita (organización, NIF, sector, año, CCAA, tamaño, sello CALCULO / REDUZCO / COMPENSO, alcance, huella total…). ~22 MB, ~22 000 filas.
 //   - listadodecompensacion.xlsx   hoja «Listado COMPENSACIONES»: organización, año de la huella compensada, proyecto de absorción, tCO2 retiradas… (sin NIF).
-// (listadoproyectosdeabsorcion.xlsx lista los promotores de los proyectos, no a quienes compensan: no se usa.)
+//   - listadoproyectosdeabsorcion.xlsx hojas «PROYECTOS DE ABSORCIÓN» y «BAJAS»: nombre, provincia, CCAA, promotor, tCO2 previstas y retiradas, código del proyecto (~1 MB). No dice quién compensa,
+//     pero con el código del proyecto (prefijo de «CÓDIGO TONELADAS RETIRADAS» en las compensaciones) se sabe dónde está el proyecto con el que compensó cada organización.
 // Hosts y rutas fijos en www.miteco.gob.es. El servidor corta las descargas largas a los 16 MiB, así que se piden por trozos con Range.
 import { createHash } from 'node:crypto';
 import { fechaExcel, filasXlsx } from './xlsx.ts';
@@ -10,6 +11,9 @@ import { fechaExcel, filasXlsx } from './xlsx.ts';
 const BASE = 'https://www.miteco.gob.es/content/dam/miteco/es/cambio-climatico/temas/registro-huella/listados';
 export const URL_HUELLA = `${BASE}/listadohuelladecarbono.xlsx`;
 export const URL_COMPENSACION = `${BASE}/listadodecompensacion.xlsx`;
+export const URL_PROYECTOS = `${BASE}/listadoproyectosdeabsorcion.xlsx`;
+export const HOJA_PROYECTOS = 'PROYECTOS DE ABSORCIÓN';
+export const HOJA_BAJAS = 'BAJAS';
 export const HOJA_HUELLA = 'LISTADO';
 export const HOJA_COMPENSACION = 'Listado COMPENSACIONES';
 const USER_AGENT = 'Mozilla/5.0 (compatible; radar-convocatorias/0.1)';
@@ -97,7 +101,27 @@ export interface FilaCompensacion {
   proyecto: string;
   tco2: string;
   codigo: string;
+  /** «CÓDIGO TONELADAS RETIRADAS»: «<código del proyecto>/<tramo>». */
+  toneladas: string;
   fecha: string;
+}
+
+export interface FilaProyecto {
+  fila: number;
+  /** Código del proyecto (p. ej. «2017-b013»): el de las compensaciones es «<código>/<tramo>». */
+  codigo: string;
+  nombre: string;
+  localizacion: string;
+  provincia: string;
+  ccaa: string;
+  hectareas: string;
+  prevista: string;
+  retirada: string;
+  promotor: string;
+  /** AAAA-MM-DD o ''. */
+  inscrito: string;
+  /** Viene de la hoja «BAJAS»: el proyecto ya no está en el registro. */
+  baja: boolean;
 }
 
 const norm = (s: string | null | undefined) => (s ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -138,16 +162,54 @@ export function leerListadoCompensacion(xlsx: Buffer): FilaCompensacion[] {
   const filas = filasXlsx(xlsx, HOJA_COMPENSACION);
   const cab = filas.find((f) => f.celdas.some((c) => norm(c ?? '') === 'organizacion'));
   if (!cab) throw new Error('No se encuentra la cabecera del listado de compensaciones');
-  const ix = indices(cab.celdas, { org: 'organizacion', anio: 'ano de la huella', proyecto: 'proyecto de absorcion', tco2: 'absorciones retiradas', codigo: 'codigo compensacion', fecha: 'fecha de la compensacion' });
+  const ix = indices(cab.celdas, { org: 'organizacion', anio: 'ano de la huella', proyecto: 'proyecto de absorcion', tco2: 'absorciones retiradas', codigo: 'codigo compensacion', toneladas: 'codigo toneladas', fecha: 'fecha de la compensacion' });
   const salida: FilaCompensacion[] = [];
   for (const f of filas) {
     if (f.fila <= cab.fila) continue;
     const c = (k: string) => (f.celdas[ix[k]] ?? '').trim();
     if (!c('org')) continue;
-    salida.push({ fila: f.fila, organizacion: c('org'), anioHuella: Number(c('anio')) || 0, proyecto: c('proyecto'), tco2: c('tco2'), codigo: c('codigo'), fecha: fechaExcel(c('fecha')) ?? '' });
+    salida.push({ fila: f.fila, organizacion: c('org'), anioHuella: Number(c('anio')) || 0, proyecto: c('proyecto'), tco2: c('tco2'), codigo: c('codigo'), toneladas: c('toneladas'), fecha: fechaExcel(c('fecha')) ?? '' });
   }
   return salida;
 }
+
+const prefijoCodigo = (v: string) => v.trim().split('/')[0].trim();
+
+/** Proyectos de absorción inscritos (hoja principal) y dados de baja (hoja «BAJAS», donde el promotor se llama «Desarrollador»). Se localizan por el nombre de las columnas. */
+export function leerListadoProyectos(xlsx: Buffer): FilaProyecto[] {
+  const salida: FilaProyecto[] = [];
+  for (const baja of [false, true]) {
+    const filas = filasXlsx(xlsx, baja ? HOJA_BAJAS : HOJA_PROYECTOS);
+    const cab = filas.find((f) => f.celdas.some((c) => norm(c ?? '') === 'nombre del proyecto'));
+    if (!cab) throw new Error(`No se encuentra la cabecera de la hoja «${baja ? HOJA_BAJAS : HOJA_PROYECTOS}» de proyectos de absorción`);
+    const ix = indices(cab.celdas, {
+      nombre: 'nombre del proyecto', localizacion: 'localizacion', provincia: 'provincia', ccaa: 'ccaa', ha: 'superficie', prevista: 'absorcion prevista', retirada: 'absorciones retiradas',
+      promotor: baja ? 'desarrollador' : 'promotor del proyecto', inscrito: 'fecha de inscripcion', cod: 'cod t disponibles',
+    });
+    for (const f of filas) {
+      if (f.fila <= cab.fila) continue;
+      const c = (k: string) => (f.celdas[ix[k]] ?? '').trim();
+      if (!c('nombre')) continue;
+      const codigo = prefijoCodigo(c('cod'));
+      if (!codigo) continue;
+      salida.push({
+        fila: f.fila, codigo, nombre: c('nombre'), localizacion: c('localizacion'), provincia: c('provincia'), ccaa: c('ccaa'), hectareas: c('ha'), prevista: c('prevista'), retirada: c('retirada'),
+        promotor: c('promotor'), inscrito: fechaExcel(c('inscrito')) ?? '', baja,
+      });
+    }
+  }
+  return salida;
+}
+
+/** Código del proyecto con el que se compensó (el prefijo de «CÓDIGO TONELADAS RETIRADAS»), o ''. */
+export const codigoProyectoDe = (c: FilaCompensacion) => prefijoCodigo(c.toneladas);
+
+export function textoProyecto(p: FilaProyecto): string {
+  return `PROYECTO DE ABSORCIÓN: ${p.nombre} | LOCALIZACIÓN: ${p.localizacion} | PROVINCIA: ${p.provincia} | CCAA: ${p.ccaa} | PROMOTOR: ${p.promotor} | ABSORCIÓN PREVISTA (tCO2): ${p.prevista} | CÓDIGO: ${p.codigo}`;
+}
+
+/** La fila de una compensación con su fecha (la que se cita en la señal de compra de absorción). */
+export const textoCompra = (c: FilaCompensacion) => `${textoCompensacion(c)}${c.fecha ? ` | FECHA DE LA COMPENSACIÓN: ${c.fecha}` : ''}`;
 
 /** El texto literal de una fila del registro (lo que se cita), con las etiquetas de sus columnas. */
 export function textoFila(f: FilaHuella): string {
@@ -157,5 +219,8 @@ export function textoFila(f: FilaHuella): string {
 export function textoCompensacion(c: FilaCompensacion): string {
   return `COMPENSACIÓN: ${c.organizacion} | AÑO DE LA HUELLA COMPENSADA: ${c.anioHuella || '-'} | PROYECTO DE ABSORCIÓN: ${c.proyecto} | ABSORCIONES RETIRADAS (tCO2): ${c.tco2} | CÓDIGO: ${c.codigo}`;
 }
+
+/** Para casar nombres de proyecto entre listados (mayúsculas, acentos y puntuación no cuentan). */
+export const sinAcentosNombre = norm;
 
 export const hash = (t: string) => createHash('sha256').update(t).digest('hex');

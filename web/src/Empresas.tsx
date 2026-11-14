@@ -18,6 +18,15 @@ const ORIGEN: Record<number, { texto: string; clase: string }> = {
   1: { texto: 'Zona y sector', clase: 'bg-fondo-suave text-tinta-suave' },
 };
 
+type FiltroOrigen = 'todos' | 'dia_boe' | 'huella_carbono' | 'compra_absorcion';
+const ORIGENES: { valor: FiltroOrigen; etiqueta: string }[] = [
+  { valor: 'todos', etiqueta: 'Todos los orígenes' },
+  { valor: 'dia_boe', etiqueta: 'DIA' },
+  { valor: 'huella_carbono', etiqueta: 'Compensa huella' },
+  { valor: 'compra_absorcion', etiqueta: 'Compra absorción' },
+];
+const tieneOrigen = (e: Empresa, o: FiltroOrigen) => o === 'todos' || e.senales.some((s) => s.tipo === o) || (e.senales.length === 0 && e.origen === o);
+
 const CLASE_ESTADO: Record<EstadoEmpresa, string> = {
   pendiente: 'border-aviso-borde bg-aviso-suave text-aviso',
   contactada: 'border-marca-borde bg-marca-suave text-marca-fuerte',
@@ -51,6 +60,7 @@ function Fila({ e, puedeEditar, conEstado, alCambiar, columnas }: { e: Empresa; 
             <span className="min-w-0">
               <span className="font-semibold text-tinta [overflow-wrap:anywhere]">{e.nombre}</span>
               <span className={`ml-2 rounded px-1.5 py-0.5 align-middle text-[11px] font-medium ${origen.clase}`}>{origen.texto}</span>
+              {e.prioridad < 3 && e.senales.some((s) => s.tipo === 'compra_absorcion') && <span className="ml-1 rounded bg-marca-suave px-1.5 py-0.5 align-middle text-[11px] font-medium text-marca-fuerte">Compra absorción</span>}
               <span className="mt-0.5 block text-sm font-normal text-tinta sm:hidden">{e.motivo}</span>
               {e.provincia && <span className="block text-xs font-normal text-tinta-suave sm:hidden">{e.provincia}</span>}
             </span>
@@ -80,13 +90,18 @@ function Fila({ e, puedeEditar, conEstado, alCambiar, columnas }: { e: Empresa; 
             <blockquote className="border-l-2 border-marca-borde pl-3 text-sm italic text-tinta [overflow-wrap:anywhere]">«{e.cita}»</blockquote>
             <p className="mt-2 text-sm text-tinta-suave">
               Vista por primera vez el {fecha(e.primeraVezVista)} ·{' '}
-              <a href={e.enlace} target="_blank" rel="noreferrer" className="text-marca-fuerte underline">{e.origen === 'huella_carbono' ? 'Registro de huella de carbono (MITECO)' : 'Resolución en el BOE'}<span className="sr-only"> (se abre en otra pestaña)</span></a>
+              <a href={e.enlace} target="_blank" rel="noreferrer" className="text-marca-fuerte underline">{e.origen === 'dia_boe' ? 'Resolución en el BOE' : e.origen === 'compra_absorcion' ? 'Listado de compensaciones (MITECO)' : 'Registro de huella de carbono (MITECO)'}<span className="sr-only"> (se abre en otra pestaña)</span></a>
               {e.cif && <> · {e.cif}</>}
               {e.paginaRsc && <> · <a href={e.paginaRsc} target="_blank" rel="noreferrer" className="text-marca-fuerte underline">RSC</a></>}
             </p>
-            {e.senales.length > 1 && (
+            {(e.senales.length > 1 || e.senales.some((s) => s.tipo === 'compra_absorcion')) && (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-tinta-suave">
-                {e.senales.map((s) => <li key={s.boeId} className="[overflow-wrap:anywhere]"><a href={s.enlace} target="_blank" rel="noreferrer" className="text-marca-fuerte underline">{s.tipo === 'huella_carbono' ? 'Registro de huella de carbono' : fecha(s.fechaPublicacion)}</a> · {s.proyecto ?? s.motivo}</li>)}
+                {e.senales.map((s) => (
+                  <li key={s.boeId} className="[overflow-wrap:anywhere]">
+                    <a href={s.enlace} target="_blank" rel="noreferrer" className="text-marca-fuerte underline">{s.tipo === 'huella_carbono' ? 'Registro de huella de carbono' : s.tipo === 'compra_absorcion' ? 'Compra de absorciones' : fecha(s.fechaPublicacion)}</a>
+                    {s.tipo === 'compra_absorcion' ? <> · {s.motivo}. Proyecto: {s.proyecto}</> : <> · {s.proyecto ?? s.motivo}</>}
+                  </li>
+                ))}
               </ul>
             )}
             {puedeEditar && (
@@ -136,6 +151,7 @@ export function Empresas() {
   const [filtro, setFiltro] = useState<EstadoEmpresa | 'todas'>('todas');
   const [ocultas, setOcultas] = useState(0);
   const [verBaja, setVerBaja] = useState(false);
+  const [origenFiltro, setOrigenFiltro] = useState<FiltroOrigen>('todos');
 
   // Con sesión de equipo se lee la versión con notas; sin ella, la pública. Las de baja confianza solo si se piden.
   useEffect(() => {
@@ -143,7 +159,7 @@ export function Empresas() {
     leerEmpresas(puedeEditar, verBaja).then((r) => { setLista(r.empresas); setOcultas(r.ocultas); }, (e: Error) => setError(e.message));
   }, [cargada, puedeEditar, verBaja]);
 
-  const visibles = (lista ?? []).filter((e) => !puedeEditar || filtro === 'todas' || e.estado === filtro);
+  const visibles = (lista ?? []).filter((e) => (!puedeEditar || filtro === 'todas' || e.estado === filtro) && tieneOrigen(e, origenFiltro));
   const cambiar = (n: Empresa) => setLista((l) => l && l.map((e) => (e.id === n.id ? n : e)));
   const conEstado = (lista ?? []).some((e) => e.estado !== undefined);
   const dia = visibles.filter((e) => e.prioridad >= 3);
@@ -157,12 +173,22 @@ export function Empresas() {
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Empresas</h1>
         <p className="mt-1 text-sm text-tinta-suave">
           Posibles patrocinadoras de proyectos de restauración, por prioridad: primero las que una declaración de impacto ambiental (DIA) del BOE obliga a restaurar o compensar,
-          luego las que compensan su huella de carbono con proyectos de absorción en el registro del MITECO. Solo datos públicos de la empresa y de la fuente; no se guardan personas de contacto.
+          luego las que compensan su huella de carbono o compran créditos de absorción de proyectos forestales (registro del MITECO), sobre todo en los territorios del perfil o en los últimos dos años. Solo datos públicos de la empresa y de la fuente; no se guardan personas de contacto.
           Pulsa una fila para ver la cita y las notas.
         </p>
       </header>
 
       {error && <p role="alert" className="mb-4 rounded-md bg-peligro-suave p-3 text-peligro">{error}</p>}
+
+      <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Filtrar por origen">
+        {ORIGENES.map((o) => (
+          <button key={o.valor} type="button" onClick={() => setOrigenFiltro(o.valor)} aria-pressed={origenFiltro === o.valor}
+            className={`rounded-full border px-3 py-1 text-sm ${origenFiltro === o.valor ? 'border-marca bg-marca text-white' : 'border-linea-fuerte bg-superficie text-tinta hover:bg-fondo-suave'}`}>
+            {o.etiqueta}
+            {lista && <span className="ml-1 opacity-80">({lista.filter((e) => tieneOrigen(e, o.valor)).length})</span>}
+          </button>
+        ))}
+      </div>
 
       {puedeEditar && <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filtrar por estado">
         {(['todas', ...ESTADOS.map((s) => s.valor)] as const).map((v) => (
@@ -185,8 +211,8 @@ export function Empresas() {
       )}
       {compensan.length > 0 && (
         <section className="mb-6">
-          <h2 className="mb-2 text-lg font-semibold">Compensan su huella <span className="text-sm font-normal text-tinta-suave">({compensan.length})</span></h2>
-          <Tabla lista={compensan} titulo="Empresas que compensan su huella de carbono" {...comun} />
+          <h2 className="mb-2 text-lg font-semibold">Compensan su huella o compran absorciones <span className="text-sm font-normal text-tinta-suave">({compensan.length})</span></h2>
+          <Tabla lista={compensan} titulo="Empresas que compensan su huella de carbono o compran créditos de absorción" {...comun} />
         </section>
       )}
 

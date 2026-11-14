@@ -9,6 +9,7 @@ import {
 import { analizarConLlm, analizarLicitaciones, FASE_ANALISIS } from './fases/analisis.ts';
 import { cribarConLlm, FASE_CRIBA } from './fases/criba.ts';
 import { rellenarTitulosCortos } from './fases/titulos.ts';
+import { CONFIG_COMPRAS_POR_DEFECTO, type ConfigCompras, recogerEmpresasCompras, type ResumenCompras } from './fases/compras.ts';
 import { CONFIG_HUELLA_POR_DEFECTO, type ConfigHuella, recogerEmpresasHuella, type ResumenHuella } from './fases/huella.ts';
 import { CONFIG_EMPRESAS_POR_DEFECTO, type ConfigEmpresas, recogerEmpresasDia, type ResumenEmpresas } from './fases/empresas.ts';
 import { ocultarSinFormaJuridica } from './db/empresas.ts';
@@ -71,6 +72,8 @@ export interface DependenciasMotor {
    * (valores por defecto) o un objeto con la configuración. Ausente = no se baja el registro (tests sin red).
    */
   huella?: boolean | Partial<ConfigHuella>;
+  /** Empresas que compran créditos de absorción (fase `empresas_compra_absorcion`, sin LLM, tras la de huella). Solo se ejecuta si se pide, como la de huella. */
+  compras?: boolean | Partial<ConfigCompras>;
   /** Espera entre peticiones a BDNS (por defecto setTimeout); los tests la inyectan. */
   dormir?: (ms: number) => Promise<void>;
   log?: (mensaje: string) => void;
@@ -102,6 +105,7 @@ export interface ResumenEjecucion {
   /** Empresas de las DIA del BOE; null si no se pidió la fase. */
   empresas: ResumenEmpresas | null;
   huella: ResumenHuella | null;
+  compras: ResumenCompras | null;
   /** Convocatorias de otras fuentes marcadas como duplicadas de una de BDNS (mismo título). */
   duplicadas: ResumenDuplicadas;
   /** Presupuesto de LLM de la ejecución (común a todas las fases) y lo gastado, fallos cobrados incluidos. */
@@ -151,6 +155,7 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
   let duplicadas: ResumenDuplicadas = { marcadas: 0 };
   let empresas: ResumenEmpresas | null = null;
   let huella: ResumenHuella | null = null;
+  let compras: ResumenCompras | null = null;
   let errorGeneral: string | null = null;
   let conErrores = false;
 
@@ -192,7 +197,7 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
       for (const a of series.avisos) log(`  · ${a}`);
     };
     fases = [...fasesDeFuentes, ...(await fasesLlm(deps, ejecucionId, perfil, inicio, pedirGanadores, opciones.incluirIds, opciones.soloIncluidas))];
-    if (deps.empresas || deps.huella) {
+    if (deps.empresas || deps.huella || deps.compras) {
       // Filas guardadas antes del filtro de persona jurídica: se ocultan (con motivo), no se borran.
       const ocultadas = ocultarSinFormaJuridica(db);
       if (ocultadas.length) log(`empresas: ${ocultadas.length} ocultadas por no tener forma jurídica (${ocultadas.slice(0, 5).join(', ')}${ocultadas.length > 5 ? '…' : ''})`);
@@ -221,6 +226,16 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
       for (const a of h.fase.avisos) log(`  · ${a}`);
       for (const x of h.errores) log(`  ! ${x}`);
     }
+    if (deps.compras) {
+      const cfgC: ConfigCompras = { ...CONFIG_COMPRAS_POR_DEFECTO, ...(typeof deps.compras === 'object' ? deps.compras : {}) };
+      compras = await recogerEmpresasCompras({ db, fetch: deps.fetch, reloj, perfil }, cfgC);
+      guardarRegistroFase(db, ejecucionId, compras.fase);
+      fases = [...fases, compras.fase];
+      const c = compras;
+      log(`empresas (compra de absorciones): ${c.compensacionesLeidas} compensaciones y ${c.proyectosLeidos} proyectos leídos (${c.sinProyecto} compensaciones sin proyecto localizado), ${c.compradores} compradores (descartados: ${c.sinFormaJuridica} sin forma jurídica, ${c.administraciones} administraciones, ${c.soloProyectosPropios} solo en proyectos propios), ${c.enTerritorio} en territorio, ${c.recientes} recientes, ${c.relevantes} relevantes, ${c.ambiguos} sin unir por nombre ambiguo, ${c.empresasNuevas.length} empresas nuevas, ${c.empresasUnidas.length} unidas a una existente, ${c.errores.length} errores`);
+      for (const a of c.fase.avisos) log(`  · ${a}`);
+      for (const x of c.errores) log(`  ! ${x}`);
+    }
     plazos = calcularPlazos(db, reloj, perfil, deps.festivos ?? leerFestivos(config.rutaFestivos), deps.fuentes);
     log(`plazos: ${plazos.total} candidatas, ${plazos.literales} literales, ${plazos.calculadas} calculadas, ${plazos.desconocidas} desconocidas, ${plazos.errores.length} errores`);
     for (const e of plazos.errores) log(`  ! ${e}`);
@@ -233,7 +248,7 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
     throw e;
   } finally {
     const listas = [...resumen.map((f) => f.errores), ...fases.map((f) => f.errores), plazos?.errores, puntuacion?.errores, ganadores?.errores, series?.errores,
-      parecidas?.errores, empresas?.errores, huella?.errores];
+      parecidas?.errores, empresas?.errores, huella?.errores, compras?.errores];
     conErrores = errorGeneral !== null || listas.some((e) => (e?.length ?? 0) > 0);
     try {
       terminarEjecucion(db, ejecucionId, reloj.now(), conErrores, errorGeneral);
@@ -244,7 +259,7 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
   }
   if (deps.llm && presupuesto.gastadoUsd >= presupuesto.limiteUsd) log(`Presupuesto de LLM agotado: ${presupuesto.gastadoUsd.toFixed(4)} de ${presupuesto.limiteUsd.toFixed(2)} USD`);
 
-  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, series, parecidas, empresas, huella, duplicadas, presupuesto };
+  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, series, parecidas, empresas, huella, compras, duplicadas, presupuesto };
 }
 
 /**

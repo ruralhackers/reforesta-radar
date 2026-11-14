@@ -92,10 +92,14 @@ funciones y tablas usan estas mismas palabras.
 ## Empresas
 
 - **Empresa**: posible patrocinadora de proyectos de restauración. Una por nombre normalizado o CIF; solo personas jurídicas.
-- **Señal**: cada motivo por el que una empresa aparece (una DIA, una fila del registro de huella), con su cita y enlace.
+- **Señal**: cada motivo por el que una empresa aparece (una DIA, una fila del registro de huella, una compra de absorciones), con su cita y enlace.
 - **DIA**: declaración (o informe) de impacto ambiental publicada en el BOE. Si obliga al promotor a restaurar o compensar, es una señal.
 - **Nivel (tier) A / B**: del registro de huella de carbono del MITECO. A = compensa su huella (motivo concreto); B = gran empresa de un
   sector afín en la zona del perfil, sin compensación conocida (baja confianza, oculta por defecto). Las DIA van por delante de ambas.
+- **Compra de absorción**: señal de una empresa que compensó su huella con créditos (tCO2) de un proyecto de absorción forestal, del listado de compensaciones del MITECO (origen `compra_absorcion`; sin LLM). Es un buen
+  prospecto de RSC: ya paga por restauración. El motivo dice cuántas tCO2, cuándo, con qué proyecto y en qué provincia; la cita es la fila literal del registro. Compensar con un proyecto que la empresa misma promueve no cuenta como compra.
+- **Proyecto de absorción**: proyecto forestal inscrito en el registro del MITECO (nombre, provincia, promotor, tCO2 previstas y retiradas). Se une a las compensaciones por su código; el promotor sale en el desplegable de la empresa.
+- **Comprador relevante**: prioridad 2 (como el nivel A): compró en un proyecto dentro de los territorios del perfil, o hace menos de 2 años. Con una DIA además, sigue en 3. Sin NIF en el listado, se une a otras empresas solo por nombre con forma societaria y nunca con un CIF distinto.
 - **Estado de empresa**: pendiente, contactada o descartada. Trabajo del equipo: privado con `TEAM_PASSWORD`.
 
 ## Coste y control

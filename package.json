@@ -22,6 +22,7 @@
     "record:parecidas": "node scripts/record-bdns-parecidas.ts",
     "record:eu-ft": "node scripts/record-eu-ft.ts",
     "record:eu-cascada": "node scripts/record-eu-cascada.ts",
+    "record:compras": "node scripts/record-compras.ts",
     "record:fundaciones": "node scripts/record-fundaciones.ts",
     "record:boe": "node scripts/record-boe.ts",
     "record:placsp": "node scripts/record-placsp.ts",

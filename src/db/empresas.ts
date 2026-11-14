@@ -27,7 +27,7 @@ export const PRIORIDAD_REGISTRO_ZONA = 1;
 /** Por debajo de esta prioridad (solo zona y sector, sin compensación) la empresa es de baja confianza: se guarda pero no se muestra por defecto ni va al correo. */
 export const PRIORIDAD_MINIMA_VISIBLE = PRIORIDAD_REGISTRO_COMPENSA;
 
-export type OrigenEmpresa = 'dia_boe' | 'huella_carbono';
+export type OrigenEmpresa = 'dia_boe' | 'huella_carbono' | 'compra_absorcion';
 
 export interface SenalEmpresa {
   tipo: OrigenEmpresa;
@@ -116,6 +116,11 @@ export function registrarSenal(db: DatabaseSync, n: NuevaSenal, ahora: Date): { 
     let nueva = false;
     if (existente) {
       empresaId = Number(existente.id);
+      // Una empresa oculta por baja confianza que esta señal sube a visible adopta su motivo, su cita y su enlace (si no, seguiría diciendo «no consta compensación»).
+      const previa = (db.prepare('SELECT prioridad FROM empresas WHERE id = ?').get(empresaId) as { prioridad: number }).prioridad;
+      if (previa < PRIORIDAD_MINIMA_VISIBLE && prioridad >= PRIORIDAD_MINIMA_VISIBLE) {
+        db.prepare('UPDATE empresas SET origen = ?, motivo = ?, cita = ?, enlace = ?, provincia = COALESCE(?, provincia) WHERE id = ?').run(n.origen, n.motivo, n.cita, n.senal.enlace, n.provincia, empresaId);
+      }
       // Si antes no constaba el CIF y ahora sí, se completa (salvo que ese CIF ya sea de otra fila: entonces no se toca).
       if (n.cif && !porCif && !existente.cif) db.prepare('UPDATE empresas SET cif = ?, actualizada_en = ? WHERE id = ?').run(n.cif, ahora.toISOString(), empresaId);
       if (n.cif && !porCif && !existente.cif && CIF_ENTIDAD.test(n.cif)) db.prepare("UPDATE empresas SET oculta = NULL WHERE id = ? AND oculta = 'sin forma jurídica'").run(empresaId); // con el CIF consta la forma jurídica
@@ -142,7 +147,7 @@ function recalcularPrioridad(db: DatabaseSync, empresaId: number, motivoVigente?
   const antes = (db.prepare('SELECT prioridad FROM empresas WHERE id = ?').get(empresaId) as { prioridad: number }).prioridad;
   const { p } = db.prepare('SELECT COALESCE(MAX(prioridad), 0) AS p FROM empresa_senales WHERE empresa_id = ?').get(empresaId) as { p: number };
   db.prepare('UPDATE empresas SET prioridad = ? WHERE id = ?').run(p, empresaId);
-  if (motivoVigente && p < antes && p < PRIORIDAD_MINIMA_VISIBLE) db.prepare(`UPDATE empresas SET motivo = ? WHERE id = ? AND origen = 'huella_carbono'`).run(motivoVigente, empresaId);
+  if (motivoVigente && p < antes && p < PRIORIDAD_MINIMA_VISIBLE) db.prepare(`UPDATE empresas SET motivo = ? WHERE id = ? AND origen IN ('huella_carbono', 'compra_absorcion')`).run(motivoVigente, empresaId);
 }
 
 /** Baja a prioridad 1 la señal del registro con ese id (una criba posterior la degradó y ya no cumple ni zona y sector): la empresa sigue guardada pero oculta, salvo que tenga una DIA. */
@@ -202,9 +207,9 @@ export function rangoEmpresa(e: Empresa, perfil: Perfil): number | null {
   return rangos.length ? Math.min(...rangos) : null;
 }
 
-/** Día de su compensación más reciente en el registro (la inscripción más nueva); si no consta, el día en que se vio. */
+/** Día de su compensación más reciente en el registro (la inscripción más nueva, o la compra de absorciones más reciente); si no consta, el día en que se vio. */
 function diaCompensacion(e: Empresa): string {
-  const fechas = e.senales.filter((s) => s.tipo === 'huella_carbono').map((s) => s.fechaPublicacion).sort();
+  const fechas = e.senales.filter((s) => s.tipo === 'huella_carbono' || s.tipo === 'compra_absorcion').map((s) => s.fechaPublicacion).sort();
   return fechas.length ? fechas[fechas.length - 1] : diaLocal(new Date(e.primeraVezVista));
 }
 
