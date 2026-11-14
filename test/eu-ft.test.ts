@@ -10,7 +10,7 @@ import type { Llm, PeticionLlm } from '../src/llm/llm.ts';
 import { bdns } from '../src/sources/bdns.ts';
 import { aTopic, crearFuenteEuFt, esRelevante } from '../src/sources/eu-ft.ts';
 import type { Fuente } from '../src/sources/source.ts';
-import { bdSembrada, relojFijo } from './support/bd.ts';
+import { bdSembrada, relojFijo, darPorCribadas } from './support/bd.ts';
 import { AHORA_EU_FT, ESCENARIOS, esSedia, fetchGrabado } from './support/grabaciones.ts';
 
 const euFt = crearFuenteEuFt(() => ({ pausaMs: 0, maxPeticiones: 8 }));
@@ -53,6 +53,7 @@ describe('fuente EU Funding & Tenders', () => {
     assert.deepEqual([p.tipo, p.fechaCierre, p.diasHastaCierre], ['literal', '2027-01-14', 62]);
 
     // Ranking (API): la relevante sale con su enlace al portal y su fuente; la ajena no.
+    darPorCribadas(db);
     const api = crearApi({ db, reloj: { now: () => AHORA_EU_FT }, fuentes: [euFt] });
     const semana = await (await api.request('/semana')).json() as { convocatorias: { id: string; fuente: string; url: string; organo: string; plazo: { fechaCierre: string } | null }[] };
     const ids = semana.convocatorias.map((x) => x.id);
@@ -144,6 +145,7 @@ describe('fuente EU Funding & Tenders', () => {
     assert.deepEqual(fase.datos, { duplicadaDe: 'bdns:999001' });
     assert.match(String(fase.motivo), /Duplicada de bdns:999001/);
 
+    darPorCribadas(db);
     const api = crearApi({ db, reloj: { now: () => AHORA_EU_FT }, fuentes: [euFt] });
     const ids = ((await (await api.request('/semana')).json()) as { convocatorias: { id: string }[] }).convocatorias.map((x) => x.id);
     assert.ok(ids.includes('bdns:999001'));
@@ -151,7 +153,7 @@ describe('fuente EU Funding & Tenders', () => {
     // Otra pasada: sigue marcada, sin duplicar el veredicto, y la de BDNS intacta.
     await pasada(db, [euFt], fetchGrabado({ euFt: true }));
     assert.equal(leerFases(db, NATURALEZA).filter((f) => f.fase === 'duplicada').length, 1);
-    assert.equal(leerFases(db, 'bdns:999001').length, 0);
+    assert.equal(leerFases(db, 'bdns:999001').filter((f) => f.fase !== 'criba_llm').length, 0); // (la criba la dio por pasada el test)
   });
 
   test('criba y análisis (LLM falso): los textos van en inglés, el prompt pide castellano y las de BDNS no cambian', async () => {

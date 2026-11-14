@@ -191,6 +191,7 @@ export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoPar
     '- lineas: las líneas de trabajo de la organización con las que encaja, con un motivo breve (y cita si la hay; si no, "").',
     '- ideaProyecto: 3–4 líneas con una idea de proyecto concreta que la organización podría presentar. Sin importes que no estén en los textos.',
     ...(ganadores ? ['  Si se te dan ganadores de ediciones anteriores, úsalos solo como contexto (qué tipo de entidades suelen ganarla); no son parte de los documentos: no los cites ni copies sus importes.'] : []),
+    '- tituloCorto: título corto para una tarjeta (máximo 80 caracteres, una sola línea, en frase normal con mayúscula inicial y nunca en MAYÚSCULAS): qué se financia y quién lo convoca, sin encabezados administrativos ("Resolución de…", "Bases reguladoras de…") ni año si no hace falta.',
     '- En importes, porcentajes y plazos, el valor debe usar las mismas cifras que la cita.',
     '- Escribe en castellano.',
     ...notaIdioma(c, true),

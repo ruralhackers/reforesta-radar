@@ -2,6 +2,7 @@
 // cita que no aparece en los textos leídos o (importes, plazo, cofinanciación) cuyas cifras no están en su cita,
 // se guarda como desconocido aunque el LLM haya dado un valor.
 import type { Perfil } from '../types.ts';
+import { validarTituloCorto } from '../titulo.ts';
 import { citaEnTexto, normalizarParaCita, valorEnCita } from '../texto.ts';
 
 /** Campo extraído con su cita literal. `valor === null` ⇒ desconocido (y `motivo` dice por qué). */
@@ -31,6 +32,8 @@ export interface Analisis {
   /** Solo los requisitos con cita comprobada. */
   requisitos: CampoCitado[];
   lineas: LineaEncaje[];
+  /** Título corto y legible (≤ 90 caracteres, en frase normal) para listas y tarjetas; ausente en análisis anteriores. */
+  tituloCorto?: string | null;
   /** 3–4 líneas; no necesita cita, pero no puede traer importes que no estén en los textos. */
   ideaProyecto: string | null;
   /** Lo que el código quitó o dejó como desconocido (para que se vea en la ficha y en la API). */
@@ -78,8 +81,9 @@ export function esquemaAnalisis(perfil: Perfil): Record<string, unknown> {
         },
       },
       ideaProyecto: texto,
+      tituloCorto: texto,
     },
-    required: ['elegibilidadEsfl', 'importeMaximoProyecto', 'importeTotal', 'plazo', 'cofinanciacion', 'requisitos', 'lineas', 'ideaProyecto'],
+    required: ['elegibilidadEsfl', 'importeMaximoProyecto', 'importeTotal', 'plazo', 'cofinanciacion', 'requisitos', 'lineas', 'ideaProyecto', 'tituloCorto'],
     additionalProperties: false,
   };
 }
@@ -163,6 +167,7 @@ export function aplicarCitas(bruto: unknown, textos: TextoLeido[], perfil: Perfi
     cofinanciacion: campo('cofinanciacion', r.cofinanciacion, undefined, true),
     requisitos,
     lineas,
+    tituloCorto: validarTituloCorto(r.tituloCorto),
     ideaProyecto: limpiarIdea(str(r.ideaProyecto), normalizados.map((t) => t.n).join('\n'), correcciones),
     correcciones,
   };

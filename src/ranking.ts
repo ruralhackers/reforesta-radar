@@ -51,3 +51,20 @@ const porPuntuacion = (a: FilaRanking, b: FilaRanking) =>
 export function seccionParecidas<F extends FilaRanking & { parecidas: unknown | null; seccion?: Seccion }>(ranking: F[]): F[] {
   return ranking.filter((f) => f.parecidas !== null && f.seccion !== 'consorcio').sort(porPuntuacion);
 }
+
+/** Máximo de convocatorias que "Esta semana" pone arriba, "para preparar" (el resto queda plegado). */
+export const MAX_PARA_PREPARAR = 7;
+
+/**
+ * El corte de "Esta semana": de las del ranking (sin las de consorcio, que van en su sección plegada), pasan las ANALIZADAS con puntuación >= `umbral`,
+ * por puntuación (empate: cierre más próximo, publicación más reciente), como mucho `max`. El resto —sin analizar, con menos encaje o fuera del
+ * máximo— es `conMenosEncaje`: plegado, nunca escondido. Una sin analizar no puede ocupar un sitio arriba por muy cerca que esté su cierre: su
+ * puntuación solo tiene el factor de cierre como dato.
+ */
+export function cortarSemana<F extends FilaRanking & { seccion: Seccion }>(ranking: F[], umbral: number, max = MAX_PARA_PREPARAR): { paraPreparar: F[]; conMenosEncaje: F[] } {
+  const candidatas = ranking.filter((f) => f.seccion !== 'consorcio').sort(porPuntuacion);
+  const pasan = candidatas.filter((f) => f.puntuacion?.analizada && f.puntuacion.total >= umbral);
+  const paraPreparar = pasan.slice(0, max);
+  const dentro = new Set(paraPreparar.map((f) => f.id));
+  return { paraPreparar, conMenosEncaje: candidatas.filter((f) => !dentro.has(f.id)) };
+}

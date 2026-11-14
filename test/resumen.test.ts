@@ -10,7 +10,7 @@ import { crearEmisorResend, type CorreoSaliente, type Emisor } from '../src/mail
 import { leerConfigPuntuacion } from '../src/puntuacion.ts';
 import { acortar, componerCorreo, textoImporte } from '../src/correo.ts';
 import type { Convocatoria } from '../src/types.ts';
-import { bdSembrada, RUTA_PUNTUACION, relojFijo } from './support/bd.ts';
+import { bdSembrada, RUTA_PUNTUACION, relojFijo, darPorCribadas } from './support/bd.ts';
 
 const AHORA = new Date('2026-11-16T08:00:00Z'); // lunes 16/11/2026, semana ISO 2026-W47
 const puntuacion = leerConfigPuntuacion(RUTA_PUNTUACION);
@@ -48,6 +48,7 @@ function escenario() {
   alta(db, '5', 'Bonificación de proyectos rurales', '2027-05-01', 1);
   alta(db, '6', 'Programa de huertos urbanos', '2027-06-01', 1);
   alta(db, '7', 'Convocatoria de voluntariado verde', '2026-11-25', 0); // cierra pronto, sin encaje
+  darPorCribadas(db);
   return db;
 }
 
@@ -138,6 +139,7 @@ describe('correo del lunes', () => {
   test('"las ganan organizaciones como vosotros": solo las que no salen ya arriba', async () => {
     const db = escenario();
     alta(db, '8', 'Taller de sostenibilidad rural', '2027-07-01', 0); // puntúa menos que las 5 destacadas
+    darPorCribadas(db);
     for (const n of ['1', '8']) {
       db.prepare("INSERT INTO origenes_convocatoria (convocatoria_id, origen, nif, nombre, numero_previo, anio_previo) VALUES (?, 'parecidas', 'G11111111', 'Otra ONG', '1', 2025)").run(`bdns:${n}`);
     }

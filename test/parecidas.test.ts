@@ -14,7 +14,7 @@ import { seccionParecidas } from '../src/ranking.ts';
 import { leerConfigPuntuacion } from '../src/puntuacion.ts';
 import { bdns } from '../src/sources/bdns.ts';
 import type { Fuente } from '../src/sources/source.ts';
-import { bdSembrada, RUTA_PUNTUACION, relojFijo } from './support/bd.ts';
+import { bdSembrada, RUTA_PUNTUACION, relojFijo, darPorCribadas } from './support/bd.ts';
 import { fetchGrabado } from './support/grabaciones.ts';
 import { AHORA_PARECIDAS as AHORA, NIF_ACTIVAS_PARECIDAS, NIF_BRINZAL, NIF_GREFA } from './support/parecidas.ts';
 
@@ -31,7 +31,7 @@ function bdParecidas(): DatabaseSync {
 const ejecutar = (db: DatabaseSync, extra: object = {}, fuente: Fuente = sinNovedades) =>
   ejecutarRadar({ db, fetch: fetchGrabado({ concesiones: true }), reloj: relojFijo(AHORA), fuentes: [fuente], ganadores: false, dormir: async () => {}, ...extra });
 
-const api = (db: DatabaseSync) => crearApi({ db, reloj: relojFijo(AHORA), fuentes: [sinNovedades], puntuacion: leerConfigPuntuacion(RUTA_PUNTUACION) });
+const api = (db: DatabaseSync) => (darPorCribadas(db), crearApi({ db, reloj: relojFijo(AHORA), fuentes: [sinNovedades], puntuacion: leerConfigPuntuacion(RUTA_PUNTUACION) }));
 const json = (app: ReturnType<typeof api>, ruta: string, metodo = 'GET', cuerpo?: object) =>
   app.request(ruta, { method: metodo, ...(cuerpo ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) } : {}) });
 const ids = (db: DatabaseSync) => candidatasEntre(db, '2000-01-01', '2100-01-01').map((c) => c.id);

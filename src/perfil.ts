@@ -23,7 +23,15 @@ export interface PerfilEditable {
   lineas: { nombre: string; descripcion: string }[];
   ambito: Perfil['ambito'];
   importeMinimo: number | null;
+  /** undefined = no se toca el que ya hay. */
+  umbralEncaje?: number;
 }
+
+/** Puntuación mínima del corte de "Esta semana" cuando el perfil no fija una. */
+export const UMBRAL_CORTE_POR_DEFECTO = 50;
+
+/** Umbral efectivo del corte: el del perfil o el de por defecto. */
+export const umbralDelPerfil = (p: Pick<Perfil, 'umbralEncaje'> | null | undefined): number => p?.umbralEncaje ?? UMBRAL_CORTE_POR_DEFECTO;
 
 export class ErrorPerfil extends Error {}
 
@@ -84,7 +92,13 @@ export function validarPerfilEditable(cuerpo: unknown): PerfilEditable {
     if (o.importeMinimo < 0) throw new ErrorPerfil('El importe mínimo no puede ser negativo');
     importeMinimo = Math.round(o.importeMinimo);
   }
-  return { lineas, ambito: { descripcion, nivelesSiempre, territorios, comunidades: territorios.filter((t) => t.provincias.length === 0).map((t) => t.comunidad), regiones }, importeMinimo };
+  let umbralEncaje: number | undefined;
+  if (o.umbralEncaje !== undefined && o.umbralEncaje !== null && o.umbralEncaje !== '') {
+    if (typeof o.umbralEncaje !== 'number' || !Number.isFinite(o.umbralEncaje)) throw new ErrorPerfil('El umbral de encaje debe ser un número');
+    if (o.umbralEncaje < 0 || o.umbralEncaje > 100) throw new ErrorPerfil('El umbral de encaje debe estar entre 0 y 100');
+    umbralEncaje = Math.round(o.umbralEncaje);
+  }
+  return { ...(umbralEncaje === undefined ? {} : { umbralEncaje }), lineas, ambito: { descripcion, nivelesSiempre, territorios, comunidades: territorios.filter((t) => t.provincias.length === 0).map((t) => t.comunidad), regiones }, importeMinimo };
 }
 
 const hash = (x: unknown) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
@@ -120,7 +134,7 @@ function versionesAnteriores(p: Perfil): { criba: string; lineas: string } {
 export function guardarPerfilEditable(db: DatabaseSync, e: PerfilEditable, ahora: Date): Perfil {
   const fila = db.prepare('SELECT datos FROM perfil WHERE id = 1').get() as { datos: string } | undefined;
   if (!fila) throw new Error('La BD no tiene perfil');
-  const nuevo: Perfil = { ...(JSON.parse(fila.datos) as Perfil), lineas: e.lineas, ambito: e.ambito, importeMinimo: e.importeMinimo };
+  const nuevo: Perfil = { ...(JSON.parse(fila.datos) as Perfil), lineas: e.lineas, ambito: e.ambito, importeMinimo: e.importeMinimo, ...(e.umbralEncaje === undefined ? {} : { umbralEncaje: e.umbralEncaje }) };
   db.prepare('UPDATE perfil SET datos = ?, actualizado_en = ? WHERE id = 1').run(JSON.stringify(nuevo), ahora.toISOString());
   return nuevo;
 }

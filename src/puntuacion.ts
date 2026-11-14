@@ -108,6 +108,9 @@ const NOMBRES: Record<IdFactor, string> = {
 
 const limitar = (x: number) => Math.min(1, Math.max(0, x));
 const redondear = (x: number) => Math.round(x * 100) / 100;
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+/** YYYY-MM-DD → "5 de junio de 2026". */
+export const fechaLarga = (dia: string) => `${Number(dia.slice(8, 10))} de ${MESES[Number(dia.slice(5, 7)) - 1]} de ${dia.slice(0, 4)}`;
 const euros = (n: number) => `${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} €`;
 
 /**
@@ -174,6 +177,9 @@ function cierre(e: EntradaPuntuacion, c: ConfigPuntuacion['cierre']): Parcial {
   }
   const tramo = c.tramos.find((t) => t.hastaDias === null || dias <= t.hastaDias);
   const nota = e.plazo?.tipo === 'calculada' ? ' (fecha calculada)' : '';
+  if (dias < 0) {
+    return { subpuntuacion: 0, conocido: true, explicacion: e.plazo?.fechaCierre ? `cerrada el ${fechaLarga(e.plazo.fechaCierre)}` : 'cerrada' };
+  }
   const cuando = dias === 0 ? 'cierra hoy' : dias === 1 ? 'cierra mañana' : `faltan ${dias} días`;
   const valor = tramo?.valor ?? 0;
   const juicio = valor < 0.5 ? 'poco tiempo para preparar la solicitud'
@@ -236,7 +242,7 @@ export function puntuar(
   let excluida: string | null = null;
   const dias = entrada.plazo?.diasHastaCierre ?? null;
   if (entrada.analisis?.elegibilidadEsfl.valor === 'no') excluida = 'No admite entidades sin ánimo de lucro';
-  else if (dias !== null && dias < 0) excluida = `Cerrada desde hace ${-dias} día${dias === -1 ? '' : 's'}`;
+  else if (dias !== null && dias < 0) excluida = entrada.plazo?.fechaCierre ? `Cerrada el ${fechaLarga(entrada.plazo.fechaCierre)}` : 'Cerrada';
   else if (dias === null && (entrada.diasDesdePrimeraVez ?? 0) > (config.diasMaximosSinPlazo ?? DIAS_MAXIMOS_SIN_PLAZO)) {
     excluida = `Plazo desconocido y vista por primera vez hace ${entrada.diasDesdePrimeraVez} días: probablemente ya cerrada`;
   }

@@ -35,3 +35,12 @@ export function bdSembradaConExtremaduraParcial(): DatabaseSync {
   db.prepare('UPDATE perfil SET datos = ? WHERE id = 1').run(JSON.stringify(p));
   return db;
 }
+
+/**
+ * Da por pasada la criba LLM a toda candidata que aún no tiene veredicto (los tests sin LLM que miran el ranking: "Esta semana" y el correo solo
+ * ponen las que ya pasaron la criba; ver CRIBADA en src/db/repo.ts).
+ */
+export function darPorCribadas(db: DatabaseSync, ahora: Date = new Date('2026-01-01T00:00:00Z')): void {
+  db.prepare(`INSERT OR IGNORE INTO convocatoria_fases (convocatoria_id, fase, descarta, motivo, datos, actualizado_en)
+    SELECT id, 'criba_llm', 0, 'test', '{}', ? FROM convocatorias WHERE descarte_regla IS NULL`).run(ahora.toISOString());
+}

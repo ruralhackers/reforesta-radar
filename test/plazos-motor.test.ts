@@ -4,7 +4,7 @@ import { describe, test } from 'node:test';
 import { crearApi } from '../src/api/app.ts';
 import { cierresEntre, leerPlazo } from '../src/db/repo.ts';
 import { ejecutarRadar } from '../src/engine.ts';
-import { bdSembrada, relojFijo } from './support/bd.ts';
+import { bdSembrada, relojFijo, darPorCribadas } from './support/bd.ts';
 import { ESCENARIOS, fetchGrabado } from './support/grabaciones.ts';
 
 describe('plazos en el motor', () => {
@@ -71,6 +71,7 @@ describe('plazos en la API', () => {
     const e = ESCENARIOS.agosto2026;
     await ejecutarRadar({ db, fetch: fetchGrabado(), reloj: relojFijo(e.ahora) }, { diasAtras: e.diasAtras });
 
+    darPorCribadas(db);
     const api = crearApi({ db, reloj: relojFijo(new Date('2026-08-09T08:00:00Z')) });
     const semana = await (await api.request('/semana')).json() as { convocatorias: { id: string; plazo: Record<string, unknown> | null }[] };
     const f = semana.convocatorias.find((c) => c.id === 'bdns:923290')!;

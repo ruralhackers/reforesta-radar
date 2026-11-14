@@ -29,6 +29,7 @@
       "regiones": ["ES3", "ES30", "ES300", "ES411", "ES416", "ES423", "ES424", "ES425"]
     },
     "importeMinimo": 3000,
+    "umbralEncaje": 50,
     "finalidadesExcluidas": [
       "DEFENSA",
       "JUSTICIA",

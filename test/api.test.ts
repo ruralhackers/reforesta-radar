@@ -1,3 +1,4 @@
+import { darPorCribadas } from './support/bd.ts';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -28,6 +29,7 @@ test('GET /semana lista las vistas por primera vez en los últimos 7 días (sin 
   guardarConvocatoria(db, { convocatoria: conv('3', '2026-11-06'), descarte: null }, new Date('2026-11-03T10:00:00Z')); // vista hace 10 días: no es nueva
   guardar(conv('4', '2026-11-12'), { regla: 'nominativa', motivo: 'Subvención nominativa' });
 
+  darPorCribadas(db);
   const api = crearApi({ db, reloj: { now: () => ahora } });
   const res = await api.request('/semana');
   assert.equal(res.status, 200);

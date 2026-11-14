@@ -155,7 +155,7 @@ describe('total, exclusiones y pesos', () => {
     assert.match(no.excluida!, /No admite entidades sin ánimo de lucro/);
     const cerrada = puntuar(entrada(analisis({ lineas: 3 }), -2), config);
     assert.equal(cerrada.total, 0);
-    assert.match(cerrada.excluida!, /Cerrada desde hace 2 días/);
+    assert.match(cerrada.excluida!, /^Cerrada el 13 de diciembre de 2026$/);
     assert.equal(puntuar(entrada(analisis({ lineas: 3 }), 0), config).excluida, null);
   });
 

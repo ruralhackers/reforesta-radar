@@ -132,7 +132,7 @@ describe('ranking de "Esta semana" con el motor (LLM falso, reloj fijo)', () => 
     assert.deepEqual([total('bdns:825309'), total('bdns:825434'), total('bdns:825889')], [86, 74, 57]);
 
     // La cerrada sí está puntuada y guardada, con su motivo; también la no elegible.
-    assert.match(leerPuntuacion(db, 'bdns:825395')!.excluida!, /^Cerrada desde hace 77 días/);
+    assert.match(leerPuntuacion(db, 'bdns:825395')!.excluida!, /^Cerrada el 21 de enero de 2025$/);
     assert.equal(leerPuntuacion(db, 'bdns:825807'), null, 'descartada en el análisis: ya no está en juego, no se puntúa');
   });
 
@@ -162,7 +162,7 @@ describe('ranking de "Esta semana" con el motor (LLM falso, reloj fijo)', () => 
     reloj.adelantar(14 * 86_400_000); // 22/04: la 889 (cierre 21/04) ya cerró; la 434 (23/04) cierra mañana
     // Sin red: la fuente falla (queda en el registro) pero las fases deterministas recalculan sobre lo guardado.
     await ejecutarRadar({ db, fetch: (() => Promise.reject(new Error('sin red'))) as typeof fetch, reloj, llm, fuentes: [fuente], puntuacion: config }, { diasAtras: 1 });
-    assert.match(leerPuntuacion(db, 'bdns:825889')!.excluida!, /^Cerrada desde hace 1 día$/);
+    assert.match(leerPuntuacion(db, 'bdns:825889')!.excluida!, /^Cerrada el 21 de abril de 2025$/);
     const s = await semana(db, reloj.now());
     assert.ok(!s.convocatorias.some((c) => c.id === 'bdns:825889'));
     const c434 = s.convocatorias.find((c) => c.id === 'bdns:825434')!;

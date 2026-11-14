@@ -238,6 +238,12 @@ function fichaMetadatos(c: Convocatoria, d: Detalle): string {
   return lineas.filter(Boolean).join('\n');
 }
 
+/** Nombre real de un adjunto de BDNS: su descripción ("Modelo de Solicitud"), o el nombre del fichero sin extensión, o "Documento <id>". */
+export function nombreDocumento(doc: { id: number; descripcion?: string | null; nombreFic?: string | null }): string {
+  const limpio = (t: string | null | undefined) => t?.replace(/\s+/g, ' ').trim() || null;
+  return limpio(doc.descripcion) ?? limpio(doc.nombreFic?.replace(/\.[A-Za-z0-9]{2,5}$/, '')) ?? `Documento ${doc.id}`;
+}
+
 function documentos(c: Convocatoria): DocumentoFuente[] {
   const d = detalleDe(c);
   if (!d) return [{ titulo: 'Ficha BDNS', url: c.url, texto: `Título: ${c.titulo}` }];
@@ -248,7 +254,7 @@ function documentos(c: Convocatoria): DocumentoFuente[] {
     docs.push({ titulo, url: esUrl(a.url) ? a.url : null, texto: [a.titulo, htmlATexto(a.texto)].filter(Boolean).join('\n\n') });
   }
   for (const doc of d.documentos ?? []) {
-    docs.push({ titulo: `Documento: ${doc.descripcion ?? doc.nombreFic ?? doc.id}`, url: urlDocumentoBdns(doc.id) });
+    docs.push({ titulo: `Documento: ${nombreDocumento(doc)}`, url: urlDocumentoBdns(doc.id) });
   }
   if (esUrl(d.urlBasesReguladoras)) docs.push({ titulo: 'Bases reguladoras', url: d.urlBasesReguladoras.trim() });
   return docs;
@@ -264,7 +270,7 @@ function enlaces(c: Convocatoria): Enlace[] {
   }
   if (esUrl(d.sedeElectronica)) r.push({ tipo: 'sede', titulo: 'Sede electrónica', url: d.sedeElectronica.trim() });
   for (const doc of d.documentos ?? []) {
-    r.push({ tipo: 'documento', titulo: doc.descripcion ?? doc.nombreFic ?? `Documento ${doc.id}`, url: urlDocumentoBdns(doc.id) });
+    r.push({ tipo: 'documento', titulo: nombreDocumento(doc), url: urlDocumentoBdns(doc.id) });
   }
   return r;
 }

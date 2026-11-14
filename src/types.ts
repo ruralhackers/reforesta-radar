@@ -32,6 +32,8 @@ export interface Perfil {
   };
   /** Importe mínimo que merece el esfuerzo, en euros (null = sin mínimo). */
   importeMinimo: number | null;
+  /** Puntuación mínima (0-100) para entrar en "Esta semana" arriba; ausente = UMBRAL_CORTE_POR_DEFECTO (ver src/perfil.ts). */
+  umbralEncaje?: number | null;
   /** Finalidades (descripcionFinalidad de BDNS) claramente ajenas a la organización. */
   finalidadesExcluidas: string[];
 }

@@ -12,7 +12,8 @@ import { FASE_CRIBA } from '../fases/criba.ts';
 import { puntuarConvocatoria } from '../fases/puntuacion.ts';
 import { type ConfigPuntuacion, leerConfigPuntuacion, type ProveedorProbabilidad } from '../puntuacion.ts';
 import { seccionParecidas } from '../ranking.ts';
-import { calcularRanking } from '../semana.ts';
+import { calcularSemana, resumenTarjeta } from '../semana.ts';
+import { tituloParaMostrar } from '../titulo.ts';
 import { infoParecidas } from '../parecidas.ts';
 import { activarParecida, altaParecidaManual, leerParecidasConAportes, NIF_ENTIDAD_VALIDO, quitarParecidaManual } from '../db/ganadores.ts';
 import { anadirNota, borrarNota, decidir, deshacerDecision, ErrorDecision, leerDecision, leerDecisiones, leerNotas, MOTIVOS_DESCARTE, nosInteresa } from '../db/decisiones.ts';
@@ -23,7 +24,7 @@ import { config } from '../config.ts';
 import { crearAcceso, type OpcionesEquipo } from './equipo.ts';
 import { fuentePorNombre } from '../sources/index.ts';
 import type { Fuente } from '../sources/source.ts';
-import { ErrorPerfil, guardarPerfilEditable, validarPerfilEditable } from '../perfil.ts';
+import { ErrorPerfil, guardarPerfilEditable, umbralDelPerfil, validarPerfilEditable } from '../perfil.ts';
 import type { Reloj } from '../types.ts';
 
 const DIA = /^\d{4}-\d{2}-\d{2}$/;
@@ -52,7 +53,7 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
   api.get('/semana', (c) => {
     const hasta = diaLocal(reloj.now());
     const { nuevasDias, cierranProntoDias } = cfg;
-    const filas = calcularRanking(db, reloj.now(), cfg, probabilidad);
+    const s = calcularSemana(db, reloj.now(), cfg, probabilidad);
     return c.json({
       desde: sumarDias(hasta, -(nuevasDias - 1)),
       hasta,
@@ -60,15 +61,29 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
       cierranProntoDias,
       // plazo: { fechaCierre, tipo (literal|calculada|desconocida), textoOriginal, fechaBase, baseOrigen, aproximada, detalle, diasHastaCierre }
       // puntuacion: { total 0-100, factores: [{ id, nombre, peso, subpuntuacion 0-1, conocido, explicacion }], analizada, calculadoEn } | null
-      convocatorias: filas.map(({ primeraVez, puntuacion, ...f }) => ({
+      // tarjeta: { tituloCorto, importe, lineas, porQue } (ver ResumenTarjeta en src/semana.ts)
+      convocatorias: s.filas.map(({ primeraVez, puntuacion, ...f }) => ({
         ...f,
         primeraVez,
         puntuacion: puntuacion && { total: puntuacion.total, analizada: puntuacion.analizada, factores: puntuacion.factores, calculadoEn: puntuacion.calculadoEn },
+        tarjeta: resumenTarjeta(db, f.id, f.titulo, puntuacion),
       })),
       // Ids (ya en orden por puntuación) de la lista "las ganan organizaciones como vosotros": paralela, repite convocatorias de las secciones de arriba.
-      lasGananParecidas: seccionParecidas(filas).map((f) => f.id),
+      lasGananParecidas: seccionParecidas(s.filas).map((f) => f.id),
+      // El corte: `paraPreparar` = analizadas con puntuación >= `umbral` (el del perfil), como mucho 7; `conMenosEncaje` = el resto (sin consorcio, que va aparte), plegado en la web.
+      umbral: s.umbral,
+      paraPreparar: s.paraPreparar.map((f) => f.id),
+      conMenosEncaje: s.conMenosEncaje.map((f) => f.id),
+      // La frase de arriba: N para preparar, M de ellas cierran en `cierranProntoDias` días o menos, K empresas nuevas en la ventana de "nuevas".
+      resumen: { paraPreparar: s.paraPreparar.length, cierranPronto: s.cierranPronto, empresasNuevas: s.empresasNuevas },
       ultimaEjecucion: ultimasEjecuciones(db, 1)[0] ?? null,
     });
+  });
+
+  /** Contadores del menú lateral (públicos): las de arriba de "Esta semana" y las empresas (sin baja confianza). */
+  api.get('/contadores', (c) => {
+    const s = calcularSemana(db, reloj.now(), cfg, probabilidad);
+    return c.json({ estaSemana: s.paraPreparar.length, empresas: leerEmpresas(db).length });
   });
 
   // --- Fundaciones y agregadores vigilados ---
@@ -148,7 +163,7 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
   // --- Perfil editable (líneas de trabajo, ámbito, importe mínimo). NIF e idPersona solo se leen. ---
   // PUT va en su propio sub-router `privadaPerfil` (Task 9: `privadaPerfil.use('*', ...)`).
   const vistaPerfil = (p: NonNullable<ReturnType<typeof leerPerfil>>) => ({
-    nombre: p.nombre, nif: p.nif, bdnsIdPersona: p.bdnsIdPersona, lineas: p.lineas, ambito: p.ambito, importeMinimo: p.importeMinimo,
+    nombre: p.nombre, nif: p.nif, bdnsIdPersona: p.bdnsIdPersona, lineas: p.lineas, ambito: p.ambito, importeMinimo: p.importeMinimo, umbralEncaje: umbralDelPerfil(p),
   });
   api.get('/perfil', (c) => {
     const p = leerPerfil(db);
@@ -281,6 +296,8 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
       id: conv.id,
       fuente: conv.fuente,
       titulo: conv.titulo,
+      // Título corto del análisis; sin él, el oficial hecho legible (nunca en mayúsculas sostenidas).
+      tituloCorto: tituloParaMostrar(datosAnalisis?.analisis?.tituloCorto, conv.titulo),
       organo: [conv.organo.nivel1, conv.organo.nivel2, conv.organo.nivel3].filter(Boolean).join(' · '),
       fechaPublicacion: conv.fechaPublicacion,
       url: conv.url,

@@ -83,6 +83,7 @@ export function textoImporte(a: Analisis | null): string {
 export function textoCierre(p: EntradaItem['plazo']): string {
   if (!p?.fechaCierre) return 'Cierre sin fecha clara: mira la ficha';
   const d = p.diasHastaCierre;
+  if (d !== null && d < 0) return `Cerrada el ${fechaCorta(p.fechaCierre)}`;
   const cuando = d === null ? '' : d === 0 ? ' (hoy)' : d === 1 ? ' (mañana)' : ` (en ${d} días)`;
   return `Cierra el ${fechaCorta(p.fechaCierre)}${cuando}${p.tipo === 'calculada' ? ', fecha calculada' : ''}`;
 }

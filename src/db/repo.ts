@@ -113,6 +113,14 @@ const EN_JUEGO = `
     OR EXISTS (SELECT 1 FROM origenes_convocatoria o WHERE o.convocatoria_id = c.id))
 `;
 
+/**
+ * SQL: la fila `c` ya pasó la criba LLM (veredicto de Haiku que no la descarta). Es lo que la deja entrar en el ranking de "Esta semana" y en el correo:
+ * sin veredicto (la criba aún no llegó a ella, p. ej. por tope de llamadas) "en juego" solo quiere decir "no descartada todavía", y puntuaría 47 con solo
+ * el factor de cierre conocido (un concurso de escaparates navideños en "cierran pronto"). Las fuentes que no pasan por criba (ninguna hoy) tendrían que
+ * guardar su propio veredicto.
+ */
+const CRIBADA = `EXISTS (SELECT 1 FROM convocatoria_fases fc WHERE fc.convocatoria_id = c.id AND fc.fase = 'criba_llm' AND fc.descarta = 0)`;
+
 /** SQL: la fila `c` no la ha descartado el equipo (lo descartado no sale en ranking, listas ni resumen; no es lo mismo que "fuera de juego" del motor). */
 const NO_DESCARTADA_POR_EQUIPO = `NOT EXISTS (SELECT 1 FROM decisiones dq WHERE dq.convocatoria_id = c.id AND dq.decision = 'descartada')`;
 
@@ -551,7 +559,7 @@ export interface FilaRanking extends FilaConvocatoria {
 export function filasRanking(
   db: DatabaseSync, hoy: string, puntuador: (c: Convocatoria, plazo: PlazoGuardado | null) => Puntuacion, ahora: Date,
 ): FilaRanking[] {
-  const filas = db.prepare(`SELECT * FROM convocatorias c WHERE ${EN_JUEGO} AND ${NO_DESCARTADA_POR_EQUIPO} ORDER BY c.fecha_publicacion DESC, c.id DESC`).all() as Record<string, string | null>[];
+  const filas = db.prepare(`SELECT * FROM convocatorias c WHERE ${EN_JUEGO} AND ${CRIBADA} AND ${NO_DESCARTADA_POR_EQUIPO} ORDER BY c.fecha_publicacion DESC, c.id DESC`).all() as Record<string, string | null>[];
   return filas.map((f) => {
     const plazo = leerPlazo(db, f.id!, hoy);
     const p = puntuador(filaAConvocatoria(f), plazo);

@@ -8,7 +8,7 @@ import { guardarConvocatoria, guardarPlazo, leerFases } from '../src/db/repo.ts'
 import { ejecutarRadar } from '../src/engine.ts';
 import type { Llm, PeticionLlm } from '../src/llm/llm.ts';
 import type { Convocatoria } from '../src/types.ts';
-import { bdSembrada, relojFijo } from './support/bd.ts';
+import { bdSembrada, relojFijo, darPorCribadas } from './support/bd.ts';
 import { ESCENARIOS, fetchGrabado } from './support/grabaciones.ts';
 
 const AHORA = new Date('2026-11-13T10:00:00Z');
@@ -143,6 +143,7 @@ describe('lo descartado por el equipo no sale en "Esta semana"', () => {
     const db = bdSembrada();
     const rj = relojFijo(e.ahora);
     await ejecutarRadar({ db, fetch: fetchGrabado(), reloj: rj }, { diasAtras: e.diasAtras });
+    darPorCribadas(db);
     const api = crearApi({ db, reloj: rj });
     const semana = async () => await (await api.request('/semana')).json() as { convocatorias: { id: string }[]; lasGananParecidas: string[] };
     const antes = await semana();
@@ -206,6 +207,7 @@ describe('aprendizaje: las decisiones llegan como ejemplos al LLM', () => {
     const [interesa, descartada, nueva] = conAnalisis.map((f) => f.id);
     const titulo = (id: string) => (db.prepare('SELECT titulo FROM convocatorias WHERE id = ?').get(id) as { titulo: string }).titulo;
 
+    darPorCribadas(db);
     const api = crearApi({ db, reloj: rj });
     await decidir(api, interesa, { decision: 'nos_interesa' });
     rj.adelantar(1000);

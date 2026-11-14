@@ -5,7 +5,7 @@ import { crearApi } from '../src/api/app.ts';
 import { guardarConvocatoria, guardarPlazo } from '../src/db/repo.ts';
 import { leerConfigPuntuacion, puntuar } from '../src/puntuacion.ts';
 import type { Convocatoria } from '../src/types.ts';
-import { bdSembrada, RUTA_PUNTUACION } from './support/bd.ts';
+import { bdSembrada, RUTA_PUNTUACION, darPorCribadas } from './support/bd.ts';
 
 const cfg = leerConfigPuntuacion(RUTA_PUNTUACION);
 const conv = (id: string): Convocatoria => ({
@@ -32,6 +32,7 @@ test('/semana: la de plazo desconocido vista hace 70 días no sale; la vista hac
   for (const id of ['bdns:vieja', 'bdns:reciente']) {
     guardarPlazo(db, id, { fechaCierre: null, tipo: 'desconocida', textoOriginal: null, fechaBase: null, baseOrigen: null, aproximada: false, detalle: 'sin datos' }, ahora);
   }
+  darPorCribadas(db);
   const api = crearApi({ db, reloj: { now: () => ahora }, puntuacion: cfg, equipo: { password: null } });
   const semana = (await (await api.request('/semana')).json()) as { convocatorias: { id: string }[] };
   assert.deepEqual(semana.convocatorias.map((c) => c.id), ['bdns:reciente']);
