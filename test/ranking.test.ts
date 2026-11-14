@@ -71,7 +71,7 @@ function analisisFalso(id: string) {
     cofinanciacion: citado(caso.cofi && caso.cofi.replace(/^.*?(\d+ %)$/, 'cofinanciación del $1'), f.cofi),
     requisitos: Array.from({ length: caso.reqs }, (_, i) => citado(`Requisito ${i + 1}`, f.req(i + 1))),
     lineas: perfil.lineas.slice(0, caso.lineas).map((l) => ({ linea: l.nombre, motivo: 'encaja', cita: '', documento: '' })),
-    ideaProyecto: '',
+    ideaProyecto: '', tituloCorto: 'Título corto de prueba',
   };
 }
 

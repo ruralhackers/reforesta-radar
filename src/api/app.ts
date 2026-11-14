@@ -163,7 +163,7 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
   // --- Perfil editable (líneas de trabajo, ámbito, importe mínimo). NIF e idPersona solo se leen. ---
   // PUT va en su propio sub-router `privadaPerfil` (Task 9: `privadaPerfil.use('*', ...)`).
   const vistaPerfil = (p: NonNullable<ReturnType<typeof leerPerfil>>) => ({
-    nombre: p.nombre, nif: p.nif, bdnsIdPersona: p.bdnsIdPersona, lineas: p.lineas, ambito: p.ambito, importeMinimo: p.importeMinimo, umbralEncaje: umbralDelPerfil(p),
+    nombre: p.nombre, nif: p.nif, bdnsIdPersona: p.bdnsIdPersona, domicilio: p.domicilio ?? null, lineas: p.lineas, ambito: p.ambito, importeMinimo: p.importeMinimo, umbralEncaje: umbralDelPerfil(p),
   });
   api.get('/perfil', (c) => {
     const p = leerPerfil(db);
@@ -210,7 +210,7 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
     const estado = filtroEstado(c);
     if (estado === 'invalido') return c.json({ error: `"estado" debe ser uno de: ${ESTADOS_EMPRESA.join(', ')}` }, 400);
     const incluirBaja = c.req.query('baja') === '1';
-    return c.json({ empresas: leerEmpresas(db, { estado, conNota: true, incluirBaja }), ocultas: incluirBaja ? 0 : contarEmpresasBaja(db, estado) });
+    return c.json({ empresas: leerEmpresas(db, { estado, conNota: true, incluirBaja, perfil: leerPerfil(db) }), ocultas: incluirBaja ? 0 : contarEmpresasBaja(db, estado) });
   });
   api.route('/equipo', equipo);
 
@@ -247,11 +247,11 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
     const incluirBaja = c.req.query('baja') === '1';
     if (acceso.modoPrivado) {
       if (c.req.query('estado')) return c.json({ error: 'El filtro por estado es del equipo: entra con la contraseña (/api/equipo/empresas)' }, 401);
-      return c.json({ empresas: leerEmpresas(db, { incluirBaja }).map(({ estado: _e, ...e }) => e), ocultas: incluirBaja ? 0 : contarEmpresasBaja(db, null) });
+      return c.json({ empresas: leerEmpresas(db, { incluirBaja, perfil: leerPerfil(db) }).map(({ estado: _e, ...e }) => e), ocultas: incluirBaja ? 0 : contarEmpresasBaja(db, null) });
     }
     const estado = filtroEstado(c);
     if (estado === 'invalido') return c.json({ error: `"estado" debe ser uno de: ${ESTADOS_EMPRESA.join(', ')}` }, 400);
-    return c.json({ empresas: leerEmpresas(db, { estado, incluirBaja }), ocultas: incluirBaja ? 0 : contarEmpresasBaja(db, estado) });
+    return c.json({ empresas: leerEmpresas(db, { estado, incluirBaja, perfil: leerPerfil(db) }), ocultas: incluirBaja ? 0 : contarEmpresasBaja(db, estado) });
   });
   const privadaEmpresas = new Hono();
   privadaEmpresas.use('*', acceso.requiereEquipo);

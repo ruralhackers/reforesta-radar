@@ -1,5 +1,14 @@
 // Tipos de dominio compartidos por motor, fuentes, reglas, BD y API.
 
+/** Domicilio social de la entidad (público, p. ej. su aviso legal): sirve para descartar convocatorias que exigen sede o inscripción en otro municipio o distrito. */
+export interface Domicilio {
+  municipio: string;
+  provincia: string;
+  comunidad: string;
+  /** Distrito, si el municipio los tiene (p. ej. los de Madrid capital). */
+  distrito?: string;
+}
+
 export interface TerritorioAmbito {
   /** Comunidad autónoma (nivel2 de BDNS, sin importar mayúsculas ni tildes). */
   comunidad: string;
@@ -13,6 +22,8 @@ export interface Perfil {
   nif: string;
   /** idPersona del beneficiario en BDNS (concesiones). */
   bdnsIdPersona: number | null;
+  /** Domicilio social; ausente en perfiles guardados antes de este campo (se completa desde la semilla). */
+  domicilio?: Domicilio;
   lineas: { nombre: string; descripcion: string }[];
   ambito: {
     descripcion: string;

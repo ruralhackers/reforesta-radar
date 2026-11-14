@@ -56,7 +56,9 @@ export function calcularSemana(db: DatabaseSync, ahora: Date, cfg: ConfigPuntuac
   const umbral = umbralDelPerfil(leerPerfil(db));
   const { paraPreparar, conMenosEncaje } = cortarSemana(filas, umbral);
   const hoy = diaLocal(ahora);
-  const empresasNuevas = empresasNuevasEntre(db, sumarDias(hoy, -(cfg.nuevasDias - 1)), hoy).length;
+  // Solo las relevantes: con DIA o que compensan su huella dentro de los territorios del perfil (no todo lo que el registro trae por primera vez).
+  const perfil = leerPerfil(db);
+  const empresasNuevas = empresasNuevasEntre(db, sumarDias(hoy, -(cfg.nuevasDias - 1)), hoy, perfil).length;
   return {
     filas, umbral, paraPreparar, conMenosEncaje, empresasNuevas,
     // "cierran pronto" de la frase: las de arriba que cierran en menos de tres semanas.

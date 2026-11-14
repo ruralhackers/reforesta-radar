@@ -2,6 +2,8 @@
 // (u otro origen futuro) que la señala. Se unen por CIF (si consta) o por el nombre normalizado. Nunca se guardan personas de contacto.
 import type { DatabaseSync } from 'node:sqlite';
 import { diaLocal } from '../dates.ts';
+import type { Perfil } from '../types.ts';
+import { rangoTerritorio } from '../zona.ts';
 import { transaccion } from './repo.ts';
 
 export type EstadoEmpresa = 'pendiente' | 'contactada' | 'descartada';
@@ -177,19 +179,51 @@ function aSenal(f: Record<string, unknown>): SenalEmpresa {
 /**
  * Empresas por prioridad (DIA del BOE, luego registro con compensación, luego registro solo por zona y sector) y, dentro de cada una, las vistas por
  * primera vez más recientemente primero. Las de baja confianza (prioridad 1) solo con `incluirBaja`. `conNota`: incluir la nota del equipo (lectura
- * privada). `estado` filtra. Cada una con sus señales (la más reciente primero).
+ * privada). `estado` filtra. Cada una con sus señales (la más reciente primero). Con `perfil`, las que compensan su huella (prioridad 2) se reordenan por zona
+ * (ver `ordenarPorZona`).
  */
-export function leerEmpresas(db: DatabaseSync, opciones: { estado?: EstadoEmpresa | null; conNota?: boolean; incluirBaja?: boolean } = {}): Empresa[] {
+export function leerEmpresas(db: DatabaseSync, opciones: { estado?: EstadoEmpresa | null; conNota?: boolean; incluirBaja?: boolean; perfil?: Perfil | null } = {}): Empresa[] {
   const filas = db.prepare(`SELECT * FROM empresas WHERE oculta IS NULL AND (? IS NULL OR estado = ?) AND (? = 1 OR prioridad >= ?) ORDER BY prioridad DESC, primera_vez_vista DESC, id DESC`)
     .all(opciones.estado ?? null, opciones.estado ?? null, opciones.incluirBaja ? 1 : 0, PRIORIDAD_MINIMA_VISIBLE) as Record<string, unknown>[];
   const senales = db.prepare('SELECT * FROM empresa_senales WHERE empresa_id = ? ORDER BY fecha_publicacion DESC, id DESC');
-  return filas.map((f) => ({
+  const lista = filas.map((f) => ({
     id: Number(f.id), nombre: String(f.nombre), cif: (f.cif as string | null) ?? null, origen: String(f.origen), motivo: String(f.motivo), cita: String(f.cita),
     enlace: String(f.enlace), provincia: (f.provincia as string | null) ?? null, paginaRsc: (f.pagina_rsc as string | null) ?? null, prioridad: Number(f.prioridad),
     primeraVezVista: String(f.primera_vez_vista), estado: f.estado as EstadoEmpresa,
     ...(opciones.conNota ? { nota: (f.nota as string | null) ?? null } : {}),
     senales: (senales.all(Number(f.id)) as Record<string, unknown>[]).map(aSenal),
   }));
+  return opciones.perfil ? ordenarPorZona(lista, opciones.perfil) : lista;
+}
+
+/** Posición de la empresa entre los territorios del perfil (0 = el de casa, 1.. = limítrofes); null = fuera. Mira su zona y la de sus señales. */
+export function rangoEmpresa(e: Empresa, perfil: Perfil): number | null {
+  const rangos = [e.provincia, ...e.senales.map((s) => s.provincia)].map((l) => rangoTerritorio(l, perfil)).filter((r): r is number => r !== null);
+  return rangos.length ? Math.min(...rangos) : null;
+}
+
+/** Día de su compensación más reciente en el registro (la inscripción más nueva); si no consta, el día en que se vio. */
+function diaCompensacion(e: Empresa): string {
+  const fechas = e.senales.filter((s) => s.tipo === 'huella_carbono').map((s) => s.fechaPublicacion).sort();
+  return fechas.length ? fechas[fechas.length - 1] : diaLocal(new Date(e.primeraVezVista));
+}
+
+/**
+ * Orden del grupo "Compensan su huella" (prioridad 2): primero las de los territorios del perfil (en el orden del perfil: el de casa y luego los limítrofes),
+ * después el resto; dentro de cada zona, la compensación más reciente primero. Las demás prioridades conservan su orden y su sitio.
+ */
+export function ordenarPorZona(lista: Empresa[], perfil: Perfil): Empresa[] {
+  const compensan = lista.filter((e) => e.prioridad === PRIORIDAD_REGISTRO_COMPENSA)
+    .map((e, i) => ({ e, i, rango: rangoEmpresa(e, perfil) ?? Number.MAX_SAFE_INTEGER, dia: diaCompensacion(e) }))
+    .sort((a, b) => a.rango - b.rango || (a.dia < b.dia ? 1 : a.dia > b.dia ? -1 : 0) || a.i - b.i)
+    .map((x) => x.e);
+  let k = 0;
+  return lista.map((e) => (e.prioridad === PRIORIDAD_REGISTRO_COMPENSA ? compensan[k++] : e));
+}
+
+/** Una empresa nueva que merece avisar: con DIA (obligada a restaurar) o que compensa su huella dentro de los territorios del perfil. */
+export function esNuevaRelevante(e: Empresa, perfil: Perfil): boolean {
+  return e.prioridad >= PRIORIDAD_DIA || (e.prioridad >= PRIORIDAD_REGISTRO_COMPENSA && rangoEmpresa(e, perfil) !== null);
 }
 
 /** Cuántas empresas de baja confianza hay (las que `leerEmpresas` no devuelve por defecto). */
@@ -215,11 +249,11 @@ export function actualizarEmpresa(db: DatabaseSync, id: number, cuerpo: unknown,
   return { id, estado: f.estado, nota: f.nota };
 }
 
-/** Empresas (sin las de baja confianza) vistas por primera vez entre dos días locales (incluidos), por prioridad y luego las más recientes: lo que cuenta el correo del lunes. */
-export function empresasNuevasEntre(db: DatabaseSync, desde: string, hasta: string): Empresa[] {
+/** Empresas (sin las de baja confianza) vistas por primera vez entre dos días locales (incluidos), por prioridad y luego las más recientes: lo que cuenta el correo del lunes. Con `perfil`, solo las relevantes (`esNuevaRelevante`): las de una DIA y las que compensan dentro de sus territorios. */
+export function empresasNuevasEntre(db: DatabaseSync, desde: string, hasta: string, perfil?: Perfil | null): Empresa[] {
   return leerEmpresas(db).filter((e) => {
     const d = diaLocal(new Date(e.primeraVezVista));
-    return d >= desde && d <= hasta;
+    return d >= desde && d <= hasta && (!perfil || esNuevaRelevante(e, perfil));
   });
 }
 

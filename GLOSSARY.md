@@ -54,6 +54,8 @@ funciones y tablas usan estas mismas palabras.
 - **Decisión**: lo que el equipo marca en una convocatoria: **nos interesa** o **descartada** (con motivo). Reversible; sirve de ejemplo
   a los prompts de lo nuevo. Es privada con `TEAM_PASSWORD`.
 - **Nota**: comentario del equipo en una convocatoria o una empresa.
+- **Domicilio social**: dónde está registrada la entidad (municipio, provincia, comunidad, distrito opcional). La criba descarta las convocatorias que exigen sede,
+  domicilio o inscripción en otro municipio o distrito. Perfil `domicilio`.
 - **Perfil**: lo que el radar sabe de la organización (líneas de trabajo, ámbito, importe mínimo). Viene de `seed/perfil.json` y se
   edita en la web.
 

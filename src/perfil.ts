@@ -14,7 +14,7 @@
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { transaccion } from './db/repo.ts';
-import type { Perfil, TerritorioAmbito } from './types.ts';
+import type { Domicilio, Perfil, TerritorioAmbito } from './types.ts';
 
 export const NIVELES_ADMINISTRACION = ['ESTADO', 'AUTONOMICA', 'LOCAL', 'OTROS'] as const;
 const NUTS = /^ES\d{0,3}$/;
@@ -22,6 +22,8 @@ const NUTS = /^ES\d{0,3}$/;
 export interface PerfilEditable {
   lineas: { nombre: string; descripcion: string }[];
   ambito: Perfil['ambito'];
+  /** undefined = no se toca el que ya hay. */
+  domicilio?: Domicilio;
   importeMinimo: number | null;
   /** undefined = no se toca el que ya hay. */
   umbralEncaje?: number;
@@ -58,6 +60,17 @@ function validarTerritorios(v: unknown): TerritorioAmbito[] {
     salida.push({ comunidad, provincias: lista(x.provincias ?? [], `provincias de ${comunidad}`) });
   }
   return salida;
+}
+
+function validarDomicilio(v: unknown): Domicilio {
+  const x = (v ?? {}) as Record<string, unknown>;
+  const texto = (k: string) => (typeof x[k] === 'string' ? (x[k] as string).trim() : '');
+  const municipio = texto('municipio');
+  const provincia = texto('provincia');
+  const comunidad = texto('comunidad');
+  if (!municipio || !provincia || !comunidad) throw new ErrorPerfil('El domicilio social necesita municipio, provincia y comunidad autónoma');
+  const distrito = texto('distrito');
+  return { municipio, provincia, comunidad, ...(distrito ? { distrito } : {}) };
 }
 
 /** Valida el cuerpo del PUT. Lanza ErrorPerfil con un mensaje en castellano. */
@@ -98,7 +111,8 @@ export function validarPerfilEditable(cuerpo: unknown): PerfilEditable {
     if (o.umbralEncaje < 0 || o.umbralEncaje > 100) throw new ErrorPerfil('El umbral de encaje debe estar entre 0 y 100');
     umbralEncaje = Math.round(o.umbralEncaje);
   }
-  return { ...(umbralEncaje === undefined ? {} : { umbralEncaje }), lineas, ambito: { descripcion, nivelesSiempre, territorios, comunidades: territorios.filter((t) => t.provincias.length === 0).map((t) => t.comunidad), regiones }, importeMinimo };
+  const domicilio = o.domicilio === undefined || o.domicilio === null ? undefined : validarDomicilio(o.domicilio);
+  return { ...(umbralEncaje === undefined ? {} : { umbralEncaje }), ...(domicilio ? { domicilio } : {}), lineas, ambito: { descripcion, nivelesSiempre, territorios, comunidades: territorios.filter((t) => t.provincias.length === 0).map((t) => t.comunidad), regiones }, importeMinimo };
 }
 
 const hash = (x: unknown) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
@@ -109,10 +123,13 @@ const lineasOrdenadas = (p: Perfil) => p.lineas.map((l) => [l.nombre, l.descripc
 /** Territorios como conjunto: el orden de comunidades y provincias no cuenta. */
 const territoriosOrdenados = (p: Perfil) => (p.ambito.territorios ?? []).map((t) => [t.comunidad, [...t.provincias].sort()] as const).sort((x, y) => x[0].localeCompare(y[0]));
 
+/** Domicilio como parte del hash: nada si no hay (así un perfil sin domicilio conserva su versión de siempre). */
+const parteDomicilio = (p: Perfil) => (p.domicilio ? [[p.domicilio.municipio, p.domicilio.provincia, p.domicilio.comunidad, p.domicilio.distrito ?? '']] : []);
+
 /** Versión del perfil para la criba: todo lo que cambia el prompt o las condiciones de ámbito. */
 export function versionCriba(p: Perfil): string {
   const a = p.ambito;
-  return hash([p.nombre, lineasOrdenadas(p), a.descripcion, [...a.nivelesSiempre].sort(), territoriosOrdenados(p), [...a.regiones].sort()]);
+  return hash([p.nombre, lineasOrdenadas(p), a.descripcion, [...a.nivelesSiempre].sort(), territoriosOrdenados(p), [...a.regiones].sort(), ...parteDomicilio(p)]);
 }
 
 /** Versión del perfil para el análisis: solo las líneas de trabajo (prompt y enumerado del esquema). */
@@ -125,7 +142,7 @@ function versionesAnteriores(p: Perfil): { criba: string; lineas: string } {
   const a = p.ambito;
   const lineas = p.lineas.map((l) => [l.nombre, l.descripcion]);
   return {
-    criba: hash([p.nombre, lineas, a.descripcion, [...a.nivelesSiempre].sort(), territoriosOrdenados(p), [...a.regiones].sort()]),
+    criba: hash([p.nombre, lineas, a.descripcion, [...a.nivelesSiempre].sort(), territoriosOrdenados(p), [...a.regiones].sort(), ...parteDomicilio(p)]),
     lineas: hash([p.nombre, lineas]),
   };
 }
@@ -134,7 +151,7 @@ function versionesAnteriores(p: Perfil): { criba: string; lineas: string } {
 export function guardarPerfilEditable(db: DatabaseSync, e: PerfilEditable, ahora: Date): Perfil {
   const fila = db.prepare('SELECT datos FROM perfil WHERE id = 1').get() as { datos: string } | undefined;
   if (!fila) throw new Error('La BD no tiene perfil');
-  const nuevo: Perfil = { ...(JSON.parse(fila.datos) as Perfil), lineas: e.lineas, ambito: e.ambito, importeMinimo: e.importeMinimo, ...(e.umbralEncaje === undefined ? {} : { umbralEncaje: e.umbralEncaje }) };
+  const nuevo: Perfil = { ...(JSON.parse(fila.datos) as Perfil), ...(e.domicilio ? { domicilio: e.domicilio } : {}), lineas: e.lineas, ambito: e.ambito, importeMinimo: e.importeMinimo, ...(e.umbralEncaje === undefined ? {} : { umbralEncaje: e.umbralEncaje }) };
   db.prepare('UPDATE perfil SET datos = ?, actualizado_en = ? WHERE id = 1').run(JSON.stringify(nuevo), ahora.toISOString());
   return nuevo;
 }
@@ -194,5 +211,18 @@ export function migrarAmbito(db: DatabaseSync, semilla: Perfil, ahora: Date): bo
     },
   };
   db.prepare('UPDATE perfil SET datos = ?, actualizado_en = ? WHERE id = 1').run(JSON.stringify(nuevo), ahora.toISOString());
+  return true;
+}
+
+/**
+ * Migra un perfil guardado antes del domicilio social: si no lo tiene, lo toma de la semilla. Un perfil que ya lo tiene (o una semilla sin él) no se toca.
+ * El cambio de versión de la criba marca como obsoletos los veredictos anteriores (ver `reconsiderarVeredictos`). Devuelve true si migró.
+ */
+export function migrarDomicilio(db: DatabaseSync, semilla: Perfil, ahora: Date): boolean {
+  const fila = db.prepare('SELECT datos FROM perfil WHERE id = 1').get() as { datos: string } | undefined;
+  if (!fila || !semilla.domicilio) return false;
+  const p = JSON.parse(fila.datos) as Perfil;
+  if (p.domicilio) return false;
+  db.prepare('UPDATE perfil SET datos = ?, actualizado_en = ? WHERE id = 1').run(JSON.stringify({ ...p, domicilio: semilla.domicilio }), ahora.toISOString());
   return true;
 }

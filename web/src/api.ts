@@ -224,6 +224,8 @@ export interface PerfilWeb {
   nombre: string;
   nif: string;
   bdnsIdPersona: number | null;
+  /** Domicilio social; null si el perfil no lo tiene. */
+  domicilio: { municipio: string; provincia: string; comunidad: string; distrito?: string } | null;
   lineas: { nombre: string; descripcion: string }[];
   ambito: { descripcion: string; nivelesSiempre: string[]; territorios: { comunidad: string; provincias: string[] }[]; comunidades: string[]; regiones: string[] };
   importeMinimo: number | null;
@@ -238,7 +240,7 @@ export async function leerPerfil(): Promise<PerfilWeb> {
   return datos;
 }
 
-export async function guardarPerfil(p: Pick<PerfilWeb, 'lineas' | 'ambito' | 'importeMinimo' | 'umbralEncaje'>): Promise<PerfilWeb> {
+export async function guardarPerfil(p: Pick<PerfilWeb, 'lineas' | 'ambito' | 'importeMinimo' | 'umbralEncaje'> & { domicilio?: NonNullable<PerfilWeb['domicilio']> }): Promise<PerfilWeb> {
   const res = await fetch('/api/perfil', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
   const datos = await res.json().catch(() => ({})) as PerfilWeb & { error?: string };
   if (!res.ok) throw new Error(datos.error ?? `Error ${res.status}`);

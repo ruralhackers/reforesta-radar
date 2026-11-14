@@ -116,7 +116,7 @@ describe('el perfil editado cambia la siguiente ejecución', () => {
     guardarFase(db, { convocatoriaId: 'bdns:923290', fase: 'criba_llm', descarta: false, motivo: 'ok', datos: {} }, reloj.now());
     guardarFase(db, { convocatoriaId: 'bdns:923290', fase: 'analisis', descarta: false, motivo: null, datos: { analisis: {
       elegibilidadEsfl: campo('si'), importeMaximoProyecto: campo('5.000 euros'), importeTotal: campo(null), plazo: campo(null),
-      cofinanciacion: campo(null), requisitos: [], lineas: [], ideaProyecto: null, correcciones: [],
+      cofinanciacion: campo(null), requisitos: [], lineas: [], ideaProyecto: null, tituloCorto: 'Título corto de prueba', correcciones: [],
     } } }, reloj.now());
     const importe = () => leerPuntuacion(db, 'bdns:923290')!.factores.find((f) => f.id === 'importe')!.subpuntuacion;
 

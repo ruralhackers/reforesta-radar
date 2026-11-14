@@ -21,6 +21,9 @@ import { descargarFichero, type FilaCompensacion, type FilaHuella, hash, leerLis
 import type { Perfil, Reloj } from '../types.ts';
 import { aCache, claveCache, desdeCache, esPresupuestoAgotado, llamar } from './comun.ts';
 import { diaLocal } from '../dates.ts';
+import { enZona, sinAcentos, type Zona, zonaDePerfil } from '../zona.ts';
+
+export { zonaDePerfil };
 
 export const FASE_HUELLA = 'empresas_huella_carbono';
 
@@ -79,16 +82,6 @@ const MAX_MOTIVO = 260;
 const SECTORES_EXCLUIDOS = new Set(['O', 'P', 'T', 'U']);
 const TAMANOS = new Set(['gran empresa', 'mediana']);
 
-const sinAcentos = (s: string | null | undefined) => (s ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-const PALABRAS_VACIAS = new Set(['comunidad', 'comunitat', 'de', 'del', 'la', 'el', 'y', 'i', 'region', 'principado', 'foral', 'autonoma', 'illes', 'islas', 'ciutat']);
-/** Grafías distintas de la misma comunidad entre el registro y el perfil ("Balears, Illes" / "ILLES BALEARS", "Euskadi" / "País Vasco"). */
-const ALIAS_ZONA: [RegExp, string][] = [[/\bbalears\b/, 'baleares'], [/\beuskadi\b/, 'pais vasco'], [/\bvalenciana\b/, 'valencia'], [/\bcatalunya\b/, 'cataluna'], [/\bgaliza\b/, 'galicia'], [/\bnafarroa\b/, 'navarra'], [/\bcanarias\b/, 'canarias']];
-const palabrasZona = (s: string) => ALIAS_ZONA.reduce((t, [re, por]) => t.replace(re, por), sinAcentos(s)).split(' ').filter((p) => p && !PALABRAS_VACIAS.has(p)).sort().join(' ');
-
-/** Comunidades autónomas de la zona de la organización, tal como las escribe el registro del MITECO ("Madrid, Comunidad de") y el perfil ("COMUNIDAD DE MADRID"): se comparan sin acentos ni palabras vacías. */
-export type Zona = string[];
-export const zonaDePerfil = (perfil: Perfil): Zona => perfil.ambito.comunidades.map(palabrasZona).filter(Boolean);
-const enZona = (ccaa: string, zona: Zona) => zona.includes(palabrasZona(ccaa));
 const letraSector = (s: string) => /^([A-Z])\./.exec(s.trim())?.[1] ?? '';
 const limpio = (t: string) => t.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
 /** Sin la forma societaria final: para casar nombres de organizaciones entre los dos listados (el de compensaciones no trae NIF). */

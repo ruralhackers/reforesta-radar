@@ -35,7 +35,7 @@ function analisisFalso(p: PeticionLlm) {
     return {
       elegibilidadEsfl: { valor: null, cita: null, documento: null }, importeMaximoProyecto: { valor: null, cita: null, documento: null },
       importeTotal: { valor: null, cita: null, documento: null }, plazo: { valor: null, cita: null, documento: null },
-      cofinanciacion: { valor: null, cita: null, documento: null }, requisitos: [], lineas: [], ideaProyecto: null,
+      cofinanciacion: { valor: null, cita: null, documento: null }, requisitos: [], lineas: [], ideaProyecto: null, tituloCorto: 'Título corto de prueba',
     };
   }
   return {
@@ -79,6 +79,7 @@ function analisisFalso(p: PeticionLlm) {
       { linea: perfil.lineas[0].nombre, motivo: 'Protección del medio ambiente', cita: null, documento: null },
       { linea: 'Línea que no existe', motivo: 'x', cita: null, documento: null },
     ],
+    tituloCorto: 'Investigación sobre charcas para anfibios',
     ideaProyecto: 'Investigación aplicada sobre restauración de charcas para anfibios, pidiendo 80.000 € de un total de 17.389.322,52 €.',
   };
 }

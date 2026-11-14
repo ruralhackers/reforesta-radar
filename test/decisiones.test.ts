@@ -182,7 +182,7 @@ describe('aprendizaje: las decisiones llegan como ejemplos al LLM', () => {
   const analisisVacio = {
     elegibilidadEsfl: { valor: null, cita: null, documento: null }, importeMaximoProyecto: { valor: null, cita: null, documento: null },
     importeTotal: { valor: null, cita: null, documento: null }, plazo: { valor: null, cita: null, documento: null },
-    cofinanciacion: { valor: null, cita: null, documento: null }, requisitos: [], lineas: [], ideaProyecto: null,
+    cofinanciacion: { valor: null, cita: null, documento: null }, requisitos: [], lineas: [], ideaProyecto: null, tituloCorto: 'Título corto de prueba',
   };
   const USO = { entrada: 1, salida: 1, cacheLectura: 0, cacheEscritura: 0 };
   const idDe = (p: PeticionLlm) => /Convocatoria (bdns:\d+)/.exec(p.mensaje)?.[1] ?? '';

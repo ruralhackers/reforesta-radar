@@ -165,7 +165,7 @@ describe('fuente EU Funding & Tenders', () => {
         peticiones.push(p);
         const datos = p.tarea === 'criba'
           ? { decision: /Convocatoria ft:HORIZON-NATURE-2027-02-02:/.test(p.mensaje) ? 'puede_encajar' : 'descartar', motivo: 'Restauración de ecosistemas', exigeSedeEnOtraComunidad: 'no_aplica' }
-          : { elegibilidadEsfl: vacio, importeMaximoProyecto: vacio, importeTotal: vacio, plazo: vacio, cofinanciacion: vacio, requisitos: [], lineas: [], ideaProyecto: null };
+          : { elegibilidadEsfl: vacio, importeMaximoProyecto: vacio, importeTotal: vacio, plazo: vacio, cofinanciacion: vacio, requisitos: [], lineas: [], ideaProyecto: null, tituloCorto: 'Título corto de prueba' };
         return { datos, modelo: p.modelo, uso: { entrada: 1000, salida: 100, cacheLectura: 0, cacheEscritura: 0 } };
       },
     };

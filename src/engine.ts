@@ -8,6 +8,7 @@ import {
 } from './db/repo.ts';
 import { analizarConLlm, FASE_ANALISIS } from './fases/analisis.ts';
 import { cribarConLlm, FASE_CRIBA } from './fases/criba.ts';
+import { rellenarTitulosCortos } from './fases/titulos.ts';
 import { CONFIG_HUELLA_POR_DEFECTO, type ConfigHuella, recogerEmpresasHuella, type ResumenHuella } from './fases/huella.ts';
 import { CONFIG_EMPRESAS_POR_DEFECTO, type ConfigEmpresas, recogerEmpresasDia, type ResumenEmpresas } from './fases/empresas.ts';
 import { ocultarSinFormaJuridica } from './db/empresas.ts';
@@ -254,7 +255,11 @@ async function fasesLlm(
     guardarRegistroFase(deps.db, ejecucionId, criba);
     await entreCribaYAnalisis();
     const analisis = await analizarConLlm(ctx, perfil, cfg.modeloAnalisis, cfg.maxAnalisis, publicadasDesde, deps.fuentes, cfg.maxCaracteresAnalisis);
-    fases = [criba, analisis];
+    // Títulos cortos de lo ya analizado que no los tiene (analizado antes de que el análisis los pidiera): Haiku con solo el título oficial.
+    const titulos = await rellenarTitulosCortos(ctx, cfg.modeloCriba);
+    // Solo consta en el registro si hizo algo (casi siempre no hay nada que rellenar).
+    const hizoAlgo = titulos.procesadas + titulos.llamadas + titulos.omitidasPorTope + titulos.errores.length > 0;
+    fases = hizoAlgo ? [criba, analisis, titulos] : [criba, analisis];
   }
   for (const f of fases) {
     guardarRegistroFase(deps.db, ejecucionId, f);

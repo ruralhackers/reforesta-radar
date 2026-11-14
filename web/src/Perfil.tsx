@@ -21,6 +21,7 @@ export function Perfil() {
   const [niveles, setNiveles] = useState<string[]>([]);
   const [territorios, setTerritorios] = useState('');
   const [regiones, setRegiones] = useState('');
+  const [domicilio, setDomicilio] = useState({ municipio: '', provincia: '', comunidad: '', distrito: '' });
   const [importe, setImporte] = useState('');
   const [umbral, setUmbral] = useState('50');
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +31,7 @@ export function Perfil() {
   const cargar = (p: PerfilWeb) => {
     setPerfil(p); setLineas(p.lineas); setDescripcion(p.ambito.descripcion); setNiveles(p.ambito.nivelesSiempre);
     setTerritorios(deTerritorios(p.ambito.territorios)); setRegiones(p.ambito.regiones.join(', '));
+    setDomicilio({ municipio: p.domicilio?.municipio ?? '', provincia: p.domicilio?.provincia ?? '', comunidad: p.domicilio?.comunidad ?? '', distrito: p.domicilio?.distrito ?? '' });
     setImporte(p.importeMinimo === null ? '' : String(p.importeMinimo));
     setUmbral(String(p.umbralEncaje));
   };
@@ -45,7 +47,9 @@ export function Perfil() {
       if (n !== null && Number.isNaN(n)) throw new Error('El importe mínimo debe ser un número');
       const u = Number(umbral);
       if (umbral.trim() === '' || !Number.isInteger(u) || u < 0 || u > 100) throw new Error('El umbral de encaje debe ser un número entero entre 0 y 100');
+      const hayDomicilio = Object.values(domicilio).some((v) => v.trim());
       cargar(await guardarPerfil({
+        ...(hayDomicilio ? { domicilio: { municipio: domicilio.municipio, provincia: domicilio.provincia, comunidad: domicilio.comunidad, ...(domicilio.distrito.trim() ? { distrito: domicilio.distrito } : {}) } } : {}),
         lineas,
         ambito: { descripcion, nivelesSiempre: niveles, territorios: aTerritorios(territorios), comunidades: [], regiones: aLista(regiones) },
         importeMinimo: n,
@@ -77,6 +81,18 @@ export function Perfil() {
           <section className="rounded-[var(--radio)] bg-superficie p-4 ring-1 ring-linea">
             <h2 className="font-semibold">{perfil.nombre}</h2>
             <p className="mt-1 text-xs text-tinta-suave">NIF {perfil.nif}{perfil.bdnsIdPersona !== null && ` · idPersona en BDNS ${perfil.bdnsIdPersona}`} (solo lectura)</p>
+          </section>
+
+          <section className="space-y-3 rounded-[var(--radio)] bg-superficie p-4 ring-1 ring-linea">
+            <h2 className="font-semibold">Domicilio social</h2>
+            <p className="text-xs text-tinta-suave">Dónde está registrada la entidad (su aviso legal). Las convocatorias que exigen sede, domicilio o inscripción en otro municipio o distrito se descartan en la criba.</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {([['municipio', 'Municipio'], ['provincia', 'Provincia'], ['comunidad', 'Comunidad autónoma'], ['distrito', 'Distrito (opcional)']] as const).map(([k, etiqueta]) => (
+                <label key={k} className="block text-sm">{etiqueta}
+                  <input value={domicilio[k]} onChange={(e) => setDomicilio({ ...domicilio, [k]: e.target.value })} className={`mt-1 ${entrada}`} />
+                </label>
+              ))}
+            </div>
           </section>
 
           <section className="rounded-[var(--radio)] bg-superficie p-4 ring-1 ring-linea">

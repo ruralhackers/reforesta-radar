@@ -39,7 +39,7 @@ const idDe = (p: PeticionLlm) => /Convocatoria (prueba:\w+)/.exec(p.mensaje)?.[1
 const ANALISIS_VACIO = {
   elegibilidadEsfl: { valor: null, cita: null, documento: null }, importeMaximoProyecto: { valor: null, cita: null, documento: null },
   importeTotal: { valor: null, cita: null, documento: null }, plazo: { valor: null, cita: null, documento: null },
-  cofinanciacion: { valor: null, cita: null, documento: null }, requisitos: [], lineas: [], ideaProyecto: null,
+  cofinanciacion: { valor: null, cita: null, documento: null }, requisitos: [], lineas: [], ideaProyecto: null, tituloCorto: 'Título corto de prueba',
 };
 
 /** LLM falso: criba según `descarta` (ids), análisis vacío; cuenta las llamadas por tarea e id. */

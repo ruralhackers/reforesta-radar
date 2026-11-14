@@ -3,6 +3,7 @@
     "nombre": "Reforesta",
     "nif": "G80428204",
     "bdnsIdPersona": 5886517,
+    "domicilio": { "municipio": "Tres Cantos", "provincia": "Madrid", "comunidad": "Comunidad de Madrid" },
     "lineas": [
       {
         "nombre": "Restauración de ecosistemas",

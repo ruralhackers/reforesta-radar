@@ -73,6 +73,23 @@ export function condicionAmbito(c: Convocatoria, p: Perfil): string | null {
   return `${a.comunidad}: solo encaja si permite ejecutar el proyecto en ${a.provincias.join(', ')} (no si lo limita a otras provincias de la comunidad)`;
 }
 
+/**
+ * Pista barata (no descarta nada: decide la criba LLM) para convocatorias locales cuyo órgano es de un municipio o distrito distinto del domicilio social de la entidad:
+ * si además exigen sede, domicilio o inscripción allí, no son para ella. null = sin pista (sin domicilio en el perfil, no es local o es el mismo municipio y distrito).
+ */
+export function pistaDomicilio(c: Convocatoria, p: Perfil): string | null {
+  const d = p.domicilio;
+  if (!d || normalizar(c.organo.nivel1) !== 'LOCAL') return null;
+  const dondeEsta = `${d.municipio}${d.distrito ? `, distrito de ${d.distrito}` : ''}`;
+  const distrito = [c.organo.nivel3, c.organo.nivel2, c.titulo].map((t) => /\bdistrito\s+(?:municipal\s+)?(?:de\s+(?:la\s+|los\s+|las\s+)?|del\s+)?([\p{L}][\p{L}\s-]{1,40}?)(?=\s*(?:[,.;:()\n]|\s-\s|\spor\b|\spara\b|\sde\s(?:la|los|las)\b|$))/iu.exec(t ?? '')?.[1]).find(Boolean);
+  if (distrito && clave(distrito) !== clave(d.distrito)) return `el órgano o el título mencionan el distrito «${distrito.trim()}»; la entidad está domiciliada en ${dondeEsta}, no en ese distrito`;
+  const munic = [c.organo.nivel2, c.organo.nivel3].map((t) => /^(?:AYUNTAMIENTO|AJUNTAMENT|CONCEJO|EXCMO\.? AYUNTAMIENTO)\s+(?:DE\s+)?(?:LA\s+|LOS\s+|LAS\s+|EL\s+)?(.+)$/.exec(clave(t))?.[1]).find(Boolean) ?? (c.organo.nivel2 ? clave(c.organo.nivel2) : null);
+  if (munic && !clave(d.municipio).split(' ').every((w) => munic.includes(w)) && !munic.includes(clave(d.municipio))) {
+    return `convoca el ayuntamiento de ${c.organo.nivel2 ?? c.organo.nivel3}; la entidad está domiciliada en ${dondeEsta}`;
+  }
+  return null;
+}
+
 const finalidad: Regla = (c, p) => {
   if (!c.finalidad) return null;
   const f = normalizar(c.finalidad);

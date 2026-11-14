@@ -2,6 +2,7 @@
 // aquí no hay nada propio de una entidad concreta. Cambiar un texto aquí invalida la caché de respuestas (va en la clave).
 import { createHash } from 'node:crypto';
 import type { EjemploDecision } from '../db/decisiones.ts';
+import { pistaDomicilio } from '../rules.ts';
 import type { Convocatoria, Perfil } from '../types.ts';
 
 export interface TextoParaLlm {
@@ -15,6 +16,14 @@ const MAX_CARACTERES_CRIBA = 12_000;
 export function describirTerritorios(p: Perfil): string {
   const lista = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}` : xs[0]);
   return (p.ambito.territorios ?? []).map((t) => (t.provincias.length ? `${lista(t.provincias)} (${t.comunidad})` : t.comunidad)).join('; ');
+}
+
+/** "La entidad tiene su domicilio social en: Tres Cantos (Madrid), Comunidad de Madrid." Vacío si el perfil no lo tiene. */
+export function lineaDomicilio(p: Perfil): string[] {
+  const d = p.domicilio;
+  if (!d) return [];
+  const sitio = [d.distrito ? `distrito de ${d.distrito}, ` : '', d.municipio, d.provincia && d.provincia !== d.municipio ? ` (${d.provincia})` : '', `, ${d.comunidad}`].join('');
+  return [`La entidad tiene su domicilio social en: ${sitio}.`];
 }
 
 export function describirPerfil(p: Perfil): string {
@@ -140,10 +149,14 @@ export function promptCriba(perfil: Perfil, c: Convocatoria, condicion: string |
     'Decides si una convocatoria PUEDE encajar con la organización (para que otra fase la lea a fondo) o si claramente no encaja.',
     '',
     describirPerfil(perfil),
+    ...lineaDomicilio(perfil),
     '',
     'Criterios:',
     '- Descarta solo lo claramente ajeno: ayudas a particulares o familias, a empresas o autónomos sin cabida para entidades sin ánimo de lucro,',
     '  premios o becas individuales, concursos escolares, subvenciones a entidades concretas ya decididas, temas sin relación con las líneas de trabajo.',
+    '- Descarta también si exige domicilio, sede, empadronamiento o inscripción (en un registro municipal, de entidades ciudadanas, etc.) en un municipio o distrito',
+    '  donde la entidad NO tiene su domicilio social (p. ej. convocatorias de un distrito o ayuntamiento que piden sede en él): el motivo debe decirlo. Una convocatoria',
+    '  del municipio del domicilio social de la entidad no se descarta por esto. Si el texto no exige domicilio ni sede, esto no cuenta.',
     '- Ante la duda, "puede_encajar": la fase siguiente lee las bases completas.',
     '- La elegibilidad se decide por el texto de la convocatoria, no por categorías administrativas.',
     '- "exigeSedeEnOtraComunidad": solo si se te indica una condición de ámbito; "si" si el texto limita los proyectos a territorios distintos de los',
@@ -157,6 +170,7 @@ export function promptCriba(perfil: Perfil, c: Convocatoria, condicion: string |
   ].join('\n');
   const mensaje = [
     cabecera(c),
+    ...(pistaDomicilio(c, perfil) ? [`Pista automática (sin leer el texto): ${pistaDomicilio(c, perfil)}.`] : []),
     condicion ? `Condición de ámbito: ${condicion}.` : 'Condición de ámbito: ninguna.',
     '',
     bloqueDocumentos(textos, MAX_CARACTERES_CRIBA),
@@ -175,6 +189,7 @@ export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoPar
     'Analizas una convocatoria de subvenciones para una organización sin ánimo de lucro y extraes datos con su cita literal.',
     '',
     describirPerfil(perfil),
+    ...lineaDomicilio(perfil),
     '',
     'Reglas (obligatorias):',
     '- Nunca inventes. Cada campo lleva "cita": un fragmento copiado LITERALMENTE de uno de los documentos (sin parafrasear,',
@@ -188,6 +203,7 @@ export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoPar
     '- plazo: el plazo de solicitud tal y como lo dice el texto (literal, sin calcular fechas).',
     '- cofinanciacion: si exige aportación propia o cofinanciación, y cuánta.',
     '- requisitos: los requisitos principales para la entidad solicitante (máximo 6), cada uno con su cita.',
+    '  Si la convocatoria exige domicilio, sede o inscripción en un municipio o distrito donde la entidad no tiene su domicilio social, inclúyelo entre los requisitos.',
     '- lineas: las líneas de trabajo de la organización con las que encaja, con un motivo breve (y cita si la hay; si no, "").',
     '- ideaProyecto: 3–4 líneas con una idea de proyecto concreta que la organización podría presentar. Sin importes que no estén en los textos.',
     ...(ganadores ? ['  Si se te dan ganadores de ediciones anteriores, úsalos solo como contexto (qué tipo de entidades suelen ganarla); no son parte de los documentos: no los cites ni copies sus importes.'] : []),
@@ -200,6 +216,24 @@ export function promptAnalisis(perfil: Perfil, c: Convocatoria, textos: TextoPar
   const contexto = ganadores ? ['', 'Contexto (BDNS; no forma parte de los documentos y no es citable). Ganadores de ediciones anteriores:', ganadores] : [];
   const mensaje = [cabecera(c), ...contexto, '', bloqueDocumentos(textos, null)].join('\n');
   return { sistema, mensaje };
+}
+
+// --- Título corto de una convocatoria ya analizada (Haiku, solo con el título oficial) ---
+
+export const ESQUEMA_TITULO: Record<string, unknown> = {
+  type: 'object',
+  properties: { tituloCorto: { type: 'string' } },
+  required: ['tituloCorto'],
+  additionalProperties: false,
+};
+
+export function promptTituloCorto(tituloOficial: string): { sistema: string; mensaje: string } {
+  const sistema = [
+    'Resumes el título oficial de una convocatoria de subvenciones en un título corto para una tarjeta.',
+    'Máximo 80 caracteres, una sola línea, en frase normal con mayúscula inicial y nunca en MAYÚSCULAS: qué se financia y quién lo convoca,',
+    'sin encabezados administrativos ("Resolución de…", "Bases reguladoras de…") ni año si no hace falta. Escribe en castellano. No inventes nada que no esté en el título.',
+  ].join('\n');
+  return { sistema, mensaje: `Título oficial: ${tituloOficial.replace(/\s+/g, ' ').trim().slice(0, 1500)}` };
 }
 
 // --- Extracción de convocatorias de una página de fundación o agregador (Haiku) ---

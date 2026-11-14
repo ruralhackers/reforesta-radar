@@ -93,11 +93,13 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      {/* Escritorio: barra lateral fija. */}
-      <aside className="sobre-oscuro hidden w-64 shrink-0 bg-marca-lateral md:sticky md:top-0 md:flex md:h-screen md:flex-col">
-        {marca}
-        <Menu ahora={ahora} cuenta={cuenta} />
-        <div className="border-t border-white/15 px-4 py-3"><AccesoEquipo /></div>
+      {/* Escritorio: la columna con el fondo se estira hasta el final de la página (aunque sea larga); el menú se queda fijo a la altura de la ventana. */}
+      <aside className="sobre-oscuro hidden w-64 shrink-0 bg-marca-lateral md:block">
+        <div className="md:sticky md:top-0 md:flex md:h-screen md:flex-col">
+          {marca}
+          <Menu ahora={ahora} cuenta={cuenta} />
+          <div className="border-t border-white/15 px-4 py-3"><AccesoEquipo /></div>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">

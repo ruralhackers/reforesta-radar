@@ -169,7 +169,7 @@ describe('ficha, probabilidad y análisis', () => {
         peticiones.push(p);
         const vacio = { valor: null, cita: null, documento: null };
         const datos = p.tarea === 'criba' ? { decision: 'puede_encajar', motivo: 'x', exigeSedeEnOtraComunidad: 'no_aplica' }
-          : { elegibilidadEsfl: vacio, importeMaximoProyecto: vacio, importeTotal: vacio, plazo: vacio, cofinanciacion: vacio, requisitos: [], lineas: [], ideaProyecto: null };
+          : { elegibilidadEsfl: vacio, importeMaximoProyecto: vacio, importeTotal: vacio, plazo: vacio, cofinanciacion: vacio, requisitos: [], lineas: [], ideaProyecto: null, tituloCorto: 'Título corto de prueba' };
         return { datos, modelo: p.modelo, uso: { entrada: 1, salida: 1, cacheLectura: 0, cacheEscritura: 0 } };
       },
     };
