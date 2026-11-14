@@ -15,7 +15,7 @@ export interface Plazo {
 
 /** Un factor de la puntuación: subpuntuación 0-1 y su explicación en una línea. */
 export interface FactorPuntuacion {
-  id: 'encaje' | 'importe' | 'cierre' | 'esfuerzo' | 'probabilidad';
+  id: 'encaje' | 'importe' | 'cierre' | 'esfuerzo' | 'probabilidad' | 'escala' | 'plazo' | 'viabilidad' | 'precio';
   nombre: string;
   peso: number;
   subpuntuacion: number;
@@ -152,7 +152,8 @@ export interface Semana {
   paraPreparar: string[];
   /** El resto (sin consorcio), plegado: sin analizar, con menos encaje o fuera del máximo. */
   conMenosEncaje: string[];
-  resumen: { paraPreparar: number; cierranPronto: number; empresasNuevas: number };
+  /** `licitaciones`: las licitaciones abiertas que pasaron la criba (página /licitaciones; no están en `convocatorias`). */
+  resumen: { paraPreparar: number; cierranPronto: number; empresasNuevas: number; licitaciones: number };
   ultimaEjecucion: Ejecucion | null;
 }
 
@@ -183,6 +184,71 @@ export interface CamposAnalisis {
   lineas: { linea: string; motivo: string; cita: string | null; documento: string | null }[];
   ideaProyecto: string | null;
   correcciones: string[];
+}
+
+/** Análisis de una licitación (campos con cita); lo distingue `tipo`. */
+export interface CamposLicitacion {
+  tipo: 'licitacion';
+  presupuestoBase: CampoCitado;
+  plazo: CampoCitado;
+  duracion: CampoCitado;
+  lotes: CampoCitado;
+  solvenciaEconomica: CampoCitado;
+  solvenciaTecnica: CampoCitado;
+  clasificacion: CampoCitado;
+  ponderacionPrecio: CampoCitado;
+  ponderacionTecnica: CampoCitado;
+  reservaSocial: CampoCitado;
+  requisitos: CampoCitado[];
+  lineas: { linea: string; motivo: string; cita: string | null; documento: string | null }[];
+  ideaProyecto: string | null;
+  correcciones: string[];
+}
+
+/** Lo que dice el anuncio de la Plataforma de Contratación (PLACSP) de una licitación. */
+export interface AnuncioLicitacion {
+  id: string;
+  expediente: string | null;
+  estado: string;
+  titulo: string;
+  organo: string | null;
+  organoCiudad: string | null;
+  tipoContrato: string | null;
+  procedimiento: string | null;
+  cpv: string[];
+  nuts: string[];
+  lugares: string[];
+  presupuestoSinIva: number | null;
+  valorEstimado: number | null;
+  presupuestoConIva: number | null;
+  duracion: string | null;
+  plazoOfertas: { fecha: string; hora: string | null } | null;
+  lotes: { id: string | null; nombre: string | null; presupuestoSinIva: number | null }[];
+  solvenciaEconomica: string[];
+  solvenciaTecnica: string[];
+  criterios: { tipo: string; descripcion: string; peso: number | null; lote: string | null }[];
+  documentos: { titulo: string; url: string; clase: string }[];
+}
+
+/** Lo que enseña la tarjeta de una licitación y la cabecera de su ficha. */
+export interface TarjetaLicitacion {
+  tituloCorto: string;
+  /** Presupuesto base sin IVA en euros (null = no consta o por precios unitarios); con varios lotes, el del lote más pequeño (`presupuestoDeLote`). */
+  presupuesto: number | null;
+  presupuestoDeLote: boolean;
+  valorEstimado: number | null;
+  /** Por encima del máximo del perfil: «probablemente fuera de escala». */
+  fueraDeEscala: boolean;
+  lotes: string | null;
+  procedimiento: string | null;
+  tipoContrato: string | null;
+  duracion: string | null;
+  /** Titular de la solvencia: del análisis (con cita) o del anuncio. */
+  solvencia: { texto: string; origen: 'analisis' | 'anuncio' } | null;
+  ponderacionPrecio: number | null;
+  porQue: string | null;
+  lineas: string[];
+  reservado: boolean;
 }
 
 export interface GanadorPrevio {
@@ -238,7 +304,7 @@ export interface Ficha {
     descarta: boolean;
     motivo: string | null;
     modelo: string;
-    campos: CamposAnalisis;
+    campos: CamposAnalisis | CamposLicitacion;
     documentos: { titulo: string; caracteres: number }[];
     documentosConError: string[];
   } | null;
@@ -246,6 +312,8 @@ export interface Ficha {
   serie: SerieFicha;
   parecidas: InfoParecidas | null;
   enlaces: { tipo: 'ficha' | 'bases' | 'extracto' | 'sede' | 'documento'; titulo: string; url: string }[];
+  /** Solo licitaciones (fuente placsp). */
+  licitacion: { anuncio: AnuncioLicitacion; tarjeta: TarjetaLicitacion; esAnalisisLicitacion: boolean } | null;
 }
 
 export async function leerFicha(id: string): Promise<Ficha> {
@@ -450,4 +518,30 @@ export async function leerBacktest(): Promise<Backtest> {
 }
 
 // --- Contadores del menú lateral (GET /api/contadores, público) ---
-export const leerContadores = () => pedir<{ estaSemana: number; empresas: number }>('/api/contadores');
+export const leerContadores = () => pedir<{ estaSemana: number; empresas: number; licitaciones: number }>('/api/contadores');
+
+// --- Licitaciones (GET /api/licitaciones) ---
+export interface LicitacionLista {
+  id: string;
+  titulo: string;
+  organo: string;
+  fechaPublicacion: string;
+  url: string;
+  plazo: Plazo | null;
+  puntuacion: Puntuacion | null;
+  tarjeta: TarjetaLicitacion;
+}
+export interface Licitaciones {
+  hasta: string;
+  umbral: number;
+  /** Presupuesto base sin IVA por encima del cual un contrato es «probablemente fuera de escala» (el del perfil). */
+  presupuestoMaximo: number;
+  ingresosAnuales: number;
+  licitaciones: LicitacionLista[];
+  /** Ids de las analizadas con puntuación >= umbral. */
+  paraPreparar: string[];
+  /** El resto: sin analizar, con menos encaje o fuera de escala. */
+  conMenosEncaje: string[];
+  ultimaEjecucion: Ejecucion | null;
+}
+export const leerLicitaciones = () => pedir<Licitaciones>('/api/licitaciones');

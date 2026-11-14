@@ -479,6 +479,17 @@ const MIGRACIONES: string[] = [
     ('Fundación BBVA'), ('Fundación Mapfre'), ('Fundación Banco Santander'), ('Fundación Biodiversidad (MITECO)'), ('Ecoembes'),
     ('Caterpillar Foundation'), ('Alstom Foundation'), ('Corresponsables · ayudas'), ('MITECO · ayudas y subvenciones de biodiversidad');
   `,
+  `
+  -- Estado propio de una fuente entre ejecuciones. PLACSP (licitaciones): 'cursor' = la actualización más reciente (ISO) de las entradas ya leídas del feed ATOM;
+  -- la siguiente pasada pagina hacia atrás solo hasta ahí (ver src/sources/placsp.ts).
+  CREATE TABLE IF NOT EXISTS fuente_estado (
+    fuente TEXT NOT NULL,
+    clave TEXT NOT NULL,
+    valor TEXT NOT NULL,
+    actualizado_en TEXT NOT NULL,
+    PRIMARY KEY (fuente, clave)
+  );
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

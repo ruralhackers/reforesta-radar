@@ -1,0 +1,1000 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:cbc="urn:dgpe:names:draft:codice:schema:xsd:CommonBasicComponents-2" xmlns:cac="urn:dgpe:names:draft:codice:schema:xsd:CommonAggregateComponents-2" xmlns:cac-place-ext="urn:dgpe:names:draft:codice-place-ext:schema:xsd:CommonAggregateComponents-2" xmlns:cbc-place-ext="urn:dgpe:names:draft:codice-place-ext:schema:xsd:CommonBasicComponents-2" xmlns:at="http://purl.org/atompub/tombstones/1.0" xmlns:ns7="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2">
+    <author>
+        <name>Plataforma de Contratación del Sector Público</name>
+        <uri>https://contrataciondelestado.es</uri>
+        <email>contrataciondelestado@hacienda.gob.es</email>
+    </author>
+    <id>https://contrataciondelestado.es/sindicacion/sindicacion_643/licitacionesPerfilesContratanteCompleto3.atom</id>
+    <link href="https://contrataciondelestado.es/sindicacion/sindicacion_643/licitacionesPerfilesContratanteCompleto3.atom" rel="self"/>
+    <link href="https://contrataciondelestado.es/sindicacion/sindicacion_643/licitacionesPerfilesContratanteCompleto3.atom" rel="first"/>
+    <title>Licitaciones publicadas en la Plataforma de Contratación del Sector Público: licitacionesPerfilesContratanteCompleto v3</title>
+    <updated>2026-11-13T20:21:42.968+01:00</updated>
+    
+    <entry>
+        <id>https://contrataciondelestado.es/sindicacion/licitacionesPerfilContratante/20806710</id>
+        <link href="https://contrataciondelestado.es/wps/poc?uri=deeplink:detalle_licitacion&amp;idEvl=%2FqaLalLSTACdkQsA7ROvsg%3D%3D"/>
+        <summary type="text">Id licitación: 13292/2026; Órgano de Contratación: Alcaldía del Ayuntamiento de Azuqueca de Henares; Importe: 80888.22 EUR; Estado: PUB</summary>
+        <title>El objeto del contrato es la prestación del servicio de poda del arbolado municipal relacionado en el inventario incorporado como anexo, incluyendo todas las operaciones auxiliares necesarias para dejar cada intervención completamente terminada.</title>
+        <updated>2026-11-13T09:35:55.897+01:00</updated>
+        <cac-place-ext:ContractFolderStatus>
+            <cbc:ContractFolderID>13292/2026</cbc:ContractFolderID>
+            <cbc-place-ext:ContractFolderStatusCode languageID="es" listURI="https://contrataciondelestado.es/codice/cl/2.04/SyndicationContractFolderStatusCode-2.04.gc">PUB</cbc-place-ext:ContractFolderStatusCode>
+            <cac-place-ext:LocatedContractingParty>
+                <cbc:ContractingPartyTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.10/ContractingAuthorityCode-2.10.gc">3</cbc:ContractingPartyTypeCode>
+                <cbc:ActivityCode listURI="http://contrataciondelestado.es/codice/cl/2.10/ContractingAuthorityActivityCode-2.10.gc">1</cbc:ActivityCode>
+                <cbc:BuyerProfileURIID>https://contrataciondelestado.es/wps/poc?uri=deeplink:perfilContratante&amp;idBp=pI8558gaN5wQK2TEfXGy%2BA%3D%3D</cbc:BuyerProfileURIID>
+                <cac:Party>
+                    <cbc:WebsiteURI>http://www.azuqueca.es</cbc:WebsiteURI>
+                    <cac:PartyIdentification>
+                        <cbc:ID schemeName="DIR3">L01190463</cbc:ID>
+                    </cac:PartyIdentification>
+                    <cac:PartyIdentification>
+                        <cbc:ID schemeName="NIF">P1905400F</cbc:ID>
+                    </cac:PartyIdentification>
+                    <cac:PartyIdentification>
+                        <cbc:ID schemeName="ID_PLATAFORMA">30776010121361</cbc:ID>
+                    </cac:PartyIdentification>
+                    <cac:PartyName>
+                        <cbc:Name>Alcaldía del Ayuntamiento de Azuqueca de Henares</cbc:Name>
+                    </cac:PartyName>
+                    <cac:PostalAddress>
+                        <cbc:CityName>Azuqueca de Henares</cbc:CityName>
+                        <cbc:PostalZone>19200</cbc:PostalZone>
+                        <cac:AddressLine>
+                            <cbc:Line>Plaza de la Constitución, 1</cbc:Line>
+                        </cac:AddressLine>
+                        <cac:Country>
+                            <cbc:IdentificationCode listURI="http://contrataciondelestado.es/codice/cl/2.08/CountryIdentificationCode-2.08.gc">ES</cbc:IdentificationCode>
+                            <cbc:Name>España</cbc:Name>
+                        </cac:Country>
+                    </cac:PostalAddress>
+                    <cac:Contact>
+                        <cbc:Name>Alcaldía del Ayuntamiento de Azuqueca de Henares</cbc:Name>
+                        <cbc:Telephone>949348032</cbc:Telephone>
+                        <cbc:Telefax>949885834</cbc:Telefax>
+                        <cbc:ElectronicMail>contratacion@azuqueca.net</cbc:ElectronicMail>
+                    </cac:Contact>
+                </cac:Party>
+                <cac-place-ext:ParentLocatedParty>
+                    <cac:PartyName>
+                        <cbc:Name>Azuqueca de Henares</cbc:Name>
+                    </cac:PartyName>
+                    <cac-place-ext:ParentLocatedParty>
+                        <cac:PartyName>
+                            <cbc:Name>Ayuntamientos</cbc:Name>
+                        </cac:PartyName>
+                        <cac-place-ext:ParentLocatedParty>
+                            <cac:PartyName>
+<cbc:Name>Guadalajara</cbc:Name>
+                            </cac:PartyName>
+                            <cac-place-ext:ParentLocatedParty>
+<cac:PartyName>
+    <cbc:Name>Castilla - La Mancha</cbc:Name>
+</cac:PartyName>
+<cac-place-ext:ParentLocatedParty>
+    <cac:PartyName>
+        <cbc:Name>ENTIDADES LOCALES</cbc:Name>
+    </cac:PartyName>
+    <cac-place-ext:ParentLocatedParty>
+        <cac:PartyName>
+            <cbc:Name>Sector Público</cbc:Name>
+        </cac:PartyName>
+    </cac-place-ext:ParentLocatedParty>
+</cac-place-ext:ParentLocatedParty>
+                            </cac-place-ext:ParentLocatedParty>
+                        </cac-place-ext:ParentLocatedParty>
+                    </cac-place-ext:ParentLocatedParty>
+                </cac-place-ext:ParentLocatedParty>
+            </cac-place-ext:LocatedContractingParty>
+            <cac:ProcurementProject>
+                <cbc:Name>El objeto del contrato es la prestación del servicio de poda del arbolado municipal relacionado en el inventario incorporado como anexo, incluyendo todas las operaciones auxiliares necesarias para dejar cada intervención completamente terminada.</cbc:Name>
+                <cbc:TypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/ContractCode-2.08.gc">2</cbc:TypeCode>
+                <cbc:SubTypeCode listURI="http://contrataciondelestado.es/codice/cl/1.04/ServiceContractCode-1.04.gc">27</cbc:SubTypeCode>
+                <cbc:MixContractIndicator>false</cbc:MixContractIndicator>
+                <cac:BudgetAmount>
+                    <cbc:EstimatedOverallContractAmount currencyID="EUR">80888.22</cbc:EstimatedOverallContractAmount>
+                    <cbc:TotalAmount currencyID="EUR">97874.75</cbc:TotalAmount>
+                    <cbc:TaxExclusiveAmount currencyID="EUR">80888.22</cbc:TaxExclusiveAmount>
+                </cac:BudgetAmount>
+                <cac:RequiredCommodityClassification>
+                    <cbc:ItemClassificationCode listURI="http://contrataciondelestado.es/codice/cl/2.04/CPV2008-2.04.gc">77341000</cbc:ItemClassificationCode>
+                </cac:RequiredCommodityClassification>
+                <cac:RealizedLocation>
+                    <cbc:CountrySubentity>Guadalajara</cbc:CountrySubentity>
+                    <cbc:CountrySubentityCode listURI="http://contrataciondelestado.es/codice/cl/2.08/NUTS-2021.gc">ES424</cbc:CountrySubentityCode>
+                    <cac:Address>
+                        <cbc:CityName>Azuqueca de Henares</cbc:CityName>
+                        <cbc:PostalZone>19200</cbc:PostalZone>
+                        <cac:Country>
+                            <cbc:IdentificationCode listURI="http://contrataciondelestado.es/codice/cl/2.08/CountryIdentificationCode-2.08.gc">ES</cbc:IdentificationCode>
+                            <cbc:Name>España</cbc:Name>
+                        </cac:Country>
+                    </cac:Address>
+                </cac:RealizedLocation>
+                <cac:PlannedPeriod>
+                    <cbc:DurationMeasure unitCode="MON">5</cbc:DurationMeasure>
+                </cac:PlannedPeriod>
+            </cac:ProcurementProject>
+            <cac:TenderingTerms>
+                <cbc:RequiredCurriculaIndicator>false</cbc:RequiredCurriculaIndicator>
+                <cbc:VariantConstraintIndicator>false</cbc:VariantConstraintIndicator>
+                <cbc:FundingProgramCode name="No hay financiación con fondos de la UE" listURI="http://contrataciondelestado.es/codice/cl/2.08/FundingProgramCode-2.08.gc">NO-EU</cbc:FundingProgramCode>
+                <cbc:ProcurementNationalLegislationCode listURI="https://contrataciondelestado.es/codice/cl/2.08/ProcurementNationalLegislationCode-2.08.gc">3</cbc:ProcurementNationalLegislationCode>
+                <cac:RequiredFinancialGuarantee>
+                    <cbc:GuaranteeTypeCode listURI="http://contrataciondelestado.es/codice/cl/1.04/GuaranteeTypeCode-1.04.gc">2</cbc:GuaranteeTypeCode>
+                    <cbc:AmountRate>5</cbc:AmountRate>
+                </cac:RequiredFinancialGuarantee>
+                <cac:ProcurementLegislationDocumentReference>
+                    <cbc:ID>N/A</cbc:ID>
+                </cac:ProcurementLegislationDocumentReference>
+                <cac:TendererQualificationRequest>
+                    <cac:SpecificTendererRequirement>
+                        <cbc:RequirementTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/DeclarationTypeCode-2.08.gc">1</cbc:RequirementTypeCode>
+                        <cbc:Description>Capacidad de obrar</cbc:Description>
+                    </cac:SpecificTendererRequirement>
+                </cac:TendererQualificationRequest>
+                <cac:AllowedSubcontractTerms>
+                    <cbc:Description>Véase cláusula 24 del  PCAP</cbc:Description>
+                </cac:AllowedSubcontractTerms>
+                <cac:ContractExecutionRequirement>
+                    <cbc:Name>Consideraciones de tipo social</cbc:Name>
+                    <cbc:ExecutionRequirementCode listURI="https://contrataciondelestado.es/codice/cl/2.08/ExecutionRequirementCode-2.08.gc">2</cbc:ExecutionRequirementCode>
+                    <cbc:Description>Véase cláusula 20 del PCAP</cbc:Description>
+                </cac:ContractExecutionRequirement>
+                <cac:AwardingTerms>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">OBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Certificado ISO 9001 “Sistemas de Gestión de la Calidad” o equivalente</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaAutomaticallyEvaluatedSubTypeCode-2.09.gc">2</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>3</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">OBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Certificado ISO 14001 “Sistemas de Gestión Ambiental” o equivalente</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaAutomaticallyEvaluatedSubTypeCode-2.09.gc">2</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>3</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">OBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Certificado ISO 45001 “Sistemas de Gestión de Seguridad y Salud en el Trabajo” o equivalente</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaAutomaticallyEvaluatedSubTypeCode-2.09.gc">2</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>3</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">OBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Mejoras Unidades adicionales de poda sin coste</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaAutomaticallyEvaluatedSubTypeCode-2.09.gc">2</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>20</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">OBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Precio más bajo</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaAutomaticallyEvaluatedSubTypeCode-2.09.gc">1</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>71</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                </cac:AwardingTerms>
+                <cac:TenderRecipientParty>
+                    <cbc:EndpointID>https://contrataciondelestado.es</cbc:EndpointID>
+                </cac:TenderRecipientParty>
+                <cac:Language>
+                    <cbc:ID>es</cbc:ID>
+                </cac:Language>
+            </cac:TenderingTerms>
+            <cac:TenderingProcess>
+                <cbc:ProcedureCode listURI="https://contrataciondelestado.es/codice/cl/2.07/SyndicationTenderingProcessCode-2.07.gc">9</cbc:ProcedureCode>
+                <cbc:UrgencyCode listURI="http://contrataciondelestado.es/codice/cl/1.04/DiligenceTypeCode-1.04.gc">1</cbc:UrgencyCode>
+                <cbc:ContractingSystemCode listURI="http://contrataciondelestado.es/codice/cl/2.08/ContractingSystemTypeCode-2.08.gc">0</cbc:ContractingSystemCode>
+                <cbc:SubmissionMethodCode listURI="http://contrataciondelestado.es/codice/cl/1.04/TenderDeliveryCode-1.04.gc">1</cbc:SubmissionMethodCode>
+                <cbc:OverThresholdIndicator>false</cbc:OverThresholdIndicator>
+                <cac:TenderSubmissionDeadlinePeriod>
+                    <cbc:EndDate>2026-11-13</cbc:EndDate>
+                    <cbc:EndTime>23:59:00</cbc:EndTime>
+                    <cbc:Description>A efectos de la inexistencia de problemas de presentación de ofertas y todo ello como consecuencia del soporte técnico de la Plataforma de Contratación del Sector Público, se recomienda que la presentación de ofertas se realice en el horario que la Plataforma dispone de soporte técnico, siendo el mismo de lunes a jueves de 9.00 a 19.00 horas y los viernes de 9.00 a 15.00 horas.</cbc:Description>
+                </cac:TenderSubmissionDeadlinePeriod>
+                <cac:AuctionTerms>
+                    <cbc:AuctionConstraintIndicator>false</cbc:AuctionConstraintIndicator>
+                </cac:AuctionTerms>
+            </cac:TenderingProcess>
+            <cac:LegalDocumentReference>
+                <cbc:ID>PCAP Poda.pdf</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=EsRnhaZxEo%2B2HoL9adC5u9SlxOrsl/jeR8POKTFia%2B0OUp8E0JnnnaxZydJ6uS7j27xfvDVUzJP4YtumcVjWROrmBXbf6WyP4kFz4f1gazpt/o8fNevwsujgRzaBbugn</cbc:URI>
+                        <cbc:DocumentHash>73+y17YkqWScQdQ5ByiUpVaadS8=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:LegalDocumentReference>
+            <cac:TechnicalDocumentReference>
+                <cbc:ID>PPT_Poda_13292_2026.pdf</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=jLKWg%2Bv8BlS13CdM95FtocNl63sKSHEWU5wpMgM3tGHgG%2BC4%2BIKAquZudDTKR9KduxfXmG04O/lB5JcCA3xA90U6muyz/G2m//PnpTP%2B/StJOVDbGCDM%2BMigrvuVS7Rv</cbc:URI>
+                        <cbc:DocumentHash>i9+Jv+MkbIDQQZK/ycVBaMkSWDc=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:TechnicalDocumentReference>
+            <cac-place-ext:ValidNoticeInfo>
+                <cbc-place-ext:NoticeTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.11/TenderingNoticeTypeCode-2.11.gc">DOC_CD</cbc-place-ext:NoticeTypeCode>
+                <cac-place-ext:AdditionalPublicationStatus>
+                    <cbc-place-ext:PublicationMediaName>Perfil del contratante</cbc-place-ext:PublicationMediaName>
+                    <cac-place-ext:AdditionalPublicationDocumentReference>
+                        <cbc:IssueDate>2026-10-29</cbc:IssueDate>
+                    </cac-place-ext:AdditionalPublicationDocumentReference>
+                </cac-place-ext:AdditionalPublicationStatus>
+            </cac-place-ext:ValidNoticeInfo>
+            <cac-place-ext:ValidNoticeInfo>
+                <cbc-place-ext:NoticeTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.11/TenderingNoticeTypeCode-2.11.gc">DOC_CN</cbc-place-ext:NoticeTypeCode>
+                <cac-place-ext:AdditionalPublicationStatus>
+                    <cbc-place-ext:PublicationMediaName>Perfil del contratante</cbc-place-ext:PublicationMediaName>
+                    <cac-place-ext:AdditionalPublicationDocumentReference>
+                        <cbc:IssueDate>2026-10-29</cbc:IssueDate>
+                    </cac-place-ext:AdditionalPublicationDocumentReference>
+                    <cac-place-ext:AdditionalPublicationDocumentReference>
+                        <cbc:IssueDate>2026-10-29</cbc:IssueDate>
+                    </cac-place-ext:AdditionalPublicationDocumentReference>
+                </cac-place-ext:AdditionalPublicationStatus>
+            </cac-place-ext:ValidNoticeInfo>
+            <cac-place-ext:GeneralDocument>
+                <cac-place-ext:GeneralDocumentDocumentReference>
+                    <cbc:ID>2026-a9b1ad43-0fa7-436d-a9e5-a7e49513edf5</cbc:ID>
+                    <cbc:DocumentTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/GeneralContractDocuments-2.08.gc">1</cbc:DocumentTypeCode>
+                    <cac:Attachment>
+                        <cac:ExternalReference>
+                            <cbc:URI>https://contrataciondelestado.es/wps/wcm/connect/PLACE_es/Site/area/docAccCmpnt?srv=cmpnt&amp;cmpntname=GetDocumentsById&amp;source=library&amp;DocumentIdParam=2026-a9b1ad43-0fa7-436d-a9e5-a7e49513edf5</cbc:URI>
+                            <cbc:FileName>Actos públicos informativos o de aperturas de ofertas</cbc:FileName>
+                        </cac:ExternalReference>
+                    </cac:Attachment>
+                </cac-place-ext:GeneralDocumentDocumentReference>
+            </cac-place-ext:GeneralDocument>
+            <cac-place-ext:GeneralDocument>
+                <cac-place-ext:GeneralDocumentDocumentReference>
+                    <cbc:ID>2026-98c79e01-3b44-444a-8858-811a5414d091</cbc:ID>
+                    <cbc:DocumentTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/GeneralContractDocuments-2.08.gc">11</cbc:DocumentTypeCode>
+                    <cac:Attachment>
+                        <cac:ExternalReference>
+                            <cbc:URI>https://contrataciondelestado.es/wps/wcm/connect/PLACE_es/Site/area/docAccCmpnt?srv=cmpnt&amp;cmpntname=GetDocumentsById&amp;source=library&amp;DocumentIdParam=2026-98c79e01-3b44-444a-8858-811a5414d091</cbc:URI>
+                            <cbc:FileName>Documento de aprobación del expediente</cbc:FileName>
+                        </cac:ExternalReference>
+                    </cac:Attachment>
+                </cac-place-ext:GeneralDocumentDocumentReference>
+            </cac-place-ext:GeneralDocument>
+            <cac-place-ext:GeneralDocument>
+                <cac-place-ext:GeneralDocumentDocumentReference>
+                    <cbc:ID>2026-d5aa08e3-c2bd-4848-9dc2-942093c46bdd</cbc:ID>
+                    <cbc:DocumentTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/GeneralContractDocuments-2.08.gc">9</cbc:DocumentTypeCode>
+                    <cac:Attachment>
+                        <cac:ExternalReference>
+                            <cbc:URI>https://contrataciondelestado.es/wps/wcm/connect/PLACE_es/Site/area/docAccCmpnt?srv=cmpnt&amp;cmpntname=GetDocumentsById&amp;source=library&amp;DocumentIdParam=2026-d5aa08e3-c2bd-4848-9dc2-942093c46bdd</cbc:URI>
+                            <cbc:FileName>Memoria justificativa</cbc:FileName>
+                        </cac:ExternalReference>
+                    </cac:Attachment>
+                </cac-place-ext:GeneralDocumentDocumentReference>
+            </cac-place-ext:GeneralDocument>
+        </cac-place-ext:ContractFolderStatus>
+    </entry>
+    <entry>
+        <id>https://contrataciondelestado.es/sindicacion/licitacionesPerfilContratante/20867623</id>
+        <link href="https://contrataciondelestado.es/wps/poc?uri=deeplink:detalle_licitacion&amp;idEvl=CFdx3G%2FEsxeopEMYCmrbmw%3D%3D"/>
+        <summary type="text">Id licitación: 7732/2026 bis; Órgano de Contratación: Junta de Gobierno Local del Ayuntamiento de Paracuellos de Jarama; Importe: 194977.86 EUR; Estado: PUB</summary>
+        <title>Construcción de un Bike Park en el término municipal de Paracuellos de Jarama, comprendiendo el acondicionamiento del terreno y el movimiento de tierras, modelado, perfilado y compactación de los circuitos, ejecución de drenajes, cimentaciones, firmes y pavimentos, estructuras de madera y obstáculos, el mobiliario y equipamiento urbano, jardinería, seguridad y salud y gestión de residuos.</title>
+        <updated>2026-11-12T10:55:40.094+01:00</updated>
+        <cac-place-ext:ContractFolderStatus>
+            <cbc:ContractFolderID>7732/2026 bis</cbc:ContractFolderID>
+            <cbc-place-ext:ContractFolderStatusCode languageID="es" listURI="https://contrataciondelestado.es/codice/cl/2.04/SyndicationContractFolderStatusCode-2.04.gc">PUB</cbc-place-ext:ContractFolderStatusCode>
+            <cac-place-ext:LocatedContractingParty>
+                <cbc:ContractingPartyTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.10/ContractingAuthorityCode-2.10.gc">3</cbc:ContractingPartyTypeCode>
+                <cbc:ActivityCode listURI="http://contrataciondelestado.es/codice/cl/2.10/ContractingAuthorityActivityCode-2.10.gc">1</cbc:ActivityCode>
+                <cbc:BuyerProfileURIID>https://contrataciondelestado.es/wps/poc?uri=deeplink:perfilContratante&amp;idBp=xaTd7EGZeZd7h85%2Fpmmsfw%3D%3D</cbc:BuyerProfileURIID>
+                <cac:Party>
+                    <cbc:WebsiteURI>http://www.paracuellosdejarama.es</cbc:WebsiteURI>
+                    <cac:PartyIdentification>
+                        <cbc:ID schemeName="DIR3">L01281049</cbc:ID>
+                    </cac:PartyIdentification>
+                    <cac:PartyIdentification>
+                        <cbc:ID schemeName="NIF">P2810400H</cbc:ID>
+                    </cac:PartyIdentification>
+                    <cac:PartyIdentification>
+                        <cbc:ID schemeName="ID_PLATAFORMA">31077900151550</cbc:ID>
+                    </cac:PartyIdentification>
+                    <cac:PartyName>
+                        <cbc:Name>Junta de Gobierno Local del Ayuntamiento de Paracuellos de Jarama</cbc:Name>
+                    </cac:PartyName>
+                    <cac:PostalAddress>
+                        <cbc:CityName>Paracuellos de Jarama</cbc:CityName>
+                        <cbc:PostalZone>28860</cbc:PostalZone>
+                        <cac:AddressLine>
+                            <cbc:Line>Plaza de la Constitución 1</cbc:Line>
+                        </cac:AddressLine>
+                        <cac:Country>
+                            <cbc:IdentificationCode listURI="http://contrataciondelestado.es/codice/cl/2.08/CountryIdentificationCode-2.08.gc">ES</cbc:IdentificationCode>
+                            <cbc:Name>España</cbc:Name>
+                        </cac:Country>
+                    </cac:PostalAddress>
+                    <cac:Contact>
+                        <cbc:Name>Junta de Gobierno Local del Ayuntamiento de Paracuellos de Jarama</cbc:Name>
+                        <cbc:Telephone>916580001</cbc:Telephone>
+                        <cbc:Telefax>916580052</cbc:Telefax>
+                        <cbc:ElectronicMail>dpto.ComprasyContratacion@paracuellosdejarama.es</cbc:ElectronicMail>
+                    </cac:Contact>
+                </cac:Party>
+                <cac-place-ext:ParentLocatedParty>
+                    <cac:PartyName>
+                        <cbc:Name>Paracuellos de Jarama</cbc:Name>
+                    </cac:PartyName>
+                    <cac-place-ext:ParentLocatedParty>
+                        <cac:PartyName>
+                            <cbc:Name>Ayuntamientos</cbc:Name>
+                        </cac:PartyName>
+                        <cac-place-ext:ParentLocatedParty>
+                            <cac:PartyName>
+<cbc:Name>Comunidad de Madrid</cbc:Name>
+                            </cac:PartyName>
+                            <cac-place-ext:ParentLocatedParty>
+<cac:PartyName>
+    <cbc:Name>ENTIDADES LOCALES</cbc:Name>
+</cac:PartyName>
+<cac-place-ext:ParentLocatedParty>
+    <cac:PartyName>
+        <cbc:Name>Sector Público</cbc:Name>
+    </cac:PartyName>
+</cac-place-ext:ParentLocatedParty>
+                            </cac-place-ext:ParentLocatedParty>
+                        </cac-place-ext:ParentLocatedParty>
+                    </cac-place-ext:ParentLocatedParty>
+                </cac-place-ext:ParentLocatedParty>
+            </cac-place-ext:LocatedContractingParty>
+            <cac:ProcurementProject>
+                <cbc:Name>Construcción de un Bike Park en el término municipal de Paracuellos de Jarama, comprendiendo el acondicionamiento del terreno y el movimiento de tierras, modelado, perfilado y compactación de los circuitos, ejecución de drenajes, cimentaciones, firmes y pavimentos, estructuras de madera y obstáculos, el mobiliario y equipamiento urbano, jardinería, seguridad y salud y gestión de residuos.</cbc:Name>
+                <cbc:TypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/ContractCode-2.08.gc">3</cbc:TypeCode>
+                <cbc:SubTypeCode listURI="http://contrataciondelestado.es/codice/cl/1.04/WorksContractCode-1.04.gc">4500</cbc:SubTypeCode>
+                <cbc:MixContractIndicator>false</cbc:MixContractIndicator>
+                <cac:BudgetAmount>
+                    <cbc:EstimatedOverallContractAmount currencyID="EUR">194977.86</cbc:EstimatedOverallContractAmount>
+                    <cbc:TotalAmount currencyID="EUR">235923.21</cbc:TotalAmount>
+                    <cbc:TaxExclusiveAmount currencyID="EUR">194977.86</cbc:TaxExclusiveAmount>
+                </cac:BudgetAmount>
+                <cac:RequiredCommodityClassification>
+                    <cbc:ItemClassificationCode listURI="http://contrataciondelestado.es/codice/cl/2.04/CPV2008-2.04.gc">45212200</cbc:ItemClassificationCode>
+                </cac:RequiredCommodityClassification>
+                <cac:RequiredCommodityClassification>
+                    <cbc:ItemClassificationCode listURI="http://contrataciondelestado.es/codice/cl/2.04/CPV2008-2.04.gc">45112720</cbc:ItemClassificationCode>
+                </cac:RequiredCommodityClassification>
+                <cac:RealizedLocation>
+                    <cbc:CountrySubentity>Madrid</cbc:CountrySubentity>
+                    <cbc:CountrySubentityCode listURI="http://contrataciondelestado.es/codice/cl/2.08/NUTS-2021.gc">ES300</cbc:CountrySubentityCode>
+                    <cac:Address>
+                        <cac:Country>
+                            <cbc:IdentificationCode listURI="http://contrataciondelestado.es/codice/cl/2.08/CountryIdentificationCode-2.08.gc">ES</cbc:IdentificationCode>
+                            <cbc:Name>España</cbc:Name>
+                        </cac:Country>
+                    </cac:Address>
+                </cac:RealizedLocation>
+                <cac:PlannedPeriod>
+                    <cbc:DurationMeasure unitCode="MON">3</cbc:DurationMeasure>
+                </cac:PlannedPeriod>
+            </cac:ProcurementProject>
+            <cac:TenderingTerms>
+                <cbc:RequiredCurriculaIndicator>false</cbc:RequiredCurriculaIndicator>
+                <cbc:FundingProgramCode name="No hay financiación con fondos de la UE" listURI="http://contrataciondelestado.es/codice/cl/2.08/FundingProgramCode-2.08.gc">NO-EU</cbc:FundingProgramCode>
+                <cbc:ProcurementNationalLegislationCode listURI="https://contrataciondelestado.es/codice/cl/2.08/ProcurementNationalLegislationCode-2.08.gc">3</cbc:ProcurementNationalLegislationCode>
+                <cac:RequiredFinancialGuarantee>
+                    <cbc:GuaranteeTypeCode listURI="http://contrataciondelestado.es/codice/cl/1.04/GuaranteeTypeCode-1.04.gc">2</cbc:GuaranteeTypeCode>
+                    <cbc:AmountRate>5</cbc:AmountRate>
+                </cac:RequiredFinancialGuarantee>
+                <cac:ProcurementLegislationDocumentReference>
+                    <cbc:ID>N/A</cbc:ID>
+                </cac:ProcurementLegislationDocumentReference>
+                <cac:TendererQualificationRequest>
+                    <cac:RequiredBusinessClassificationScheme>
+                        <cbc:ID>RequiredBusinessProfileCode</cbc:ID>
+                        <cac:ClassificationCategory>
+                            <cbc:CodeValue>A*-2</cbc:CodeValue>
+                        </cac:ClassificationCategory>
+                        <cac:ClassificationCategory>
+                            <cbc:CodeValue>G*-6</cbc:CodeValue>
+                        </cac:ClassificationCategory>
+                    </cac:RequiredBusinessClassificationScheme>
+                    <cac:TechnicalEvaluationCriteria>
+                        <cbc:EvaluationCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/TechnicalCapabilityTypeCode-2.0.gc">OSR-COMPTASK</cbc:EvaluationCriteriaTypeCode>
+                        <cbc:Description>Según PCAP.</cbc:Description>
+                    </cac:TechnicalEvaluationCriteria>
+                    <cac:FinancialEvaluationCriteria>
+                        <cbc:EvaluationCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/FinancialCapabilityTypeCode-2.0.gc">3</cbc:EvaluationCriteriaTypeCode>
+                        <cbc:Description>Según PCAP.</cbc:Description>
+                    </cac:FinancialEvaluationCriteria>
+                    <cac:FinancialEvaluationCriteria>
+                        <cbc:EvaluationCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/FinancialCapabilityTypeCode-2.0.gc">5</cbc:EvaluationCriteriaTypeCode>
+                        <cbc:Description>Según PCAP.</cbc:Description>
+                    </cac:FinancialEvaluationCriteria>
+                    <cac:SpecificTendererRequirement>
+                        <cbc:RequirementTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/DeclarationTypeCode-2.08.gc">5</cbc:RequirementTypeCode>
+                        <cbc:Description>Cumplimiento con las obligaciones tributarias</cbc:Description>
+                    </cac:SpecificTendererRequirement>
+                    <cac:SpecificTendererRequirement>
+                        <cbc:RequirementTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/DeclarationTypeCode-2.08.gc">1</cbc:RequirementTypeCode>
+                        <cbc:Description>Capacidad de obrar</cbc:Description>
+                    </cac:SpecificTendererRequirement>
+                    <cac:SpecificTendererRequirement>
+                        <cbc:RequirementTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/DeclarationTypeCode-2.08.gc">4</cbc:RequirementTypeCode>
+                        <cbc:Description>Cumplimiento con las obligaciones con la Seguridad Social</cbc:Description>
+                    </cac:SpecificTendererRequirement>
+                    <cac:SpecificTendererRequirement>
+                        <cbc:RequirementTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/DeclarationTypeCode-2.08.gc">2</cbc:RequirementTypeCode>
+                        <cbc:Description>No prohibición para contratar</cbc:Description>
+                    </cac:SpecificTendererRequirement>
+                </cac:TendererQualificationRequest>
+                <cac:AllowedSubcontractTerms>
+                    <cbc:Description>Subcontratación parcial.</cbc:Description>
+                </cac:AllowedSubcontractTerms>
+                <cac:AwardingTerms>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">SUBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Gestión de drenajes en fase de obra</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaNotAutomaticallyEvaluatedSubTypeCode-2.09.gc">99</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>5</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">SUBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Metodología de construcción, modelado y estabilización</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaNotAutomaticallyEvaluatedSubTypeCode-2.09.gc">99</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>15</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">SUBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Plan de trabajo, maquinaria específica y fases</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaNotAutomaticallyEvaluatedSubTypeCode-2.09.gc">99</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>5</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">OBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Ampliación del plazo de garantía</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaAutomaticallyEvaluatedSubTypeCode-2.09.gc">2</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>10</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">SUBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Ejecución de estructuras de madera, obstáculos y acabados</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaNotAutomaticallyEvaluatedSubTypeCode-2.09.gc">99</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>5</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">SUBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Gestión ambiental</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaNotAutomaticallyEvaluatedSubTypeCode-2.09.gc">99</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>5</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">OBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Mejoras</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaAutomaticallyEvaluatedSubTypeCode-2.09.gc">2</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>35</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">OBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Oferta económica</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaAutomaticallyEvaluatedSubTypeCode-2.09.gc">1</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>20</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                </cac:AwardingTerms>
+                <cac:TenderRecipientParty>
+                    <cbc:EndpointID>https://contrataciondelestado.es</cbc:EndpointID>
+                </cac:TenderRecipientParty>
+                <cac:Language>
+                    <cbc:ID>es</cbc:ID>
+                </cac:Language>
+            </cac:TenderingTerms>
+            <cac:TenderingProcess>
+                <cbc:ProcedureCode listURI="https://contrataciondelestado.es/codice/cl/2.07/SyndicationTenderingProcessCode-2.07.gc">1</cbc:ProcedureCode>
+                <cbc:UrgencyCode listURI="http://contrataciondelestado.es/codice/cl/1.04/DiligenceTypeCode-1.04.gc">1</cbc:UrgencyCode>
+                <cbc:ContractingSystemCode listURI="http://contrataciondelestado.es/codice/cl/2.08/ContractingSystemTypeCode-2.08.gc">0</cbc:ContractingSystemCode>
+                <cbc:SubmissionMethodCode listURI="http://contrataciondelestado.es/codice/cl/1.04/TenderDeliveryCode-1.04.gc">1</cbc:SubmissionMethodCode>
+                <cbc:OverThresholdIndicator>false</cbc:OverThresholdIndicator>
+                <cac:TenderSubmissionDeadlinePeriod>
+                    <cbc:EndDate>2026-12-09</cbc:EndDate>
+                    <cbc:EndTime>23:59:00</cbc:EndTime>
+                    <cbc:Description>La Plataforma de Contratación del Sector Público se rige por horario peninsular. Se recomienda que tengan en cuenta el horario de soporte de plataforma.</cbc:Description>
+                </cac:TenderSubmissionDeadlinePeriod>
+            </cac:TenderingProcess>
+            <cac:LegalDocumentReference>
+                <cbc:ID>PCAP.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=YZyfZeU5l9jrpvQ8CEAcB7sAO3FoLIrpmR6Xc4q5HGpvY0t8BDFTTM77GPWznfbx5uDblHb3w3OvfxNSQWZxYiYs8TaRcXmX4v4EOH6U5EnfdyQgZAdTm3EfcUAC7CJ6</cbc:URI>
+                        <cbc:DocumentHash>VKJxycNVUp1QCZb0mWDJREOiMfo=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:LegalDocumentReference>
+            <cac:TechnicalDocumentReference>
+                <cbc:ID>PPT.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=iBWu1NB2cEqsuc%2BZOh8x4Bdvap%2BX5tGFuyFRUG6ymD2orttztIO0DIytwnpsKJpSG3y/U8bo58gRTerGu54Pq8di6pez40vcLEbGH1dGoZJ7QB3HKyQaFUExmUVQCerk</cbc:URI>
+                        <cbc:DocumentHash>7Bm0BGD4o27wBgHqQRgs8rTT/0M=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:TechnicalDocumentReference>
+            <cac:AdditionalDocumentReference>
+                <cbc:ID>L_011_DOC_A02 Cert viabilidad geo.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=wOZ1Fte3FPJpvjKH/q3ZsJw9P51dPa3ruzc4lxReC5nAkwKo0LCw4F7zBZ52i3aptjYPOx5qIzpI%2BnFwXHsSEb/%2BYLblvUyvl/n8wKEnt0pt/o8fNevwsujgRzaBbugn</cbc:URI>
+                        <cbc:DocumentHash>4lwnYcBYgTs4Nczs53TgpogrUG4=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:AdditionalDocumentReference>
+            <cac:AdditionalDocumentReference>
+                <cbc:ID>L_003_DOC_III PRESUPUESTO.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=yrm2SUCVnwdRLqiw0YUqwYYSOXqAkcpFkF0UOWsdRFpnfkjC1JEj75EBZvbfIl0pVMXpOoI92Jo5aoyKm%2BLZ6kI2h1WlMgTRE6ZmvRCmJ0WCx2e6p7hqtlp2aFupgHMr</cbc:URI>
+                        <cbc:DocumentHash>/Q/RnU2gGgaxV0I1ETmuqhGtH0w=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:AdditionalDocumentReference>
+            <cac:AdditionalDocumentReference>
+                <cbc:ID>L_002_DOC_II PLANOS II.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=G1nPO2cjFUaf477WhWbTt25AjJalMfE8pzg/XrTjJ9fePHfLGVeFlj5zb53l/RpYlHiIGvRbVJStgy2jAaU0BlDvIe3N3vcWkDhgLa6GqojfdyQgZAdTm3EfcUAC7CJ6</cbc:URI>
+                        <cbc:DocumentHash>1jYO0+F8AXyTlitWQEWw8v3/5Ig=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:AdditionalDocumentReference>
+            <cac:AdditionalDocumentReference>
+                <cbc:ID>L_007_DOC_II PLANOS I.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=ncOE5U15k6u5BP7O9Dw4XS/cQHig5LtMkdtTYpY56QmQkLhM46Mg7gzjGTyb7yb9E0CkRtGaqH3una254fj%2B5GXq/rXh3R%2BvXyU24znMrDiB0nvVKRzfe4rpHcnlPhSZ</cbc:URI>
+                        <cbc:DocumentHash>0HzA5BHw8iugw7INwIr0C6eav0k=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:AdditionalDocumentReference>
+            <cac:AdditionalDocumentReference>
+                <cbc:ID>L_019_DOC_JUSTIF COSTES INDIRECTOS.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=EbVjf4%2BwtYPCuMLPvCrv3F9hmmUztbSSUhu72ug8MeF7SqSficpYIS/Sgoajog8qWq6rAe5FCBjit/X0tbGo0HtFe7sqoWrEymhYSsNzybMC1/zDIE0Kw/PWNnLS0Z0z</cbc:URI>
+                        <cbc:DocumentHash>Akr7w12yXscixkSbej1uKgf3X30=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:AdditionalDocumentReference>
+            <cac:AdditionalDocumentReference>
+                <cbc:ID>L_018_DOC_A06 SEPARATA_CONCESIONES.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=3W6GSIt/VFyMNxLTXRB27JeFz%2Bu12f1TIDthMR9h7eshepBMyfuK%2BDv627gA/zBEH%2BHK2xEBgz4V/0JVY5SrCU7HfvQ4fDZEfkgPoGXZMgkZyAJWGsSt0OzTSTyw9JAs</cbc:URI>
+                        <cbc:DocumentHash>KUU6oBJSc3cSnAWIbKkZHdbch4E=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:AdditionalDocumentReference>
+            <cac:AdditionalDocumentReference>
+                <cbc:ID>L_020_DOC_A04 ESTUDIO_RESIDUOS.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=pESoKhY6OkYeTjkPA4mIyVXxJJDcz8%2BDAF5fsxiCssyJIwIiwtZSBgPIdJrh5Qu5ydFH04QFoHN/t9Q5c0eblpGFZyzEnYrW9VLo%2BFz0zsj3GVhXrFFqN7yFncy7YfRK</cbc:URI>
+                        <cbc:DocumentHash>rhNJboPLhSyqDITNDz6cXp8RaBk=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:AdditionalDocumentReference>
+            <cac:AdditionalDocumentReference>
+                <cbc:ID>L_014_DOC_A07 Solicitud serv.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=UWsfXNhVbWIOLXT6tRUYYksGfw9mU0QoSTjmgGJgED4/g/flcGOKp30UTgCKXBdUkQydmIKDYltVWkn2UHbebiGVUrrRCjxlOqO6GQKjYegC1/zDIE0Kw/PWNnLS0Z0z</cbc:URI>
+                        <cbc:DocumentHash>eu2yycemDT6rB1Tc2K2KFjWF0Ho=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:AdditionalDocumentReference>
+            <cac:AdditionalDocumentReference>
+                <cbc:ID>L_017_DOC_A08 PLAN_OBRA.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=MVziDvFiIA3opAmw3EqxkIKTrrWTAxdNMv1m861D%2B2mi4qgYqc9PLeOQu356WW5bz67OwZA6yVGTDASoovTl3gGaU1mB19jlmlUGaBUoLxY//q7NB2iMZvNyf0xrJmjt</cbc:URI>
+                        <cbc:DocumentHash>St206tBemYZTo3yyNfyeNQLJBwI=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:AdditionalDocumentReference>
+            <cac:AdditionalDocumentReference>
+                <cbc:ID>L_010_DOC_A03 Normas siniestro.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=PAKs2xGMTd60ZM9ibSSjp/Xrb9HqYbAr/9JRLKBEB9Y2/Q/Yi2%2BruOPTL0g9/2TQI9M8DD/KnS7abelkoECC5eyVIHP19bsv/cn2xJvWl8TVTD3T98KC0nSgQFM0q%2B5s</cbc:URI>
+                        <cbc:DocumentHash>ckikAc1tarVlaNioNxk1Zyjkns0=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:AdditionalDocumentReference>
+            <cac:AdditionalDocumentReference>
+                <cbc:ID>L_016_DOC_A05 ESTUDIO_SEG Y SALUD.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=ftizehUYjpHf0IF2zwj23bng8Gn1PZI6lhDpND1WxzhkO6WH6XXyL18joSvZpm3SGqLbiaZK%2BLDpag8ZsbpO8jc6%2B66lvmk9ugP7UwwPwWb6CYyL7SIrUOBFfNf52ZqA</cbc:URI>
+                        <cbc:DocumentHash>CiTRFjcRqD9LxLq03+qvz2s3qdQ=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:AdditionalDocumentReference>
+            <cac:AdditionalDocumentReference>
+                <cbc:ID>L_012_DOC_A01 Plan de c de calidad.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=xCLyg4/vLZqOkTj6bGY9glNUSBpJDW/%2BgGUTCmeWt6oBiEKsHPi%2BuN%2BGM6HdnEdkxzk7bE23/5xfuD%2BfGBuh9OFOPbrSJExBRPsG8B8M8X/VTD3T98KC0nSgQFM0q%2B5s</cbc:URI>
+                        <cbc:DocumentHash>IRuhYr4hH4f6cndUoQNMbZksefg=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:AdditionalDocumentReference>
+            <cac:AdditionalDocumentReference>
+                <cbc:ID>L_ 006_DOC_I MEMORIA DESCRIPTIVA.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=7o5nqgrGKD60SGDVMeqcluDT3bRu8ujdyIj2rapF22aFaXIfsuBPWR3Pgct43Yas2WwZg3vsLSleid1nCj4ECRGTXslOae2QLCWAwzfVMDuCx2e6p7hqtlp2aFupgHMr</cbc:URI>
+                        <cbc:DocumentHash>mNmU0YPTBe495vdIyKqz+Hz7P2k=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:AdditionalDocumentReference>
+            <cac:AdditionalDocumentReference>
+                <cbc:ID>L_005_DOC_VI INFOGRAFIAS.PDF</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=swyK/co06cTythpyqdhFzBsoaCXAyjxkVc0Y2FY6z34qP5uAnddzXk2lVUId5GWI81AgvO5Z7M7J14HWoad79wd/KQQNjDjokRClaQAzYBBJOVDbGCDM%2BMigrvuVS7Rv</cbc:URI>
+                        <cbc:DocumentHash>2RGiPKRPk/JOBWTIA9xRNvw0aXs=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:AdditionalDocumentReference>
+            <cac-place-ext:ValidNoticeInfo>
+                <cbc-place-ext:NoticeTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.11/TenderingNoticeTypeCode-2.11.gc">DOC_CD</cbc-place-ext:NoticeTypeCode>
+                <cac-place-ext:AdditionalPublicationStatus>
+                    <cbc-place-ext:PublicationMediaName>Perfil del contratante</cbc-place-ext:PublicationMediaName>
+                    <cac-place-ext:AdditionalPublicationDocumentReference>
+                        <cbc:IssueDate>2026-11-09</cbc:IssueDate>
+                    </cac-place-ext:AdditionalPublicationDocumentReference>
+                </cac-place-ext:AdditionalPublicationStatus>
+            </cac-place-ext:ValidNoticeInfo>
+            <cac-place-ext:ValidNoticeInfo>
+                <cbc-place-ext:NoticeTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.11/TenderingNoticeTypeCode-2.11.gc">DOC_CN</cbc-place-ext:NoticeTypeCode>
+                <cac-place-ext:AdditionalPublicationStatus>
+                    <cbc-place-ext:PublicationMediaName>Perfil del contratante</cbc-place-ext:PublicationMediaName>
+                    <cac-place-ext:AdditionalPublicationDocumentReference>
+                        <cbc:IssueDate>2026-11-09</cbc:IssueDate>
+                    </cac-place-ext:AdditionalPublicationDocumentReference>
+                </cac-place-ext:AdditionalPublicationStatus>
+            </cac-place-ext:ValidNoticeInfo>
+            <cac-place-ext:GeneralDocument>
+                <cac-place-ext:GeneralDocumentDocumentReference>
+                    <cbc:ID>2026-faba270e-8657-43dd-9bd6-61e335293205</cbc:ID>
+                    <cbc:DocumentTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/GeneralContractDocuments-2.08.gc">ZZZ</cbc:DocumentTypeCode>
+                    <cac:Attachment>
+                        <cac:ExternalReference>
+                            <cbc:URI>https://contrataciondelestado.es/wps/wcm/connect/PLACE_es/Site/area/docAccCmpnt?srv=cmpnt&amp;cmpntname=GetDocumentsById&amp;source=library&amp;DocumentIdParam=2026-faba270e-8657-43dd-9bd6-61e335293205</cbc:URI>
+                            <cbc:FileName>Certificado para volver a aprobar la licitación</cbc:FileName>
+                        </cac:ExternalReference>
+                    </cac:Attachment>
+                </cac-place-ext:GeneralDocumentDocumentReference>
+            </cac-place-ext:GeneralDocument>
+            <cac-place-ext:GeneralDocument>
+                <cac-place-ext:GeneralDocumentDocumentReference>
+                    <cbc:ID>2026-78a33565-471c-4525-965d-ed66caa45ff9</cbc:ID>
+                    <cbc:DocumentTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/GeneralContractDocuments-2.08.gc">ZZZ</cbc:DocumentTypeCode>
+                    <cac:Attachment>
+                        <cac:ExternalReference>
+                            <cbc:URI>https://contrataciondelestado.es/wps/wcm/connect/PLACE_es/Site/area/docAccCmpnt?srv=cmpnt&amp;cmpntname=GetDocumentsById&amp;source=library&amp;DocumentIdParam=2026-78a33565-471c-4525-965d-ed66caa45ff9</cbc:URI>
+                            <cbc:FileName>Informe de idoneidad</cbc:FileName>
+                        </cac:ExternalReference>
+                    </cac:Attachment>
+                </cac-place-ext:GeneralDocumentDocumentReference>
+            </cac-place-ext:GeneralDocument>
+            <cac-place-ext:GeneralDocument>
+                <cac-place-ext:GeneralDocumentDocumentReference>
+                    <cbc:ID>2026-e9acd2d6-5f13-4ebd-990c-76373610bff5</cbc:ID>
+                    <cbc:DocumentTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/GeneralContractDocuments-2.08.gc">ZZZ</cbc:DocumentTypeCode>
+                    <cac:Attachment>
+                        <cac:ExternalReference>
+                            <cbc:URI>https://contrataciondelestado.es/wps/wcm/connect/PLACE_es/Site/area/docAccCmpnt?srv=cmpnt&amp;cmpntname=GetDocumentsById&amp;source=library&amp;DocumentIdParam=2026-e9acd2d6-5f13-4ebd-990c-76373610bff5</cbc:URI>
+                            <cbc:FileName>Aprobación de pliegos</cbc:FileName>
+                        </cac:ExternalReference>
+                    </cac:Attachment>
+                </cac-place-ext:GeneralDocumentDocumentReference>
+            </cac-place-ext:GeneralDocument>
+            <cac-place-ext:GeneralDocument>
+                <cac-place-ext:GeneralDocumentDocumentReference>
+                    <cbc:ID>2026-af49e0f9-592b-40e8-b1a7-793c8d1dcbe0</cbc:ID>
+                    <cbc:DocumentTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/GeneralContractDocuments-2.08.gc">ZZZ</cbc:DocumentTypeCode>
+                    <cac:Attachment>
+                        <cac:ExternalReference>
+                            <cbc:URI>https://contrataciondelestado.es/wps/wcm/connect/PLACE_es/Site/area/docAccCmpnt?srv=cmpnt&amp;cmpntname=GetDocumentsById&amp;source=library&amp;DocumentIdParam=2026-af49e0f9-592b-40e8-b1a7-793c8d1dcbe0</cbc:URI>
+                            <cbc:FileName>Memoria de inicio</cbc:FileName>
+                        </cac:ExternalReference>
+                    </cac:Attachment>
+                </cac-place-ext:GeneralDocumentDocumentReference>
+            </cac-place-ext:GeneralDocument>
+            <cac-place-ext:GeneralDocument>
+                <cac-place-ext:GeneralDocumentDocumentReference>
+                    <cbc:ID>2026-cbf3b2d7-959f-42e6-b972-cc11da95262d</cbc:ID>
+                    <cbc:DocumentTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/GeneralContractDocuments-2.08.gc">ZZZ</cbc:DocumentTypeCode>
+                    <cac:Attachment>
+                        <cac:ExternalReference>
+                            <cbc:URI>https://contrataciondelestado.es/wps/wcm/connect/PLACE_es/Site/area/docAccCmpnt?srv=cmpnt&amp;cmpntname=GetDocumentsById&amp;source=library&amp;DocumentIdParam=2026-cbf3b2d7-959f-42e6-b972-cc11da95262d</cbc:URI>
+                            <cbc:FileName>Certificado de nombramiento - Secretario Suplente</cbc:FileName>
+                        </cac:ExternalReference>
+                    </cac:Attachment>
+                </cac-place-ext:GeneralDocumentDocumentReference>
+            </cac-place-ext:GeneralDocument>
+        </cac-place-ext:ContractFolderStatus>
+    </entry>
+    <entry>
+        <id>https://contrataciondelestado.es/sindicacion/licitacionesPerfilContratante/20797834</id>
+        <link href="https://contrataciondelestado.es/wps/poc?uri=deeplink:detalle_licitacion&amp;idEvl=nBCRzZKqgBGOUi78BmzhOQ%3D%3D"></link>
+        <summary type="text">Id licitación: 2026/ETSAE0065/00001177E; Órgano de Contratación: Sección de Asuntos Económicos del Parque y Centro de Mantenimiento de Helicópteros; Importe: 24793.39 EUR; Estado: PUB</summary>
+        <title>Mantenimiento de la jardinería de distintas zonas de la Base Coronel Maté</title>
+        <updated>2026-11-11T14:55:06.895+01:00</updated>
+        <cac-place-ext:ContractFolderStatus>
+            <cbc:ContractFolderID>2026/ETSAE0065/00001177E</cbc:ContractFolderID>
+            <cbc-place-ext:ContractFolderStatusCode languageID="es" listURI="https://contrataciondelestado.es/codice/cl/2.04/SyndicationContractFolderStatusCode-2.04.gc">PUB</cbc-place-ext:ContractFolderStatusCode>
+            <cac-place-ext:LocatedContractingParty>
+                <cbc:ContractingPartyTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.10/ContractingAuthorityCode-2.10.gc">1</cbc:ContractingPartyTypeCode>
+                <cbc:ActivityCode listURI="http://contrataciondelestado.es/codice/cl/2.10/ContractingAuthorityActivityCode-2.10.gc">2</cbc:ActivityCode>
+                <cbc:BuyerProfileURIID>https://contrataciondelestado.es/wps/poc?uri=deeplink:perfilContratante&amp;idBp=cx8Ytdmu4WUQK2TEfXGy%2BA%3D%3D</cbc:BuyerProfileURIID>
+                <cac:Party>
+                    <cac:PartyIdentification>
+                        <cbc:ID schemeName="DIR3">EA0003077</cbc:ID>
+                    </cac:PartyIdentification>
+                    <cac:PartyIdentification>
+                        <cbc:ID schemeName="NIF">S2801224C</cbc:ID>
+                    </cac:PartyIdentification>
+                    <cac:PartyIdentification>
+                        <cbc:ID schemeName="ID_PLATAFORMA">10000140083841</cbc:ID>
+                    </cac:PartyIdentification>
+                    <cac:PartyName>
+                        <cbc:Name>Sección de Asuntos Económicos del Parque y Centro de Mantenimiento de Helicópteros</cbc:Name>
+                    </cac:PartyName>
+                    <cac:PostalAddress>
+                        <cbc:CityName>Madrid</cbc:CityName>
+                        <cbc:PostalZone>28770</cbc:PostalZone>
+                        <cac:AddressLine>
+                            <cbc:Line>Ctra. de Guadalix Km. 1,800</cbc:Line>
+                        </cac:AddressLine>
+                        <cac:Country>
+                            <cbc:IdentificationCode listURI="http://contrataciondelestado.es/codice/cl/2.08/CountryIdentificationCode-2.08.gc">ES</cbc:IdentificationCode>
+                            <cbc:Name>España</cbc:Name>
+                        </cac:Country>
+                    </cac:PostalAddress>
+                    <cac:Contact>
+                        <cbc:Name>Sección de Asuntos Económicos del Parque y Centro de Mantenimiento de Helicópteros</cbc:Name>
+                        <cbc:Telephone>918465443</cbc:Telephone>
+                        <cbc:Telefax>918466670</cbc:Telefax>
+                        <cbc:ElectronicMail>contratacion-sae-famet@et.mde.es</cbc:ElectronicMail>
+                    </cac:Contact>
+                </cac:Party>
+                <cac-place-ext:ParentLocatedParty>
+                    <cac:PartyName>
+                        <cbc:Name>SAECO del Parque y Centro de Mantenimiento de Material de Helicópteros</cbc:Name>
+                    </cac:PartyName>
+                    <cac-place-ext:ParentLocatedParty>
+                        <cac:PartyIdentification>
+                            <cbc:ID schemeName="DIR3">E00117001</cbc:ID>
+                        </cac:PartyIdentification>
+                        <cac:PartyName>
+                            <cbc:Name>Ejército de Tierra</cbc:Name>
+                        </cac:PartyName>
+                        <cac-place-ext:ParentLocatedParty>
+                            <cac:PartyIdentification>
+<cbc:ID schemeName="DIR3">E00003301</cbc:ID>
+                            </cac:PartyIdentification>
+                            <cac:PartyName>
+<cbc:Name>Ministerio de Defensa</cbc:Name>
+                            </cac:PartyName>
+                            <cac-place-ext:ParentLocatedParty>
+<cac:PartyIdentification>
+    <cbc:ID schemeName="DIR3">EA9999999</cbc:ID>
+</cac:PartyIdentification>
+<cac:PartyName>
+    <cbc:Name>ADMINISTRACIÓN GENERAL DEL ESTADO</cbc:Name>
+</cac:PartyName>
+<cac-place-ext:ParentLocatedParty>
+    <cac:PartyName>
+        <cbc:Name>Sector Público</cbc:Name>
+    </cac:PartyName>
+</cac-place-ext:ParentLocatedParty>
+                            </cac-place-ext:ParentLocatedParty>
+                        </cac-place-ext:ParentLocatedParty>
+                    </cac-place-ext:ParentLocatedParty>
+                </cac-place-ext:ParentLocatedParty>
+            </cac-place-ext:LocatedContractingParty>
+            <cac:ProcurementProject>
+                <cbc:Name>Mantenimiento de la jardinería de distintas zonas de la Base Coronel Maté</cbc:Name>
+                <cbc:TypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/ContractCode-2.08.gc">2</cbc:TypeCode>
+                <cbc:SubTypeCode listURI="http://contrataciondelestado.es/codice/cl/1.04/ServiceContractCode-1.04.gc">1</cbc:SubTypeCode>
+                <cbc:MixContractIndicator>false</cbc:MixContractIndicator>
+                <cac:BudgetAmount>
+                    <cbc:EstimatedOverallContractAmount currencyID="EUR">24793.39</cbc:EstimatedOverallContractAmount>
+                    <cbc:TotalAmount currencyID="EUR">30000</cbc:TotalAmount>
+                    <cbc:TaxExclusiveAmount currencyID="EUR">24793.39</cbc:TaxExclusiveAmount>
+                </cac:BudgetAmount>
+                <cac:RequiredCommodityClassification>
+                    <cbc:ItemClassificationCode listURI="http://contrataciondelestado.es/codice/cl/2.04/CPV2008-2.04.gc">77310000</cbc:ItemClassificationCode>
+                </cac:RequiredCommodityClassification>
+                <cac:RealizedLocation>
+                    <cbc:CountrySubentity>Comunidad de Madrid</cbc:CountrySubentity>
+                    <cbc:CountrySubentityCode listURI="http://contrataciondelestado.es/codice/cl/2.08/NUTS-2021.gc">ES30</cbc:CountrySubentityCode>
+                    <cac:Address>
+                        <cac:Country>
+                            <cbc:IdentificationCode listURI="http://contrataciondelestado.es/codice/cl/2.08/CountryIdentificationCode-2.08.gc">ES</cbc:IdentificationCode>
+                            <cbc:Name>España</cbc:Name>
+                        </cac:Country>
+                    </cac:Address>
+                </cac:RealizedLocation>
+                <cac:PlannedPeriod>
+                    <cbc:DurationMeasure unitCode="MON">12</cbc:DurationMeasure>
+                </cac:PlannedPeriod>
+            </cac:ProcurementProject>
+            <cac:TenderingTerms>
+                <cbc:RequiredCurriculaIndicator>false</cbc:RequiredCurriculaIndicator>
+                <cbc:FundingProgramCode name="No hay financiación con fondos de la UE" listURI="http://contrataciondelestado.es/codice/cl/2.08/FundingProgramCode-2.08.gc">NO-EU</cbc:FundingProgramCode>
+                <cbc:ProcurementNationalLegislationCode listURI="https://contrataciondelestado.es/codice/cl/2.08/ProcurementNationalLegislationCode-2.08.gc">3</cbc:ProcurementNationalLegislationCode>
+                <cac:ProcurementLegislationDocumentReference>
+                    <cbc:ID>N/A</cbc:ID>
+                </cac:ProcurementLegislationDocumentReference>
+                <cac:TendererQualificationRequest>
+                    <cac:SpecificTendererRequirement>
+                        <cbc:RequirementTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/DeclarationTypeCode-2.08.gc">13</cbc:RequirementTypeCode>
+                        <cbc:Description>Declaración sobre promoción e inserción laboral de personas en situación de exclusión social</cbc:Description>
+                    </cac:SpecificTendererRequirement>
+                    <cac:SpecificTendererRequirement>
+                        <cbc:RequirementTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/DeclarationTypeCode-2.08.gc">3</cbc:RequirementTypeCode>
+                        <cbc:Description>No estar incurso en incompatibilidades</cbc:Description>
+                    </cac:SpecificTendererRequirement>
+                    <cac:SpecificTendererRequirement>
+                        <cbc:RequirementTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/DeclarationTypeCode-2.08.gc">12</cbc:RequirementTypeCode>
+                        <cbc:Description>Declaración sobre personas con discapacidad</cbc:Description>
+                    </cac:SpecificTendererRequirement>
+                    <cac:SpecificTendererRequirement>
+                        <cbc:RequirementTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/DeclarationTypeCode-2.08.gc">1</cbc:RequirementTypeCode>
+                        <cbc:Description>Capacidad de obrar</cbc:Description>
+                    </cac:SpecificTendererRequirement>
+                    <cac:SpecificTendererRequirement>
+                        <cbc:RequirementTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/DeclarationTypeCode-2.08.gc">5</cbc:RequirementTypeCode>
+                        <cbc:Description>Cumplimiento con las obligaciones tributarias</cbc:Description>
+                    </cac:SpecificTendererRequirement>
+                    <cac:SpecificTendererRequirement>
+                        <cbc:RequirementTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/DeclarationTypeCode-2.08.gc">2</cbc:RequirementTypeCode>
+                        <cbc:Description>No prohibición para contratar</cbc:Description>
+                    </cac:SpecificTendererRequirement>
+                    <cac:SpecificTendererRequirement>
+                        <cbc:RequirementTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/DeclarationTypeCode-2.08.gc">4</cbc:RequirementTypeCode>
+                        <cbc:Description>Cumplimiento con las obligaciones con la Seguridad Social</cbc:Description>
+                    </cac:SpecificTendererRequirement>
+                </cac:TendererQualificationRequest>
+                <cac:AwardingTerms>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">OBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Precio</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaAutomaticallyEvaluatedSubTypeCode-2.09.gc">1</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>85</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">OBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Certificado gestión calidad UNE-EN-ISO 9001:2015 o equivalente, acorde al objeto del contrato</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaAutomaticallyEvaluatedSubTypeCode-2.09.gc">2</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>5</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">OBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Certificación de UNE-EN ISO 14001:2015 Sistemas de gestión ambiental o equivalente, acorde al objeto del contrato</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaAutomaticallyEvaluatedSubTypeCode-2.09.gc">2</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>5</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                    <cac:AwardingCriteria>
+                        <cbc:AwardingCriteriaTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.0/AwardingCriteriaCode-2.0.gc">OBJ</cbc:AwardingCriteriaTypeCode>
+                        <cbc:Description>Certificado sistema de seguridad y salud en el trabajo según especificaciones ISO 45001:2018 o equivalente y/o actualizaciones en vigor, acorde al objeto del contrato</cbc:Description>
+                        <cbc:AwardingCriteriaSubTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.09/AwardingCriteriaAutomaticallyEvaluatedSubTypeCode-2.09.gc">2</cbc:AwardingCriteriaSubTypeCode>
+                        <cbc:WeightNumeric>5</cbc:WeightNumeric>
+                    </cac:AwardingCriteria>
+                </cac:AwardingTerms>
+                <cac:TenderRecipientParty>
+                    <cbc:EndpointID>https://contrataciondelestado.es</cbc:EndpointID>
+                </cac:TenderRecipientParty>
+                <cac:Language>
+                    <cbc:ID>es</cbc:ID>
+                </cac:Language>
+            </cac:TenderingTerms>
+            <cac:TenderingProcess>
+                <cbc:ProcedureCode listURI="https://contrataciondelestado.es/codice/cl/2.07/SyndicationTenderingProcessCode-2.07.gc">9</cbc:ProcedureCode>
+                <cbc:UrgencyCode listURI="http://contrataciondelestado.es/codice/cl/1.04/DiligenceTypeCode-1.04.gc">1</cbc:UrgencyCode>
+                <cbc:ContractingSystemCode listURI="http://contrataciondelestado.es/codice/cl/2.08/ContractingSystemTypeCode-2.08.gc">0</cbc:ContractingSystemCode>
+                <cbc:SubmissionMethodCode listURI="http://contrataciondelestado.es/codice/cl/1.04/TenderDeliveryCode-1.04.gc">1</cbc:SubmissionMethodCode>
+                <cbc:OverThresholdIndicator>false</cbc:OverThresholdIndicator>
+                <cac:DocumentAvailabilityPeriod>
+                    <cbc:EndDate>2026-11-13</cbc:EndDate>
+                    <cbc:EndTime>23:59:00</cbc:EndTime>
+                </cac:DocumentAvailabilityPeriod>
+                <cac:TenderSubmissionDeadlinePeriod>
+                    <cbc:EndDate>2026-11-16</cbc:EndDate>
+                    <cbc:EndTime>13:00:00</cbc:EndTime>
+                </cac:TenderSubmissionDeadlinePeriod>
+            </cac:TenderingProcess>
+            <cac:LegalDocumentReference>
+                <cbc:ID>PCAP 1177E .pdf</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=YubAZFT9PznjTPYBrB70/2jlltoi5OGCorJh3YEWH7Wm6gRa3y77r39IufDHdzQBrIRS5gontVzykhHsordmgSUBq5DFJ8wtWK42V86xg5qCx2e6p7hqtlp2aFupgHMr</cbc:URI>
+                        <cbc:DocumentHash>hJkvdpySuh8oVMHl9bKGtTsU/P8=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:LegalDocumentReference>
+            <cac:TechnicalDocumentReference>
+                <cbc:ID>PPT JARDINERIA 2027.pdf</cbc:ID>
+                <cac:Attachment>
+                    <cac:ExternalReference>
+                        <cbc:URI>https://contrataciondelestado.es/FileSystem/servlet/GetDocumentByIdServlet?cifrado=QUC1GjXXSiLkydRHJBmbpw%3D%3D&amp;DocumentIdParam=S2TpWP5lrkMmABP7SgS73VXI/KcJEKhXU31Nh1OGfTsy81S6EyYh28j5RdDeEKz/uzl55W0/iobpMRp79QC9GxMWkMLLGrvOQunYihdW5CGHAj0WEJrB5sP7amrh2jBD</cbc:URI>
+                        <cbc:DocumentHash>Mg1uNrov9Gz1PL6z5SyuHIckhi4=</cbc:DocumentHash>
+                    </cac:ExternalReference>
+                </cac:Attachment>
+            </cac:TechnicalDocumentReference>
+            <cac-place-ext:ValidNoticeInfo>
+                <cbc-place-ext:NoticeTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.11/TenderingNoticeTypeCode-2.11.gc">DOC_CD</cbc-place-ext:NoticeTypeCode>
+                <cac-place-ext:AdditionalPublicationStatus>
+                    <cbc-place-ext:PublicationMediaName>Perfil del contratante</cbc-place-ext:PublicationMediaName>
+                    <cac-place-ext:AdditionalPublicationDocumentReference>
+                        <cbc:IssueDate>2026-10-28</cbc:IssueDate>
+                    </cac-place-ext:AdditionalPublicationDocumentReference>
+                </cac-place-ext:AdditionalPublicationStatus>
+            </cac-place-ext:ValidNoticeInfo>
+            <cac-place-ext:ValidNoticeInfo>
+                <cbc-place-ext:NoticeTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.11/TenderingNoticeTypeCode-2.11.gc">DOC_CN</cbc-place-ext:NoticeTypeCode>
+                <cac-place-ext:AdditionalPublicationStatus>
+                    <cbc-place-ext:PublicationMediaName>Perfil del contratante</cbc-place-ext:PublicationMediaName>
+                    <cac-place-ext:AdditionalPublicationDocumentReference>
+                        <cbc:IssueDate>2026-10-28</cbc:IssueDate>
+                    </cac-place-ext:AdditionalPublicationDocumentReference>
+                </cac-place-ext:AdditionalPublicationStatus>
+            </cac-place-ext:ValidNoticeInfo>
+            <cac-place-ext:GeneralDocument>
+                <cac-place-ext:GeneralDocumentDocumentReference>
+                    <cbc:ID>2026-7cd134a4-6d73-4c47-afc7-40129e6e758e</cbc:ID>
+                    <cbc:DocumentTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/GeneralContractDocuments-2.08.gc">ZZZ</cbc:DocumentTypeCode>
+                    <cac:Attachment>
+                        <cac:ExternalReference>
+                            <cbc:URI>https://contrataciondelestado.es/wps/wcm/connect/PLACE_es/Site/area/docAccCmpnt?srv=cmpnt&amp;cmpntname=GetDocumentsById&amp;source=library&amp;DocumentIdParam=2026-7cd134a4-6d73-4c47-afc7-40129e6e758e</cbc:URI>
+                            <cbc:FileName>Resolución de error material</cbc:FileName>
+                        </cac:ExternalReference>
+                    </cac:Attachment>
+                </cac-place-ext:GeneralDocumentDocumentReference>
+            </cac-place-ext:GeneralDocument>
+            <cac-place-ext:GeneralDocument>
+                <cac-place-ext:GeneralDocumentDocumentReference>
+                    <cbc:ID>2026-0eb66ca4-ed33-4991-a4bb-ee371aff6d3f</cbc:ID>
+                    <cbc:DocumentTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/GeneralContractDocuments-2.08.gc">11</cbc:DocumentTypeCode>
+                    <cac:Attachment>
+                        <cac:ExternalReference>
+                            <cbc:URI>https://contrataciondelestado.es/wps/wcm/connect/PLACE_es/Site/area/docAccCmpnt?srv=cmpnt&amp;cmpntname=GetDocumentsById&amp;source=library&amp;DocumentIdParam=2026-0eb66ca4-ed33-4991-a4bb-ee371aff6d3f</cbc:URI>
+                            <cbc:FileName>Documento de aprobación del expediente</cbc:FileName>
+                        </cac:ExternalReference>
+                    </cac:Attachment>
+                </cac-place-ext:GeneralDocumentDocumentReference>
+            </cac-place-ext:GeneralDocument>
+            <cac-place-ext:GeneralDocument>
+                <cac-place-ext:GeneralDocumentDocumentReference>
+                    <cbc:ID>2026-41abc75f-0639-4959-b446-498e96fc7c10</cbc:ID>
+                    <cbc:DocumentTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/GeneralContractDocuments-2.08.gc">10</cbc:DocumentTypeCode>
+                    <cac:Attachment>
+                        <cac:ExternalReference>
+                            <cbc:URI>https://contrataciondelestado.es/wps/wcm/connect/PLACE_es/Site/area/docAccCmpnt?srv=cmpnt&amp;cmpntname=GetDocumentsById&amp;source=library&amp;DocumentIdParam=2026-41abc75f-0639-4959-b446-498e96fc7c10</cbc:URI>
+                            <cbc:FileName>Informe de insuficiencia de medios</cbc:FileName>
+                        </cac:ExternalReference>
+                    </cac:Attachment>
+                </cac-place-ext:GeneralDocumentDocumentReference>
+            </cac-place-ext:GeneralDocument>
+            <cac-place-ext:GeneralDocument>
+                <cac-place-ext:GeneralDocumentDocumentReference>
+                    <cbc:ID>2026-07e0dd17-1a19-490f-a8e5-b3faf3b8761c</cbc:ID>
+                    <cbc:DocumentTypeCode listURI="http://contrataciondelestado.es/codice/cl/2.08/GeneralContractDocuments-2.08.gc">9</cbc:DocumentTypeCode>
+                    <cac:Attachment>
+                        <cac:ExternalReference>
+                            <cbc:URI>https://contrataciondelestado.es/wps/wcm/connect/PLACE_es/Site/area/docAccCmpnt?srv=cmpnt&amp;cmpntname=GetDocumentsById&amp;source=library&amp;DocumentIdParam=2026-07e0dd17-1a19-490f-a8e5-b3faf3b8761c</cbc:URI>
+                            <cbc:FileName>Memoria justificativa</cbc:FileName>
+                        </cac:ExternalReference>
+                    </cac:Attachment>
+                </cac-place-ext:GeneralDocumentDocumentReference>
+            </cac-place-ext:GeneralDocument>
+        </cac-place-ext:ContractFolderStatus>
+    </entry>
+</feed>

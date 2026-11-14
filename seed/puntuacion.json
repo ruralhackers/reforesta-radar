@@ -46,5 +46,28 @@
   "probabilidad": {
     "_": "Sin datos de ganadoras parecidas ni historial propio vale esto. Otro proveedor (Task 5) puede dar un valor con su explicación.",
     "valorDesconocido": 0.5
+  },
+  "licitaciones": {
+    "_": "Puntuación de las licitaciones públicas (fuente placsp, página «Licitaciones»), con sus propios factores: encaje del objeto con las líneas del perfil; escala del presupuesto base sin IVA frente a la capacidad de la entidad (máximo y volumen anual salen del perfil: licitaciones.presupuestoMaximo e ingresosAnuales); plazo de presentación de ofertas; viabilidad de la solvencia exigida; y peso del precio en la adjudicación (cuanto más pesan la memoria técnica y la calidad, mejor para una ONG). Un dato desconocido nunca cuenta como bueno: vale su valorDesconocido.",
+    "pesos": { "encaje": 30, "escala": 25, "plazo": 15, "viabilidad": 20, "precio": 10 },
+    "encaje": { "_": "Igual que en las convocatorias: subpuntuación según el nº de líneas del perfil con las que encaja el objeto del contrato.", "porLineas": [0, 0.7, 0.9, 1], "valorDesconocido": 0.3 },
+    "escala": {
+      "_": "Presupuesto base sin IVA (con varios lotes, el del lote más pequeño): hasta 'optimo' euros vale 1 (por debajo de 3.000 €, 'valorMinimo': no compensa el esfuerzo de una oferta); entre 'optimo' y el máximo del perfil baja linealmente hasta 'valorEnElMaximo'; por encima del máximo vale 0 («probablemente fuera de escala»).",
+      "optimo": 100000, "valorEnElMaximo": 0.3, "valorMinimo": 0.2, "valorDesconocido": 0.4
+    },
+    "plazo": {
+      "_": "Días que quedan para presentar la oferta (una oferta lleva memoria técnica y documentación): primer tramo cuyo hastaDias >= días que faltan; hastaDias null = el resto.",
+      "tramos": [ { "hastaDias": 2, "valor": 0.1 }, { "hastaDias": 5, "valor": 0.4 }, { "hastaDias": 10, "valor": 0.8 }, { "hastaDias": null, "valor": 1 } ],
+      "valorDesconocido": 0.4
+    },
+    "viabilidad": {
+      "_": "Volumen anual de negocio exigido dividido por los ingresos anuales de la entidad (perfil.licitaciones.ingresosAnuales): hasta 'holgado' veces vale 1; hasta 'justo', 'valorJusto'; más, 'valorExcesivo'. Si se exige clasificación empresarial, se multiplica por 'multiplicadorClasificacion'. Un contrato reservado a otro tipo de entidad vale 0 y queda excluido.",
+      "holgado": 1, "justo": 2, "valorJusto": 0.6, "valorExcesivo": 0.2, "multiplicadorClasificacion": 0.4, "valorDesconocido": 0.4
+    },
+    "precio": {
+      "_": "Puntos (sobre 100) que se dan al precio: primer tramo cuyo hastaPuntos >= los puntos del precio; hastaPuntos null = el resto. Con poco peso del precio ganan las ofertas con mejor memoria técnica, donde una ONG compite mejor.",
+      "tramos": [ { "hastaPuntos": 30, "valor": 1 }, { "hastaPuntos": 50, "valor": 0.8 }, { "hastaPuntos": 70, "valor": 0.55 }, { "hastaPuntos": null, "valor": 0.3 } ],
+      "valorDesconocido": 0.5
+    }
   }
 }

@@ -39,7 +39,8 @@
       "SANIDAD",
       "DESEMPLEO",
       "SUBVENCIONES AL TRANSPORTE"
-    ]
+    ],
+    "licitaciones": { "presupuestoMaximo": 300000, "ingresosAnuales": 105000 }
   },
   "organizacionesParecidas": [
     { "nif": "G78456118", "nombre": "GREFA" },

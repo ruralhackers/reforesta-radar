@@ -2,8 +2,12 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { leerContadores, leerNosInteresa } from './api.ts';
 import { AccesoEquipo, useSesion } from './Sesion.tsx';
 
-/** Dónde estamos: marca el enlace activo del menú. La ficha cuelga de "Esta semana". */
-const activa = (ruta: string, ahora: string) => (ruta === '/' ? ahora === '/' || ahora.startsWith('/convocatoria/') : ahora.startsWith(ruta));
+/** Dónde estamos: marca el enlace activo del menú. La ficha cuelga de "Esta semana" (la de una licitación, de "Licitaciones"). */
+const activa = (ruta: string, ahora: string) => {
+  const deLicitacion = ahora.startsWith('/convocatoria/') && decodeURIComponent(ahora).startsWith('/convocatoria/licitacion:'); // la ficha de una licitación cuelga de «Licitaciones»
+  if (ruta === '/licitaciones') return ahora.startsWith(ruta) || deLicitacion;
+  return ruta === '/' ? ahora === '/' || (ahora.startsWith('/convocatoria/') && !deLicitacion) : ahora.startsWith(ruta);
+};
 
 interface Enlace { ruta: string; texto: string; contador?: string }
 
@@ -11,6 +15,7 @@ function Menu({ ahora, cuenta }: { ahora: string; cuenta: Record<string, string 
   const puedeEditar = useSesion().puedeEditar;
   const principal: Enlace[] = [
     { ruta: '/', texto: 'Esta semana', contador: cuenta['/'] },
+    { ruta: '/licitaciones', texto: 'Licitaciones', contador: cuenta['/licitaciones'] },
     ...(puedeEditar ? [{ ruta: '/nos-interesa', texto: 'Nos interesa', contador: cuenta['/nos-interesa'] }] : []),
     { ruta: '/empresas', texto: 'Empresas', contador: cuenta['/empresas'] },
   ];
@@ -50,7 +55,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const { puedeEditar } = useSesion();
 
   useEffect(() => {
-    leerContadores().then((c) => setCuenta((x) => ({ ...x, '/': String(c.estaSemana), '/empresas': String(c.empresas) })), () => { /* sin contadores: el menú sale igual */ });
+    leerContadores().then((c) => setCuenta((x) => ({ ...x, '/': String(c.estaSemana), '/licitaciones': String(c.licitaciones), '/empresas': String(c.empresas) })), () => { /* sin contadores: el menú sale igual */ });
   }, []);
   useEffect(() => {
     if (!puedeEditar) return;

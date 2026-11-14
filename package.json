@@ -24,6 +24,8 @@
     "record:eu-cascada": "node scripts/record-eu-cascada.ts",
     "record:fundaciones": "node scripts/record-fundaciones.ts",
     "record:boe": "node scripts/record-boe.ts",
+    "record:placsp": "node scripts/record-placsp.ts",
+    "licitaciones": "node src/cli/licitaciones.ts",
     "record:huella": "node scripts/record-huella.ts",
     "backtest": "node src/cli/backtest.ts",
     "capturas": "node scripts/capturas.ts",

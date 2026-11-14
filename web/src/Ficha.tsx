@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { type CampoCitado, type DecisionEquipo, type Ficha as TFicha, type NotaEquipo, leerEquipoFicha, leerFicha } from './api.ts';
+import { type DecisionEquipo, type Ficha as TFicha, type NotaEquipo, leerEquipoFicha, leerFicha } from './api.ts';
 import { BotonesDecision, Notas } from './Decision.tsx';
 import { SeccionGanadores } from './Ganadores.tsx';
 import { SeccionSerie } from './Serie.tsx';
@@ -7,39 +7,8 @@ import { OrigenFuente, TEXTO_CASCADA, etiquetaFuente } from './Origen.tsx';
 import { SeccionPlazo, textoCierre } from './Plazo.tsx';
 import { SeccionPuntuacion } from './Puntuacion.tsx';
 import { useSesion } from './Sesion.tsx';
-
-const fecha = (dia: string) =>
-  new Date(`${dia}T12:00:00Z`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
-
-const euros = (n: number | null) => (n === null ? null : `${n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
-
-function Desconocido({ motivo }: { motivo?: string }) {
-  return <span title={motivo} className="inline-block rounded bg-fondo-suave px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-tinta-suave">desconocido</span>;
-}
-
-function Cita({ cita, documento }: { cita: string; documento: string | null }) {
-  return (
-    <blockquote className="mt-1 border-l-2 border-marca-borde pl-3 text-sm italic text-tinta-suave [overflow-wrap:anywhere]">
-      «{cita}»{documento && <span className="not-italic"> — {documento}</span>}
-    </blockquote>
-  );
-}
-
-/** Un dato del panel fijo: nombre, valor y, debajo, su cita (o "desconocido"). */
-function Dato({ nombre, valor, cita, documento, resaltar }: { nombre: string; valor: string | null; cita?: string | null; documento?: string | null; resaltar?: 'bien' | 'mal' | 'aviso' }) {
-  const color = resaltar === 'bien' ? 'text-marca-fuerte' : resaltar === 'mal' ? 'text-peligro' : resaltar === 'aviso' ? 'text-aviso' : 'text-tinta';
-  return (
-    <div className="py-3">
-      <dt className="text-xs font-medium uppercase tracking-wide text-tinta-suave">{nombre}</dt>
-      <dd className="mt-0.5">
-        {valor === null ? <Desconocido /> : <span className={`text-base font-semibold [overflow-wrap:anywhere] ${color}`}>{valor}</span>}
-        {cita && <Cita cita={cita} documento={documento ?? null} />}
-      </dd>
-    </div>
-  );
-}
-
-const citado = (c: CampoCitado | undefined) => ({ valor: c?.valor ?? null, cita: c?.cita ?? null, documento: c?.documento ?? null });
+import { Cita, citado, Dato, Desconocido, euros, fecha, TARJETA } from './ficha-comun.tsx';
+import { FichaLicitacion } from './FichaLicitacion.tsx';
 
 /** Historial de Reforesta con esta convocatoria, lo primero que se quiere saber. */
 function Historial({ ficha }: { ficha: TFicha }) {
@@ -85,8 +54,6 @@ function Enlaces({ ficha }: { ficha: TFicha }) {
   );
 }
 
-const TARJETA = 'mb-5 rounded-[var(--radio)] bg-superficie p-4 ring-1 ring-linea sm:p-5';
-
 export function Ficha({ id }: { id: string }) {
   const [ficha, setFicha] = useState<TFicha | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +72,10 @@ export function Ficha({ id }: { id: string }) {
   if (error) return <p role="alert" className="rounded-md bg-peligro-suave p-4 text-peligro">No se pudo cargar la ficha: {error}</p>;
   if (!ficha) return <p className="text-tinta-suave">Cargando…</p>;
 
-  const a = ficha.analisis?.campos;
+  if (ficha.licitacion) return <FichaLicitacion ficha={ficha} licitacion={ficha.licitacion} decision={decision} setDecision={setDecision} notas={notas} setNotas={setNotas} />;
+
+  const campos = ficha.analisis?.campos;
+  const a = campos && !('tipo' in campos) ? campos : undefined;
   const importe = a && (a.importeMaximoProyecto.valor ? { ...citado(a.importeMaximoProyecto), nombre: 'Importe máximo por proyecto' } : a.importeTotal.valor ? { ...citado(a.importeTotal), nombre: 'Importe total' } : null);
   const esfl = a?.elegibilidadEsfl;
   const sede = a?.elegibilidadSede?.valor === 'no' ? a.elegibilidadSede : null;

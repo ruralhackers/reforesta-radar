@@ -13,6 +13,9 @@ import { puntuarConvocatoria } from '../fases/puntuacion.ts';
 import { type ConfigPuntuacion, leerConfigPuntuacion, type ProveedorProbabilidad } from '../puntuacion.ts';
 import { seccionParecidas } from '../ranking.ts';
 import { calcularSemana, resumenTarjeta } from '../semana.ts';
+import { calcularLicitaciones, resumenTarjetaLicitacion } from '../licitaciones.ts';
+import { esAnalisisLicitacion } from '../fases/analisis-licitacion-esquema.ts';
+import { licitacionDe } from '../sources/placsp.ts';
 import { PROXIMAS_DIAS_POR_DEFECTO, serieDeConvocatoria, seriesProximas } from '../series.ts';
 import { tituloParaMostrar } from '../titulo.ts';
 import { infoParecidas } from '../parecidas.ts';
@@ -76,7 +79,8 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
       paraPreparar: s.paraPreparar.map((f) => f.id),
       conMenosEncaje: s.conMenosEncaje.map((f) => f.id),
       // La frase de arriba: N para preparar, M de ellas cierran en `cierranProntoDias` días o menos, K empresas nuevas en la ventana de "nuevas".
-      resumen: { paraPreparar: s.paraPreparar.length, cierranPronto: s.cierranPronto, empresasNuevas: s.empresasNuevas },
+      // `licitaciones`: las licitaciones abiertas que pasaron la criba (página /licitaciones; no están mezcladas con las convocatorias de arriba).
+      resumen: { paraPreparar: s.paraPreparar.length, cierranPronto: s.cierranPronto, empresasNuevas: s.empresasNuevas, licitaciones: calcularLicitaciones(db, reloj.now(), cfg).filas.length },
       ultimaEjecucion: ultimasEjecuciones(db, 1)[0] ?? null,
       // "Se espera que abran pronto": series (relevantes para el perfil) cuya próxima edición suele abrir en los próximos `dias` días, o que ya
       // deberían haber abierto este año (estado 'retrasada'). Cada una: { serie, titulo, estado, ventana: {desde, hasta}, prediccion: { basadaEn, texto, duracionDias, … },
@@ -88,7 +92,31 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
   /** Contadores del menú lateral (públicos): las de arriba de "Esta semana" y las empresas (sin baja confianza). */
   api.get('/contadores', (c) => {
     const s = calcularSemana(db, reloj.now(), cfg, probabilidad);
-    return c.json({ estaSemana: s.paraPreparar.length, empresas: leerEmpresas(db).length });
+    return c.json({ estaSemana: s.paraPreparar.length, empresas: leerEmpresas(db).length, licitaciones: calcularLicitaciones(db, reloj.now(), cfg).filas.length });
+  });
+
+  /**
+   * Licitaciones públicas abiertas (PLACSP) que pasaron la criba, de mejor a peor puntuación; `paraPreparar` = analizadas con puntuación >= `umbral`,
+   * `conMenosEncaje` = el resto (sin analizar, menos encaje o fuera de escala). Cada una: { id, titulo, organo, plazo, puntuacion, tarjeta: ResumenTarjetaLicitacion }.
+   * `presupuestoMaximo` = el del perfil, por encima del cual un contrato es «probablemente fuera de escala».
+   */
+  api.get('/licitaciones', (c) => {
+    const s = calcularLicitaciones(db, reloj.now(), cfg);
+    return c.json({
+      hasta: diaLocal(reloj.now()),
+      umbral: s.umbral,
+      presupuestoMaximo: s.presupuestoMaximo,
+      ingresosAnuales: s.ingresosAnuales,
+      licitaciones: s.filas.map(({ primeraVez, puntuacion, ...f }) => ({
+        ...f,
+        primeraVez,
+        puntuacion: puntuacion && { total: puntuacion.total, analizada: puntuacion.analizada, factores: puntuacion.factores, calculadoEn: puntuacion.calculadoEn },
+        tarjeta: resumenTarjetaLicitacion(db, leerConvocatoria(db, f.id)!.convocatoria),
+      })),
+      paraPreparar: s.paraPreparar.map((f) => f.id),
+      conMenosEncaje: s.conMenosEncaje.map((f) => f.id),
+      ultimaEjecucion: ultimasEjecuciones(db, 1)[0] ?? null,
+    });
   });
 
   // --- Fundaciones y agregadores vigilados ---
@@ -342,6 +370,9 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
       // Las parecidas activas relacionadas (origen del descubrimiento y/o entre los ganadores previos); null si ninguna.
       parecidas: infoParecidas(db, conv, perfil),
       enlaces: fuentePorNombre(conv.fuente, fuentes)?.enlaces?.(conv) ?? [{ tipo: 'ficha', titulo: 'Ficha en la fuente', url: conv.url }],
+      // Solo licitaciones (fuente placsp): lo que dice el anuncio de la Plataforma (expediente, órgano, presupuestos, plazo, duración, procedimiento, lotes, CPV, lugar,
+      // solvencia y criterios de adjudicación) y el resumen de la tarjeta; `analisis.campos` es entonces un AnalisisLicitacion (campos con cita). null en el resto.
+      licitacion: conv.fuente === 'placsp' && licitacionDe(conv) ? { anuncio: licitacionDe(conv), tarjeta: resumenTarjetaLicitacion(db, conv), esAnalisisLicitacion: esAnalisisLicitacion(datosAnalisis?.analisis) } : null,
     });
   });
 

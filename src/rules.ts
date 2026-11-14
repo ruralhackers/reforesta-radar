@@ -17,6 +17,23 @@ const nominativa: Regla = (c) => {
 /** Comparación de nombres de territorio: sin tildes, mayúsculas ni signos ("CASTILLA - LA MANCHA" = "Castilla-La Mancha"). */
 const clave = (s: string | null | undefined) => normalizar(s).replace(/[^A-Z0-9]+/g, ' ').trim();
 
+/**
+ * Dónde se ejecuta una licitación (códigos NUTS del lugar de ejecución) frente a las `regiones` NUTS del perfil. Un código dentro de una región admitida (o
+ * una región admitida dentro de él, p. ej. ES411 = Ávila) es 'dentro'; un código más amplio que una región admitida (ES41, Castilla y León) o sin concretar (ES,
+ * ESZZZ, vacío) es 'parcial' (la criba LLM comprueba dónde se hará); si todos están en otro sitio, 'fuera'. Una licitación de varios lugares vale si alguno está dentro.
+ */
+export function ubicacionEnAmbito(nuts: string[], p: Pick<Perfil, 'ambito'>): 'dentro' | 'parcial' | 'fuera' {
+  const regiones = p.ambito.regiones.map((r) => r.toUpperCase());
+  let parcial = nuts.length === 0;
+  for (const c0 of nuts) {
+    const c = c0.toUpperCase();
+    if (c === 'ESZZZ' || c.length < 3) { parcial = true; continue; }
+    if (regiones.some((r) => c.startsWith(r))) return 'dentro';
+    if (regiones.some((r) => r.startsWith(c))) parcial = true;
+  }
+  return parcial ? 'parcial' : 'fuera';
+}
+
 type Ambito =
   | { tipo: 'dentro' }
   | { tipo: 'parcial'; comunidad: string; provincias: string[] }
@@ -36,6 +53,12 @@ function clasificarAmbito(c: Convocatoria, p: Perfil): Ambito {
   const n1 = normalizar(nivel1);
   // Programas de la UE (fuente Funding & Tenders): sin límite territorial; si exigen entidades de ciertos países lo decide el análisis.
   if (n1 === 'UE') return { tipo: 'dentro' };
+  // Licitaciones (PLACSP): lo que cuenta es el lugar de ejecución del contrato (NUTS), no el nivel del órgano que licita.
+  if (c.fuente === 'placsp') {
+    return ubicacionEnAmbito(c.regiones, p) === 'fuera'
+      ? { tipo: 'fuera', motivo: `Licitación ejecutada fuera del ámbito de actuación (${c.regiones.join(', ')})` }
+      : { tipo: 'dentro' };
+  }
   // Fundaciones privadas y agregadores: donaciones y ayudas sin límite territorial en el sentido administrativo; lo decide la criba y el análisis por el texto.
   if (n1 === 'FUNDACION') return { tipo: 'dentro' };
   if (p.ambito.nivelesSiempre.some((n) => normalizar(n) === n1)) return { tipo: 'dentro' };
@@ -73,6 +96,12 @@ export function condicionAmbito(c: Convocatoria, p: Perfil): string | null {
   if (c.fuente === 'fundacion' || c.fuente === 'eu_cascada') {
     const donde = (p.ambito.territorios ?? []).map((t) => (t.provincias.length ? `${t.provincias.join(', ')} (${t.comunidad})` : t.comunidad)).join('; ');
     return donde ? `el proyecto debe poder ejecutarse en ${donde}; si la convocatoria o el premio se limita a otro país, continente o región, no encaja${c.fuente === 'eu_cascada' ? ' (una abierta a toda España o a toda la UE sí vale)' : ''}` : null;
+  }
+  // Licitaciones: el lugar de ejecución es solo parcial (comunidad entera sin provincia, «toda España» o sin concretar): la criba LLM comprueba dónde se hará.
+  if (c.fuente === 'placsp') {
+    if (ubicacionEnAmbito(c.regiones, p) !== 'parcial') return null;
+    const donde = (p.ambito.territorios ?? []).map((t) => (t.provincias.length ? `${t.provincias.join(', ')} (${t.comunidad})` : t.comunidad)).join('; ');
+    return donde ? `el contrato debe poder ejecutarse en ${donde}; si el lugar de ejecución es otro (otra provincia o comunidad), no encaja` : null;
   }
   const a = clasificarAmbito(c, p);
   if (a.tipo !== 'parcial') return null;

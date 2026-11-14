@@ -12,6 +12,7 @@ explicable y lo enseña en una **web** (que se puede abrir desde el primer día)
 | Canal | Fuentes |
 |---|---|
 | Subvenciones públicas | BDNS (Base de Datos Nacional de Subvenciones) y EU Funding & Tenders (LIFE, Horizon Europe, Erasmus+…) |
+| Licitaciones | Contratos públicos de servicios y obras (restauración, plantación, invasoras, charcas, educación ambiental, mantenimiento forestal) de la Plataforma de Contratación del Sector Público (PLACSP), en su propia página y puntuación |
 | Fundaciones y RSC | Páginas de convocatorias de fundaciones privadas vigiladas (Montemadrid, Repsol, Iberdrola, BBVA…; editable desde la web). Solo se llama al LLM cuando la página cambia |
 | Descubrimiento | Lo que han ganado desde 2022 organizaciones parecidas a Reforesta (GREFA, Grupo Brinzal, SEO/BirdLife…): si su serie tiene una edición nueva, entra como candidata |
 | Empresas | (1) Declaraciones de impacto ambiental del BOE que obligan a una empresa a restaurar o compensar hábitat; (2) Registro de huella de carbono del MITECO, en dos niveles: A (compensan, motivo concreto) y B (gran empresa afín de la zona, baja confianza, oculto por defecto) |
@@ -54,7 +55,7 @@ Coste del backtest completo en una pasada real: 31 llamadas a Haiku, 0,014 USD.
 ```mermaid
 flowchart LR
   subgraph Fuentes
-    B[BDNS] --- E[EU F&T] --- F[Fundaciones] --- P[Parecidas] --- O[BOE DIA + huella MITECO]
+    B[BDNS] --- E[EU F&T] --- F[Fundaciones] --- P[Parecidas] --- L[PLACSP licitaciones] --- O[BOE DIA + huella MITECO]
   end
   Fuentes --> R[Reglas en código] --> C[Criba Haiku] --> A[Análisis Sonnet con citas]
   A --> Z[Plazos + puntuación en código]
@@ -79,6 +80,7 @@ npm start                # web + API en http://127.0.0.1:8116
 npm test                 # node --test (respuestas reales grabadas de BDNS, UE, BOE, fundaciones y MITECO)
 npm run digest -- --vista-previa   # escribe data/digest-preview.html sin enviar nada
 npm run cargar -- 904719           # mete convocatorias concretas de BDNS por su número (ver abajo)
+npm run licitaciones -- --paginas 40   # relleno puntual hacia atrás del feed de licitaciones (PLACSP; ver «Fuente PLACSP»)
 ```
 
 **Cargar una convocatoria concreta.** `npm run cargar -- <numeroConvocatoria> [...]` pide a BDNS el detalle de esas convocatorias (aunque sean
@@ -141,6 +143,8 @@ claro (código 1), en vez de quitar un tope sin avisar.
 | `RADAR_DIAS_CACHE_GANADORES`, `RADAR_MAX_PETICIONES_GANADORES`, `RADAR_PAUSA_BDNS_MS` | no | `7`, `200`, `250` | Concesiones de BDNS: caché, tope de peticiones y pausa |
 | `RADAR_MAX_PETICIONES_PARECIDAS`, `RADAR_DESDE_ANIO_PARECIDAS`, `RADAR_DIAS_EDICION_PARECIDAS` | no | `100`, `2022`, `400` | Descubrimiento por parecidas |
 | `RADAR_PAUSA_FT_MS`, `RADAR_MAX_PETICIONES_FT` | no | `500`, `8` | EU Funding & Tenders |
+| `RADAR_LICITACIONES`, `RADAR_MAX_PAGINAS_PLACSP`, `RADAR_MAX_BYTES_PLACSP`, `RADAR_MAX_BYTES_TOTAL_PLACSP`, `RADAR_PAUSA_PLACSP_MS`, `RADAR_TIMEOUT_PLACSP_MS` | no | `1` (`0` apaga la fuente), `12`, `41943040`, `314572800`, `2000`, `120000` | Licitaciones (PLACSP): tope de páginas del feed por pasada (~500 entradas y ~14 MB cada una), de bytes por página y totales, pausa y tiempo máximo |
+| `RADAR_CPV_PLACSP`, `RADAR_TERMINOS_PLACSP`, `PLACSP_FILE`, `PLACSP_URL` | no | vacío, vacío, `seed/licitaciones.json`, el feed 643 | CPV y palabras extra del pre-filtro de licitaciones (separados por comas), fichero del pre-filtro y URL del feed |
 | `RADAR_PAUSA_FUNDACIONES_MS`, `RADAR_TIMEOUT_FUNDACIONES_MS`, `RADAR_MAX_BYTES_FUNDACIONES`, `RADAR_MAX_FUNDACIONES`, `RADAR_MAX_CARACTERES_FUNDACIONES` | no | `1000`, `30000`, `3145728`, `60`, `60000` | Fundaciones vigiladas |
 | `RADAR_DIAS_DIA_BOE`, `RADAR_MAX_DIA_BOE`, `RADAR_PAUSA_BOE_MS`, `RADAR_MAX_CARACTERES_DIA_BOE` | no | `60`, `40`, `300`, `150000` | Empresas desde las DIA del BOE |
 | `RADAR_MAX_HUELLA`, `RADAR_SECTORES_HUELLA`, `RADAR_ANIOS_HUELLA`, `RADAR_TIMEOUT_HUELLA_MS` | no | `50`, `B,D,E,F,G,H`, `3`, `60000` | Registro de huella de carbono |
@@ -218,7 +222,8 @@ Todo lo específico de Reforesta está en `seed/`, no en el código:
   provincias o con alguna de las `regiones` NUTS (las provincias y Madrid, que BDNS filtra por código). El prompt dice «El proyecto debe ejecutarse
   en: …» con esa lista, que se edita en la página Perfil. Los perfiles guardados antes (sin `territorios`) los reciben de la semilla al arrancar,
   y las reglas se reaplican a todo lo guardado en cada pasada, así que un cambio de ámbito alcanza también a lo que las fuentes ya no devuelven.
-- `seed/puntuacion.json`: pesos y umbrales de la puntuación (el campo `_` lo documenta), y `consorcio` (ver «Puntuación y ranking»).
+- `seed/puntuacion.json`: pesos y umbrales de la puntuación (el campo `_` lo documenta), `consorcio` (ver «Puntuación y ranking») y `licitaciones` (puntuación de los contratos públicos).
+- `seed/licitaciones.json`: CPV y palabras del título del pre-filtro de licitaciones; `perfil.licitaciones` (`presupuestoMaximo` e `ingresosAnuales`) fija lo que la entidad puede asumir como contrato.
 - `seed/festivos.json`: festivos nacionales y autonómicos para contar días hábiles (añade el año o la región que falte).
 - `seed/backtest.json`: se regenera con `npm run backtest`. Las convocatorias conocidas del conjunto (a) están en `src/backtest/conjuntos.ts`:
   sustitúyelas por las vuestras.
@@ -239,6 +244,8 @@ una pasada.
   La lista de la semilla es corta: hay que ir ampliándola desde la web.
 - **Empresas**: las DIA dan un motivo verificable pero no un contacto; no se guardan personas ni se leen webs de RSC. El nivel B de la
   huella es de baja confianza.
+- **Licitaciones**: el feed de PLACSP son ~14 MB por página y la primera carga solo cubre unas 2 jornadas (`npm run licitaciones` rellena más atrás); las plataformas agregadas (certificado de cliente) no se leen; los PDF de los
+  pliegos los rechaza a veces el cortafuegos de la Plataforma («Request Rejected») y entonces el análisis usa solo el anuncio del feed; una licitación anulada o adjudicada sigue guardada hasta que pasa su plazo.
 - **No redacta propuestas ni presenta solicitudes.** Tampoco gestiona sedes electrónicas.
 - **SSRF**: las descargas validan DNS y redirecciones, pero queda el DNS rebinding entre la resolución y la conexión.
 - **Un único usuario "equipo"**: no hay cuentas individuales (las notas llevan un autor opcional).
@@ -426,6 +433,64 @@ fundaciones: la criba Haiku descarta las limitadas a otra región), con un crite
 Van en el ranking PRINCIPAL (`esConsorcio` solo mira `eu_ft`), con el chip «UE · en cascada» y la frase «Convocatoria de un proyecto europeo para terceros: no hace
 falta consorcio» en tarjeta y ficha. Cortesía: `RADAR_PAUSA_CASCADA_MS` (500) y `RADAR_MAX_PETICIONES_CASCADA` (4); un fallo de la fuente queda en el registro y no
 afecta a las demás. Grabaciones de los tests: `npm run record:eu-cascada` (en `test/fixtures/eu-ft`).
+
+### Fuente PLACSP (licitaciones)
+
+Contratos públicos de **servicios y obras** que la entidad podría ejecutar (restauración, plantación, control de invasoras, charcas y humedales, educación ambiental y voluntariado, mantenimiento forestal).
+Fuente `placsp`, tipo `licitacion`, id `licitacion:<número de la entrada>` (el expediente no es único entre órganos y va en los datos). **No se mezclan con las convocatorias**: tienen su página
+(`/licitaciones`, en el menú con contador), su puntuación y su ficha; no salen en «Esta semana» ni en el correo del lunes (las consultas de ranking excluyen `fuente = 'placsp'`;
+«Esta semana» solo añade una línea «N licitaciones abiertas que encajan» que enlaza a la página).
+
+**Feed (verificado en vivo, 2026-11-14).** Sindicación ATOM de datos abiertos de la Plataforma: `https://contrataciondelestado.es/sindicacion/sindicacion_643/licitacionesPerfilesContratanteCompleto3.atom`
+(«Licitaciones publicadas en la Plataforma», perfiles de contratante, formato CODICE/UBL «Completo v3»; `PLACSP_URL` lo cambia). Las licitaciones de **plataformas agregadas** (`sindicacion_1044`…)
+piden certificado de cliente y responden «Su certificado no está autorizado»: no se pueden leer. El feed se pagina hacia atrás: la primera página es el propio `.atom` y `<link rel="next">` lleva a la
+anterior en el tiempo (`…_20261113_202142.atom`, `…_1.atom`, `…_2.atom`…). **Cada página trae ~500 entradas y pesa ~14 MB** (todas las versiones de las licitaciones tocadas en esas horas: ~1 hora en el pico,
+~6 h de tarde; un día laborable son ~6 páginas). Cada entrada es una licitación con su estado (`ContractFolderStatusCode`: PRE anuncio previo, **PUB en plazo**, EV pendiente de adjudicación, ADJ, RES, ANUL),
+CPV (también los de los lotes), lugar de ejecución (NUTS), presupuesto (`TaxExclusiveAmount` = base **sin IVA**; `EstimatedOverallContractAmount` = valor estimado; `TotalAmount` = con IVA), plazo de ofertas
+(`TenderSubmissionDeadlinePeriod`), procedimiento, lotes, solvencia económica y técnica, criterios de adjudicación con su peso y los enlaces a los pliegos (`GetDocumentByIdServlet`). Se parsea con un lector XML mínimo
+(`parsearXml`, sin dependencias nuevas) entrada a entrada: solo se parsean las que están en estado PUB.
+
+**Paginación, cursor y topes** (`RADAR_MAX_PAGINAS_PLACSP` 12, `RADAR_MAX_BYTES_PLACSP` 40 MB por página, `RADAR_MAX_BYTES_TOTAL_PLACSP` 300 MB, `RADAR_PAUSA_PLACSP_MS` 2000, `RADAR_TIMEOUT_PLACSP_MS` 120000).
+La pasada diaria pagina hacia atrás **solo hasta la última entrada ya leída**: el cursor (la actualización más reciente leída, tabla `fuente_estado`) se guarda al terminar, y la pasada siguiente para en la página donde aparece
+algo ya visto (y no pide más). Sin cursor (primera vez), para a los `LOOKBACK_DAYS` días. Con 12 páginas la primera carga cubre unas 2 jornadas laborables; si se queda corta, avisa («quedan entradas sin leer»).
+Los bytes se leen por streaming con la descarga segura (`fetchSeguro`, sin DNS propio salvo el real) y se aborta al pasar el tope; el enlace `next` sale de datos y solo se sigue si es de `contrataciondelestado.es`
+y de `/sindicacion/`. Un fallo de la primera página falla la fuente (aislado de las demás); uno posterior deja lo ya leído y queda en los errores. **Nunca se bajan los ZIP mensuales** (cientos de MB):
+para rellenar hacia atrás una vez, `npm run licitaciones -- --paginas N` (por defecto 40, ~560 MB, tope 150; sin cursor, sin LLM: guarda lo que pasa el pre-filtro y luego `npm run radar` lo criba).
+`RADAR_LICITACIONES=0` apaga la fuente. Las entradas de `at:deleted-entry` (anuladas) se ignoran: una licitación que ya no se puede ofertar sale del ranking al pasar su plazo.
+
+**Pre-filtro en código** (`seed/licitaciones.json`, documentado dentro; `RADAR_CPV_PLACSP` y `RADAR_TERMINOS_PLACSP` añaden CPV y palabras separados por comas). Lo que no pasa **no se guarda**; el recuento
+(entradas leídas, en plazo, con plazo vigente, que pasan el tema, en territorio) queda en los avisos de la fuente (`/api/ejecuciones` y el log). Pasa si: (1) estado **PUB** y plazo de ofertas de hoy o posterior;
+(2) **servicios u obras** (no suministros, concesiones ni contratos privados o patrimoniales); (3) **tema**: algún CPV de la lista (prefijo sin ceros finales: 77200000 = 772) o una palabra del título (o de un lote)
+sin tildes y por comienzo de palabra (`$` al final = palabra entera); (4) **territorio**: el NUTS del lugar de ejecución frente a `ambito.regiones` del perfil (`ubicacionEnAmbito`: «dentro», «parcial» o «fuera»;
+un código más amplio que la región, como ES41 Castilla y León, o sin concretar —ES, ESZZZ— pasa **condicionado** y la criba LLM comprueba dónde se hará). Los CPV están verificados contra el CPV 2008 de la propia
+Plataforma (`/codice/cl/2.04/CPV2008-2.04.gc`): forestales 77200000, hortícolas 77300000, protección ambiental 90720000, planificación y asesoramiento ambiental 90712000/90713000, reservas y vida silvestre 92530000,
+formación ambiental 80540000, arquitectura paisajística 71420000, paisajismo 45112700, recuperación del suelo 45112320/45112330/45112360, riberas 45246200, mantenimiento y siembra de árboles 77211500/77211600.
+La formación general (80500000, 80510000, 80530000: casi todo informática e idiomas) no entra por CPV, solo por palabras («educación ambiental», «voluntariado»…).
+
+**Criba (Haiku)** con un criterio propio (`criterioLicitacion` en `src/llm/prompts.ts`; el prompt de las convocatorias no cambia): ¿es un contrato de servicio u obra que una ONG de ese tamaño puede ejecutar y acreditar?
+(1) el **objeto** (no el CPV) es una línea del perfil (jardinería y paisajismo solo si planta, restaura o mejora hábitat; no el mantenimiento rutinario ni la poda urbana); (2) **escala**: presupuesto base sin IVA por
+debajo de `perfil.licitaciones.presupuestoMaximo` (300.000 € por defecto; con lotes, vale que uno quede por debajo): si lo supera, descarta con el motivo «Probablemente fuera de escala: …»; (3) territorio (la condición
+de ámbito). Los textos que ve la criba son el anuncio entero del feed en texto plano (`fichaLicitacion`: presupuestos, plazo, lugar, CPV, lotes, solvencia, criterios).
+
+**Análisis (Sonnet)** propio (`promptAnalisisLicitacion`, `analisis-licitacion-esquema.ts`; el veredicto se guarda en la fase `analisis` con `analisis.tipo = 'licitacion'`, el registro de la ejecución se llama
+`analisis_licitaciones`): lee el anuncio y, si la Plataforma los deja bajar, los PDF de los pliegos (PCAP y PPT, con la descarga segura y la caché por hash) y extrae, cada uno con **cita literal comprobada por el
+código** (o «desconocido»): presupuesto base sin IVA, plazo de presentación, duración, lotes, solvencia económica y técnica, clasificación empresarial, **peso del precio y de lo técnico** (puntos sobre 100),
+**reserva social** (centros especiales de empleo, empresas de inserción: si la entidad no es de ese tipo, se descarta) y requisitos; más líneas, idea de oferta y título corto. Comparte el tope de análisis y el
+presupuesto de LLM con las convocatorias: va **antes** (su plazo corre) y gasta del mismo `RADAR_MAX_ANALISIS`. **Limitación comprobada (2026-11-14):** la Plataforma responde a la descarga automática de los pliegos
+con una página «Request Rejected» (HTTP 200, cortafuegos), no con el PDF; el radar la reconoce, la anota («No se pudieron leer los pliegos») y analiza con el anuncio estructurado del feed, que ya trae solvencia,
+criterios, lotes y presupuestos. No se intenta esquivar el cortafuegos.
+
+**Puntuación propia** (`licitaciones` en `seed/puntuacion.json`; sin esa sección valen los valores por defecto del código): `encaje` 30 (líneas con las que encaja el objeto), `escala` 25 (presupuesto base sin IVA, con lotes
+el del lote más pequeño: hasta 100.000 € vale 1; hasta el máximo del perfil baja hasta 0,3; por encima, 0 y «probablemente fuera de escala»), `plazo` 15 (días para presentar la oferta: ≤ 2 días 0,1; ≤ 5, 0,4; ≤ 10, 0,8),
+`viabilidad` 20 (volumen de negocio exigido ÷ ingresos anuales del perfil, `licitaciones.ingresosAnuales` 105.000 €: hasta 1 vez vale 1; hasta 2, 0,6; más, 0,2; con clasificación empresarial se multiplica por 0,4; solo
+cuentan importes con € o «euros»; reserva social = 0 y excluida) y `precio` 10 (puntos del precio: ≤ 30 vale 1; ≤ 50, 0,8; ≤ 70, 0,55; más, 0,3; sale del análisis con cita o, sin él, de los criterios del anuncio). Un dato
+desconocido vale su `valorDesconocido`. Excluidas: reserva social y plazo de ofertas cerrado. La página «para preparar» son las **analizadas** con puntuación ≥ el umbral del perfil; el resto (sin analizar, menos encaje,
+fuera de escala) va plegado.
+
+**Producto.** `GET /api/licitaciones` (`{ umbral, presupuestoMaximo, ingresosAnuales, licitaciones[], paraPreparar[], conMenosEncaje[] }`; cada una con `plazo`, `puntuacion` y `tarjeta`: presupuesto, lotes,
+solvencia, porQué, fuera de escala), el contador `licitaciones` en `/api/contadores`, `resumen.licitaciones` en `/api/semana` y, en `/api/convocatorias/:id`, el bloque `licitacion` (anuncio completo + tarjeta) con
+`analisis.campos` de tipo licitación. Las decisiones del equipo (nos interesa / descartar) son las mismas que en las convocatorias (`/api/decisiones/:id`; salen en «Nos interesa»). La ficha reutiliza el marco de dos
+columnas con los datos de un contrato. Tests: `test/licitaciones.test.ts` (entradas ATOM reales grabadas en `test/fixtures/placsp`, `npm run record:placsp`).
 
 ### Fundaciones privadas vigiladas
 

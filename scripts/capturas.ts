@@ -85,6 +85,7 @@ try {
         await pagina.locator('tbody button[aria-expanded]').first().click();
         await pagina.waitForSelector('tbody blockquote');
       });
+      await foto('/licitaciones', 'licitaciones');
       await foto('/perfil', 'perfil');
       await foto('/como-sabemos', 'como-sabemos');
       await pagina.context().close();
@@ -105,6 +106,25 @@ try {
       const fichero = join(SALIDA, `se-espera-que-abran-pronto-demo-${v.nombre}.png`);
       await pagina.locator('details#proximas').screenshot({ path: fichero });
       console.log(fichero);
+      await pagina.context().close();
+    }
+    // «Licitaciones»: con los datos de hoy la criba descarta las pocas que pasan el pre-filtro (ninguna es de restauración), así que la página real sale con su
+    // mensaje de vacío. La captura de DEMOSTRACIÓN se hace sobre la COPIA de la BD: se da por buena la criba de dos licitaciones reales de Madrid (el bike park
+    // de Paracuellos de Jarama y el acuerdo marco del distrito de Salamanca) para ver las tarjetas y la ficha; no son encajes reales.
+    const copia2 = new DatabaseSync(bd);
+    try {
+      copia2.exec("UPDATE convocatoria_fases SET descarta = 0 WHERE fase = 'criba_llm' AND convocatoria_id IN ('licitacion:20867623', 'licitacion:20545209')");
+    } finally { copia2.close(); }
+    for (const v of VISTAS) {
+      const pagina = await (await navegador.newContext({ viewport: { width: v.ancho, height: v.alto }, locale: 'es-ES', timezoneId: 'Europe/Madrid' })).newPage();
+      for (const [ruta, nombre] of [['/licitaciones', 'licitaciones-demo'], [`/convocatoria/${encodeURIComponent('licitacion:20867623')}`, 'ficha-licitacion-demo']] as const) {
+        await pagina.goto(`${BASE}${ruta}`, { waitUntil: 'networkidle' });
+        await pagina.waitForSelector('main h1');
+        await pagina.waitForFunction(() => !document.querySelector('main')?.textContent?.includes('Cargando…'));
+        const fichero = join(SALIDA, `${nombre}-${v.nombre}.png`);
+        await pagina.screenshot({ path: fichero, fullPage: true });
+        console.log(fichero);
+      }
       await pagina.context().close();
     }
   } finally {

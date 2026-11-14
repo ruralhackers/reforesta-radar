@@ -8,7 +8,7 @@ funciones y tablas usan estas mismas palabras.
 - **Convocatoria**: una ayuda, subvención o premio al que la organización podría presentarse. Id con prefijo de su fuente:
   `bdns:<número>`, `ft:<topic>` (UE), `cascada:<id>` (UE en cascada), `fund:<host>:<hash>` (fundación). Tabla `convocatorias`.
 - **Fuente**: de dónde sale una convocatoria: BDNS (subvenciones públicas españolas), EU Funding & Tenders (`eu_ft`), convocatorias en cascada de la UE (`eu_cascada`), fundaciones
-  vigiladas (`fundacion`). Cada una implementa `Fuente` (`src/sources/`).
+  vigiladas (`fundacion`), licitaciones públicas de PLACSP (`placsp`, ver [Licitaciones](#licitaciones)). Cada una implementa `Fuente` (`src/sources/`).
 - **BDNS**: Base de Datos Nacional de Subvenciones. Publica convocatorias y, desde 2022, sus **concesiones** (quién ganó y cuánto).
 - **ESFL**: entidad sin fines (ánimo) de lucro: asociación, fundación, ONG. "Admite ESFL" = puede ser beneficiaria.
 - **Pasada / ejecución**: una vuelta completa del radar (`npm run radar`): fuentes → reglas → criba → ganadores → análisis → plazos →
@@ -41,10 +41,29 @@ funciones y tablas usan estas mismas palabras.
 - **Plazo**: fecha de cierre **literal** (la da la fuente), **calculada** (a partir de un texto como "15 días hábiles desde la publicación
   del extracto", con festivos) o **desconocida** (se muestra el texto original).
 
+## Licitaciones
+
+- **Licitación**: un contrato público de servicios u obras al que la entidad podría presentar oferta como adjudicataria (restauración, plantación, control de invasoras, charcas y humedales, educación ambiental y
+  voluntariado, mantenimiento forestal). No es una subvención: tiene su página («Licitaciones»), su contador y su puntuación, y no se mezcla con las convocatorias de «Esta semana». Se guarda en la tabla
+  `convocatorias` con fuente `placsp`, tipo `licitacion` e id `licitacion:<número de la entrada del feed>` (el expediente va en los datos: no es único entre órganos).
+- **PLACSP**: Plataforma de Contratación del Sector Público. Su sindicación ATOM de datos abiertos (licitaciones de perfiles de contratante, formato CODICE) es la fuente `placsp` (`src/sources/placsp.ts`).
+- **CPV**: vocabulario común de contratos públicos (p. ej. 77310000 plantación y mantenimiento de zonas verdes). El pre-filtro usa prefijos sin los ceros finales (`seed/licitaciones.json`).
+- **Pre-filtro de licitaciones**: descarte en código, antes de guardar nada: estado «en plazo» (PUB), plazo de ofertas vigente, servicios u obras (no suministros ni concesiones), tema (un CPV de la lista o una palabra en el título) y
+  lugar de ejecución (NUTS) dentro de los territorios del perfil. Lo que no pasa no se guarda; el recuento queda en los avisos de la fuente.
+- **Cursor del feed**: la actualización más reciente ya leída del feed de PLACSP (tabla `fuente_estado`). La pasada diaria pagina hacia atrás solo hasta ahí, con tope de páginas y de bytes. `npm run licitaciones` rellena hacia atrás una vez.
+- **Presupuesto base de licitación (sin IVA)**: lo que el órgano está dispuesto a pagar sin IVA; no es el **valor estimado** (con prórrogas y modificaciones). Con lotes, cuenta el del lote más pequeño (se puede ofertar a uno).
+- **Probablemente fuera de escala**: presupuesto base sin IVA por encima del máximo del perfil (`licitaciones.presupuestoMaximo`, 300.000 € por defecto, unas 3 veces los ingresos anuales por servicios). La criba lo descarta con ese motivo
+  y, si pasa por lotes, la puntuación de escala vale 0.
+- **Solvencia**: lo que el pliego exige para poder licitar: **económica** (volumen anual de negocio mínimo) y **técnica** (trabajos similares, medios). Se compara con los ingresos anuales del perfil (`licitaciones.ingresosAnuales`).
+- **Reserva social**: contrato reservado a centros especiales de empleo de iniciativa social, empresas de inserción u otras entidades de economía social. Si la entidad no es de ese tipo, el análisis descarta la licitación.
+- **PCAP / PPT**: pliego de cláusulas administrativas particulares y pliego de prescripciones técnicas, los PDF que el análisis lee (la Plataforma los rechaza a veces con «Request Rejected»: el análisis sigue con el anuncio).
+
 ## Puntuación y ranking
 
 - **Puntuación**: 0–100, suma ponderada de cinco **factores** (encaje, importe, cierre, esfuerzo, probabilidad), cada uno con su
   explicación. Un dato desconocido nunca cuenta como bueno. Pesos en `seed/puntuacion.json`.
+- **Puntuación de licitación**: 0–100 con otros cinco factores (`licitaciones` en `seed/puntuacion.json`): encaje del objeto con las líneas, escala del presupuesto, plazo de ofertas, viabilidad de la solvencia y peso del
+  precio en la adjudicación (cuanto más pesan la memoria técnica y la calidad, mejor para una ONG).
 - **Excluida**: no entra en el ranking aunque esté en juego: no admite ESFL, cerrada, o plazo desconocido tras 60 días.
 - **Esta semana**: el ranking, en tres **secciones** excluyentes: cierran pronto, nuevas y abiertas; más la lista paralela "las ganan
   organizaciones como vosotros".

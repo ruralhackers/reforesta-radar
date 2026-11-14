@@ -1,0 +1,17 @@
+{
+  "_": "Pre-filtro de la fuente 'placsp' (licitaciones de la Plataforma de Contratación del Sector Público; src/sources/placsp.ts). Una licitación pasa si tiene un CPV de 'cpv' o una palabra de 'palabras' en el título (o en el de un lote); y además está en plazo (estado PUB, plazo de ofertas de hoy o posterior) y se ejecuta dentro de los territorios del perfil. Un CPV es un prefijo: se le quitan los ceros finales (77200000 = 772, que cubre 77200000-77299999). Códigos verificados contra el CPV 2008 de la propia Plataforma (contrataciondelestado.es/codice/cl/2.04/CPV2008-2.04.gc). Los CPV de formación general (80500000, 80510000, 80530000: casi todo es informática o idiomas) no están a propósito: la formación ambiental entra por 80540000 o por las palabras. Las palabras se comparan sin tildes ni mayúsculas, por comienzo de palabra; con '$' al final, palabra entera. Se amplían con RADAR_CPV_PLACSP y RADAR_TERMINOS_PLACSP (separados por comas).",
+  "cpv": [
+    "77200000", "77300000", "77211500", "77211600",
+    "90720000", "90712000", "90713000",
+    "92530000", "80540000", "71420000", "45112700", "45112320", "45112330", "45112360", "45246200"
+  ],
+  "_cpv": "77200000 servicios forestales y silvicultura (77231600 repoblación forestal); 77300000 servicios hortícolas: plantación y mantenimiento de zonas verdes (77310000), desbrozo (77312000), parques (77313000), poda (77340000); 77211500/77211600 mantenimiento y siembra de árboles; 90720000 protección del medio ambiente (90721700 protección de especies en peligro, 90722000 rehabilitación medioambiental, 90722300 recuperación del suelo); 90712000 planificación medioambiental (90712200 estrategia de conservación forestal); 90713000 asesoramiento ambiental; 92530000 jardines botánicos y reservas naturales (92533000 reservas naturales, 92534000 preservación de la vida silvestre); 80540000 formación en materia ambiental; 71420000 arquitectura paisajística (71421000 jardinería paisajística); 45112700 paisajismo; 45112320/45112330/45112360 recuperación y rehabilitación del suelo y del terreno; 45246200 protección de riberas fluviales.",
+  "palabras": [
+    "restauracion ambiental", "restauracion ecologic", "restauracion forestal", "restauracion fluvial", "restauracion hidrologic", "restauracion paisajistic",
+    "restauracion de riber", "restauracion de humedal", "restauracion de ecosistema", "restauracion de habitat", "restauracion de zonas degradadas", "restauracion de cauces",
+    "regeneracion ambiental", "revegetacion", "plantacion", "reforestacion", "repoblacion", "forestacion", "arbol", "invasora", "exotica", "ailanto",
+    "humedal", "charca", "educacion ambiental", "sensibilizacion ambiental", "voluntariado", "interpretacion ambiental", "sendero", "senda$", "ribera",
+    "biodiversidad", "fauna", "anfibio", "monte$", "forestal", "selvicol", "silvicult", "desbroce", "renaturaliz", "infraestructura verde",
+    "corredor verde", "corredores ecologicos", "conservacion de la naturaleza", "espacios naturales", "agroambiental", "custodia del territorio"
+  ]
+}

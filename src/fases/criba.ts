@@ -48,7 +48,7 @@ export async function cribarConLlm(
   const pendientes = pendientesDeFase(ctx.db, FASE_CRIBA, publicadasDesde, null, { incluirIds: ctx.incluirIds, soloIncluidas: ctx.soloIncluidas, maxIntentos: ctx.maxIntentos });
   await enParalelo(pendientes, EN_PARALELO, async ({ convocatoria: c, condicion }) => {
     try {
-      const peticion = peticionCriba(perfil, c, condicion, modelo, ctx.ejemplos, fuentes);
+      const peticion = peticionCriba(perfil, c, condicion, modelo, c.fuente === 'placsp' ? ctx.ejemplosLicitaciones : ctx.ejemplos, fuentes);
       const clave = claveCache(peticion);
       const r = desdeCache(ctx.db, clave) ?? (await llamar(ctx, registro, peticion));
       if (r.desdeCache) registro.desdeCache++;

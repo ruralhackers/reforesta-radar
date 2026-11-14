@@ -52,6 +52,33 @@ export async function claveSedia(url: string, init?: RequestInit): Promise<strin
   return `sedia_p${u.searchParams.get('pageNumber')}_${hash}.json`;
 }
 
+/** Respuestas reales del feed ATOM de licitaciones (PLACSP) grabadas en test/fixtures/placsp (ver scripts/record-placsp.ts). */
+export const DIR_PLACSP = join(import.meta.dirname, '..', 'fixtures', 'placsp');
+export const URL_FEED_PLACSP = 'https://contrataciondelestado.es/sindicacion/sindicacion_643/licitacionesPerfilesContratanteCompleto3.atom';
+export const URL_PAGINA_2_PLACSP = 'https://contrataciondelestado.es/sindicacion/sindicacion_643/licitacionesPerfilesContratanteCompleto3_20261113_202142.atom';
+/** Reloj con el que se grabó el feed: las entradas tienen plazos de ofertas a partir del 13/11/2026. */
+export const AHORA_PLACSP = new Date('2026-11-13T09:00:00Z');
+export const RECHAZO_PLACSP = "<html><head><title>Request Rejected</title></head><body>The requested URL was rejected. Please consult with your administrator.<br><br>Your support ID is: <12205169783244316605><br><br><a href='javascript:history.back();'>[Go Back]</body></html>";
+export const FEED_VACIO = '<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.org/2005/Atom"><title>vacío</title></feed>';
+
+/**
+ * Fetch falso del feed de licitaciones: sirve las dos páginas grabadas (la del feed y la de su enlace `next`) y apunta cada URL pedida en `peticiones`.
+ * `paginas` sustituye el contenido de una de ellas (p. ej. para añadir una entrada más reciente).
+ */
+export function fetchPlacsp(peticiones: string[] = [], paginas: { 1?: string; 2?: string } = {}): typeof fetch {
+  return (async (entrada: string | URL | Request) => {
+    const url = entrada instanceof Request ? entrada.url : String(entrada);
+    peticiones.push(url);
+    // Los pliegos (GetDocumentByIdServlet): la Plataforma rechazó la descarga automática con esta página (HTTP 200), grabada tal cual.
+    if (new URL(url).pathname.startsWith('/FileSystem/')) return new Response(RECHAZO_PLACSP, { status: 200, headers: { 'Content-Type': 'text/html' } });
+    const cuerpo = url === URL_FEED_PLACSP ? (paginas[1] ?? readFileSync(join(DIR_PLACSP, 'pagina_1.atom'), 'utf8'))
+      : url === URL_PAGINA_2_PLACSP ? (paginas[2] ?? readFileSync(join(DIR_PLACSP, 'pagina_2.atom'), 'utf8'))
+      : null;
+    if (cuerpo === null) throw new Error(`Sin grabación del feed de licitaciones para ${url}`);
+    return new Response(cuerpo, { status: 200, headers: { 'Content-Type': 'application/atom+xml' } });
+  }) as typeof fetch;
+}
+
 const paginaVacia = () => new Response(JSON.stringify({ content: [], last: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
 /** ¿Es una consulta de la fase de ganadores (concesiones o búsqueda de ediciones por título)? */
@@ -68,6 +95,8 @@ export function esConsultaDeGanadores(url: string): boolean {
 export function fetchGrabado({ concesiones = false, euFt = false, euCascada = false }: { concesiones?: boolean; euFt?: boolean; euCascada?: boolean } = {}): typeof fetch {
   return (async (entrada: string | URL | Request, init?: RequestInit) => {
     const url = entrada instanceof Request ? entrada.url : String(entrada);
+    // Licitaciones (PLACSP): un feed ATOM sin entradas (los tests de las demás fuentes no dependen de ella; las suyas usan `fetchPlacsp`).
+    if (new URL(url).host === 'contrataciondelestado.es' && new URL(url).pathname.startsWith('/sindicacion/')) return new Response(FEED_VACIO, { status: 200, headers: { 'Content-Type': 'application/atom+xml' } });
     if (esSedia(url)) {
       // EU Funding & Tenders: sin `euFt`, una página vacía (los tests de BDNS no dependen de esta fuente).
       // Las convocatorias en cascada (type 8) las sirve `euCascada`; el resto de la API SEDIA, `euFt`.

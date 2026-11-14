@@ -6,7 +6,7 @@ import {
   type ContadoresFuente, empezarEjecucion, empezarFuente, guardarConvocatoria, guardarRegistroFase, leerPerfil, reaplicarReglas,
   type RegistroFase, registroFaseVacio, terminarEjecucion, terminarFuente, transaccion, abortarEjecucionesColgadas,
 } from './db/repo.ts';
-import { analizarConLlm, FASE_ANALISIS } from './fases/analisis.ts';
+import { analizarConLlm, analizarLicitaciones, FASE_ANALISIS } from './fases/analisis.ts';
 import { cribarConLlm, FASE_CRIBA } from './fases/criba.ts';
 import { rellenarTitulosCortos } from './fases/titulos.ts';
 import { CONFIG_HUELLA_POR_DEFECTO, type ConfigHuella, recogerEmpresasHuella, type ResumenHuella } from './fases/huella.ts';
@@ -264,17 +264,21 @@ async function fasesLlm(
     const ctx = {
       db: deps.db, llm: deps.llm, reloj: deps.reloj, fetch: deps.fetch, resolver: deps.resolver, maxIntentos: cfg.maxIntentos, incluirIds, soloIncluidas,
       ejemplos: ejemplosDecisiones(deps.db, deps.maxEjemplosDecisiones ?? config.decisiones.maxEjemplos),
+      ejemplosLicitaciones: ejemplosDecisiones(deps.db, deps.maxEjemplosDecisiones ?? config.decisiones.maxEjemplos, true),
     };
     const publicadasDesde = sumarDias(diaLocal(inicio), -(cfg.diasPendientes - 1));
     const criba = await cribarConLlm(ctx, perfil, cfg.modeloCriba, publicadasDesde, deps.fuentes);
     guardarRegistroFase(deps.db, ejecucionId, criba);
     await entreCribaYAnalisis();
-    const analisis = await analizarConLlm(ctx, perfil, cfg.modeloAnalisis, cfg.maxAnalisis, publicadasDesde, deps.fuentes, cfg.maxCaracteresAnalisis);
+    // Las licitaciones se analizan antes (su plazo corre) y gastan del mismo tope de análisis que las convocatorias.
+    const licitaciones = await analizarLicitaciones(ctx, perfil, cfg.modeloAnalisis, cfg.maxAnalisis, publicadasDesde, deps.fuentes, cfg.maxCaracteresAnalisis);
+    const analisis = await analizarConLlm(ctx, perfil, cfg.modeloAnalisis, Math.max(0, cfg.maxAnalisis - licitaciones.llamadas), publicadasDesde, deps.fuentes, cfg.maxCaracteresAnalisis);
     // Títulos cortos de lo ya analizado que no los tiene (analizado antes de que el análisis los pidiera): Haiku con solo el título oficial.
     const titulos = await rellenarTitulosCortos(ctx, cfg.modeloCriba);
     // Solo consta en el registro si hizo algo (casi siempre no hay nada que rellenar).
     const hizoAlgo = titulos.procesadas + titulos.llamadas + titulos.omitidasPorTope + titulos.errores.length > 0;
-    fases = hizoAlgo ? [criba, analisis, titulos] : [criba, analisis];
+    const huboLicitaciones = licitaciones.procesadas + licitaciones.llamadas + licitaciones.desdeCache + licitaciones.omitidasPorTope + licitaciones.errores.length + licitaciones.avisos.length > 0;
+    fases = [criba, ...(huboLicitaciones ? [licitaciones] : []), analisis, ...(hizoAlgo ? [titulos] : [])];
   }
   for (const f of fases) {
     guardarRegistroFase(deps.db, ejecucionId, f);

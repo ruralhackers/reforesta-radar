@@ -158,7 +158,7 @@ export function candidatasEntre(db: DatabaseSync, desde: string, hasta: string):
   const filas = db.prepare(`
     SELECT id, fuente, titulo, organo_nivel1, organo_nivel2, organo_nivel3, fecha_publicacion, url
     FROM convocatorias c
-    WHERE fecha_publicacion BETWEEN ? AND ? AND ${EN_JUEGO} AND ${NO_DESCARTADA_POR_EQUIPO}
+    WHERE fecha_publicacion BETWEEN ? AND ? AND ${EN_JUEGO} AND ${NO_DESCARTADA_POR_EQUIPO} AND ${NO_LICITACION}
     ORDER BY fecha_publicacion DESC, id DESC
   `).all(desde, hasta) as Record<string, string | null>[];
   return filas.map((f) => ({
@@ -233,7 +233,11 @@ export function leerConvocatoria(db: DatabaseSync, id: string): ConvocatoriaGuar
  * Fuentes cuyas fichas son ofertas vigentes sin una fecha de publicación que sirva para la ventana de pendientes (un topic de la UE
  * abrió hace meses y sigue abierto): están pendientes de criba y análisis mientras la fuente las siga devolviendo.
  */
-const FUENTES_VIGENTES = ['eu_ft', 'eu_cascada'];
+const FUENTES_VIGENTES = ['eu_ft', 'eu_cascada', 'placsp'];
+
+/** Las licitaciones (fuente `placsp`) no son convocatorias de ayudas: tienen su propia página y no entran en "Esta semana", el correo ni sus listas. */
+export const FUENTE_LICITACIONES = 'placsp';
+const NO_LICITACION = `c.fuente <> '${FUENTE_LICITACIONES}'`;
 
 /** SQL: el veredicto `f` está marcado como obsoleto (hecho con otro perfil; ver src/perfil.ts). */
 const OBSOLETA = `IFNULL(json_extract(f.datos, '$.obsoleta'), 0) = 1`;
@@ -245,6 +249,8 @@ export interface OpcionesPendientes {
   soloIncluidas?: boolean;
   /** Las que ya fallaron por error del LLM en esta fase tantas veces (entre ejecuciones) dejan de reintentarse. */
   maxIntentos?: number;
+  /** `solo`: únicamente las de esa fuente (las licitaciones tienen su propio análisis); `sin`: todas menos las de esa fuente. */
+  fuente?: { solo?: string; sin?: string };
 }
 
 /**
@@ -268,8 +274,10 @@ export function pendientesDeFase(
       AND ${NO_DESCARTADA_POR_EQUIPO}
       AND (? IS NULL OR EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND f.fase = ? AND f.descarta = 0 AND NOT (${OBSOLETA})))
       AND (? IS NULL OR NOT EXISTS (SELECT 1 FROM llm_fallos lf WHERE lf.convocatoria_id = c.id AND lf.fase = ? AND lf.intentos >= ?))
+      AND (? IS NULL OR c.fuente = ?) AND (? IS NULL OR c.fuente <> ?)
     ORDER BY c.fecha_publicacion DESC, c.id
-  `).all(opciones.soloIncluidas ? 1 : 0, incluir, publicadasDesde, publicadasDesde, incluir, fase, fase, requiereFase, requiereFase, opciones.maxIntentos ?? null, fase, opciones.maxIntentos ?? null) as Record<string, unknown>[];
+  `).all(opciones.soloIncluidas ? 1 : 0, incluir, publicadasDesde, publicadasDesde, incluir, fase, fase, requiereFase, requiereFase, opciones.maxIntentos ?? null, fase, opciones.maxIntentos ?? null,
+    opciones.fuente?.solo ?? null, opciones.fuente?.solo ?? null, opciones.fuente?.sin ?? null, opciones.fuente?.sin ?? null) as Record<string, unknown>[];
   return filas.map((f) => ({ convocatoria: filaAConvocatoria(f), condicion: (f.condicion as string | null) ?? null }));
 }
 
@@ -533,7 +541,7 @@ export function cierresEntre(db: DatabaseSync, desde: string, hasta: string, hoy
   const filas = db.prepare(`
     SELECT c.id, c.fuente, c.titulo, c.organo_nivel1, c.organo_nivel2, c.organo_nivel3, c.fecha_publicacion, c.url, p.*
     FROM convocatorias c JOIN plazos p ON p.convocatoria_id = c.id
-    WHERE p.fecha_cierre BETWEEN ? AND ? AND ${EN_JUEGO} AND ${NO_DESCARTADA_POR_EQUIPO}
+    WHERE p.fecha_cierre BETWEEN ? AND ? AND ${EN_JUEGO} AND ${NO_DESCARTADA_POR_EQUIPO} AND ${NO_LICITACION}
     ORDER BY p.fecha_cierre, c.id
   `).all(desde, hasta) as Record<string, string | null>[];
   return filas.map((f) => ({
@@ -585,7 +593,20 @@ export interface FilaRanking extends FilaConvocatoria {
 export function filasRanking(
   db: DatabaseSync, hoy: string, puntuador: (c: Convocatoria, plazo: PlazoGuardado | null) => Puntuacion, ahora: Date,
 ): FilaRanking[] {
-  const filas = db.prepare(`SELECT * FROM convocatorias c WHERE ${EN_JUEGO} AND ${CRIBADA} AND ${NO_DESCARTADA_POR_EQUIPO} ORDER BY c.fecha_publicacion DESC, c.id DESC`).all() as Record<string, string | null>[];
+  return filasPuntuadas(db, hoy, puntuador, ahora, NO_LICITACION);
+}
+
+/** Licitaciones abiertas que pasaron la criba LLM y no ha descartado el equipo, puntuadas con el reloj de ahora (ver `filasRanking`). */
+export function filasLicitaciones(
+  db: DatabaseSync, hoy: string, puntuador: (c: Convocatoria, plazo: PlazoGuardado | null) => Puntuacion, ahora: Date,
+): FilaRanking[] {
+  return filasPuntuadas(db, hoy, puntuador, ahora, `c.fuente = '${FUENTE_LICITACIONES}'`);
+}
+
+function filasPuntuadas(
+  db: DatabaseSync, hoy: string, puntuador: (c: Convocatoria, plazo: PlazoGuardado | null) => Puntuacion, ahora: Date, filtro: string,
+): FilaRanking[] {
+  const filas = db.prepare(`SELECT * FROM convocatorias c WHERE ${EN_JUEGO} AND ${CRIBADA} AND ${NO_DESCARTADA_POR_EQUIPO} AND ${filtro} ORDER BY c.fecha_publicacion DESC, c.id DESC`).all() as Record<string, string | null>[];
   return filas.map((f) => {
     const plazo = leerPlazo(db, f.id!, hoy);
     const p = puntuador(filaAConvocatoria(f), plazo);
@@ -594,6 +615,20 @@ export function filasRanking(
       primeraVez: f.primera_vez!, plazo, puntuacion: { ...p, calculadoEn: ahora.toISOString() },
     };
   });
+}
+
+// --- Estado propio de una fuente entre ejecuciones (p. ej. el cursor del feed de licitaciones) ---
+
+export function leerEstadoFuente(db: DatabaseSync, fuente: string, clave: string): string | null {
+  const f = db.prepare('SELECT valor FROM fuente_estado WHERE fuente = ? AND clave = ?').get(fuente, clave) as { valor: string } | undefined;
+  return f?.valor ?? null;
+}
+
+export function guardarEstadoFuente(db: DatabaseSync, fuente: string, clave: string, valor: string, ahora: Date): void {
+  db.prepare(`
+    INSERT INTO fuente_estado (fuente, clave, valor, actualizado_en) VALUES (?, ?, ?, ?)
+    ON CONFLICT (fuente, clave) DO UPDATE SET valor = excluded.valor, actualizado_en = excluded.actualizado_en
+  `).run(fuente, clave, valor, ahora.toISOString());
 }
 
 /** Borra las puntuaciones guardadas de convocatorias que ya no están en juego (descartadas después de puntuarse). */

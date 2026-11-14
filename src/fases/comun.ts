@@ -16,6 +16,8 @@ export interface ContextoFase {
   resolver?: ((host: string) => Promise<string[]>) | null;
   /** Decisiones del equipo como ejemplos para los prompts; se leen una vez por ejecución para que todas las llamadas vean los mismos. */
   ejemplos?: EjemploDecision[];
+  /** Lo mismo para las licitaciones (las decisiones sobre licitaciones no se mezclan con las de las convocatorias). */
+  ejemplosLicitaciones?: EjemploDecision[];
   /** Intentos fallidos por error del LLM (entre ejecuciones) tras los que una convocatoria deja de reintentarse; ausente = sin límite. */
   maxIntentos?: number;
   /** Convocatorias que se procesan aunque estén fuera de la ventana de pendientes (`npm run cargar`). */

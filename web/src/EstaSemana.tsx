@@ -4,6 +4,7 @@ import { BotonesDecision } from './Decision.tsx';
 import { TEXTO_CASCADA } from './Origen.tsx';
 import { Cierre } from './Plazo.tsx';
 import { Nota } from './Puntuacion.tsx';
+import { Plegable } from './Plegable.tsx';
 import { useSesion } from './Sesion.tsx';
 import { dia, euros } from './Serie.tsx';
 
@@ -14,7 +15,7 @@ const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno
 
 /** La frase de arriba: qué toca esta semana. */
 function Resumen({ s }: { s: Semana }) {
-  const { paraPreparar, cierranPronto, empresasNuevas } = s.resumen;
+  const { paraPreparar, cierranPronto, empresasNuevas, licitaciones } = s.resumen;
   const semanas = Math.round(s.cierranProntoDias / 7);
   const partes = [
     paraPreparar > 0 && (cierranPronto === 0 ? 'ninguna cierra pronto' : `${cierranPronto} ${cierranPronto === 1 ? 'cierra' : 'cierran'} en menos de ${semanas} semanas`),
@@ -27,6 +28,11 @@ function Resumen({ s }: { s: Semana }) {
       </h1>
       {partes.length > 0 && <p className="mt-1 text-tinta-suave">{partes.join(' · ')}</p>}
       {paraPreparar === 0 && <p className="mt-1 text-tinta-suave">Ninguna analizada llega al encaje mínimo ({s.umbral} puntos). Puedes bajarlo en el <a href="/perfil" className="text-marca-fuerte underline">perfil</a>.</p>}
+      {licitaciones > 0 && (
+        <p className="mt-1 text-tinta-suave">
+          <a href="/licitaciones" className="font-medium text-marca-fuerte underline">{plural(licitaciones, 'licitación abierta que encaja', 'licitaciones abiertas que encajan')}</a> (contratos públicos: página aparte)
+        </p>
+      )}
     </header>
   );
 }
@@ -90,20 +96,6 @@ function Fila({ c }: { c: ConvocatoriaSemana }) {
       </div>
       {!sinAnalizar && <Nota puntuacion={c.puntuacion} />}
     </li>
-  );
-}
-
-function Plegable({ id, titulo, ayuda, abiertaInicial = false, children }: { id?: string; titulo: string; ayuda?: string; abiertaInicial?: boolean; children: React.ReactNode }) {
-  return (
-    <details id={id} open={abiertaInicial} className="group mb-6 rounded-[var(--radio)] bg-superficie ring-1 ring-linea">
-      <summary className="cursor-pointer list-none rounded-[var(--radio)] px-4 py-3 text-sm font-medium text-marca-fuerte hover:bg-fondo-suave [&::-webkit-details-marker]:hidden">
-        <span aria-hidden="true" className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>{titulo}
-      </summary>
-      <div className="px-4 pb-3">
-        {ayuda && <p className="mb-2 text-sm text-tinta-suave">{ayuda}</p>}
-        {children}
-      </div>
-    </details>
   );
 }
 

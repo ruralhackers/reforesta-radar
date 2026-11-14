@@ -33,6 +33,13 @@ export interface PerfilEditable {
 export const UMBRAL_CORTE_POR_DEFECTO = 50;
 
 /** Umbral efectivo del corte: el del perfil o el de por defecto. */
+/** Licitaciones: por encima de este presupuesto base (sin IVA) un contrato es «probablemente fuera de escala» (~3 veces los ingresos anuales por servicios). */
+export const PRESUPUESTO_MAXIMO_LICITACION = 300_000;
+/** Ingresos anuales por servicios de la entidad si el perfil no los dice (para juzgar la solvencia económica exigida). */
+export const INGRESOS_ANUALES_POR_DEFECTO = 105_000;
+export const presupuestoMaximoLicitacion = (p: Pick<Perfil, 'licitaciones'> | null | undefined): number => p?.licitaciones?.presupuestoMaximo ?? PRESUPUESTO_MAXIMO_LICITACION;
+export const ingresosAnuales = (p: Pick<Perfil, 'licitaciones'> | null | undefined): number => p?.licitaciones?.ingresosAnuales ?? INGRESOS_ANUALES_POR_DEFECTO;
+
 export const umbralDelPerfil = (p: Pick<Perfil, 'umbralEncaje'> | null | undefined): number => p?.umbralEncaje ?? UMBRAL_CORTE_POR_DEFECTO;
 
 export class ErrorPerfil extends Error {}

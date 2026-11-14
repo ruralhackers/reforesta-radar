@@ -29,6 +29,7 @@ El flujo de un lunes:
 - **BDNS**, la Base de Datos Nacional de Subvenciones.
 - **EU Funding & Tenders** (LIFE, Erasmus+…). Horizon Europe va en una sección aparte, «UE como socio de consorcio»: una ONG de 7 personas solo puede ir de socia.
 - **UE · en cascada** (FSTP): convocatorias que abren proyectos europeos (Horizon, LIFE, Digital Europe…) para dar subvenciones pequeñas a terceros. Una entidad sola puede presentarse, sin consorcio, y van en el ranking principal con el chip «UE · en cascada». El pre-filtro de tema (palabras clave, amplio a propósito) está en `seed/cascada.json`, ampliable con `RADAR_TERMINOS_CASCADA`.
+- **Licitaciones públicas** (Plataforma de Contratación del Sector Público): contratos de servicios y obras que Reforesta podría ejecutar (restauración, plantación, ailanto, charcas, educación ambiental, mantenimiento forestal), con su **propia página «Licitaciones»**, su contador en el menú y su propia puntuación (encaje, escala del presupuesto, plazo de ofertas, solvencia exigida, peso del precio); en «Esta semana» solo una línea que enlaza a ella. Lee el feed ATOM de datos abiertos con pre-filtro en código (`seed/licitaciones.json`), criba con el criterio «¿puede ejecutarlo una ONG de este tamaño?» (más de 300.000 € sin IVA = «probablemente fuera de escala»; el umbral está en el perfil) y análisis con citas de solvencia, criterios de adjudicación y reserva social. Una pasada diaria son unas 10 páginas de ~14 MB: tiene topes y cursor (`npm run licitaciones` rellena hacia atrás una vez).
 - **Fundaciones vigiladas** (Montemadrid, Repsol…): páginas que se editan desde la web; solo se llama al modelo cuando la página cambia.
 - **Descubrimiento por organizaciones parecidas** (GREFA, Grupo Brinzal, SEO/BirdLife…): si lo que ganaron desde 2022 tiene una edición nueva, entra como candidata.
 
@@ -75,7 +76,7 @@ LOOKBACK_DAYS=60 RADAR_MAX_ANALISIS=10 npm run radar   # primera carga: unos 60 
 npm run build && npm start  # abre http://127.0.0.1:8116
 ```
 
-Más comandos: `npm test` (respuestas reales grabadas), `npm run digest -- --vista-previa` (escribe `data/digest-preview.html` sin enviar nada), `npm run cargar -- 904719` (mete una convocatoria concreta de BDNS por su número), `npm run dev:web` (web con recarga). Sin `ANTHROPIC_API_KEY` el radar se salta criba y análisis y lo apunta en el registro (`/api/ejecuciones`), y «Esta semana» queda vacía. Con Docker: `docker compose up -d`.
+Más comandos: `npm test` (respuestas reales grabadas), `npm run digest -- --vista-previa` (escribe `data/digest-preview.html` sin enviar nada), `npm run cargar -- 904719` (mete una convocatoria concreta de BDNS por su número), `npm run licitaciones -- --paginas 40` (relleno puntual del feed de licitaciones, ~14 MB por página), `npm run dev:web` (web con recarga). Sin `ANTHROPIC_API_KEY` el radar se salta criba y análisis y lo apunta en el registro (`/api/ejecuciones`), y «Esta semana» queda vacía. Con Docker: `docker compose up -d`.
 
 ## Desplegar
 
@@ -132,6 +133,7 @@ Todo lo específico de Reforesta está en [`seed/`](seed/), no en el código: `p
 - El backtest no es una validación estadística (6 + 25 casos, sin control negativo, sin medir falsos negativos).
 - Sin el análisis, la puntuación es parcial; los plazos ambiguos se muestran sin calcular y no incluyen fiestas locales.
 - Algunas webs de fundaciones bloquean a clientes automáticos (p. ej. «la Caixa», desactivada en la semilla); la lista es corta.
+- Licitaciones: el feed de la Plataforma pesa ~14 MB por página y la primera carga cubre unas dos jornadas; las plataformas agregadas no se pueden leer (piden certificado) y la Plataforma rechaza a veces la descarga automática de los pliegos PDF («Request Rejected»), así que el análisis se apoya entonces en los datos estructurados del anuncio.
 - Empresas: las DIA dan un motivo verificable, no un contacto; el nivel B de la huella es de baja confianza.
 - Un único usuario «equipo», sin cuentas individuales. No redacta propuestas ni presenta solicitudes.
 - Pendientes: el correo del lunes aún no sigue el rediseño de la web.
@@ -140,7 +142,7 @@ Lista completa en la [referencia técnica](docs/referencia-tecnica.md#límites-c
 
 ## Créditos y licencia
 
-[MIT](LICENSE). Hecho por [Rural Hackers](https://ruralhackers.com) para [Reforesta](https://reforesta.es) en el reto 1hack A Coruña de [Common Seeds](https://common-seeds.theagilemonkeys.com/onehack) (The Agile Monkeys). Datos de BDNS (IGAE), el portal Funding & Tenders de la Comisión Europea, el BOE (datos abiertos) y el Registro de huella de carbono del MITECO. Diseño: [`docs/superpowers/specs/`](docs/superpowers/specs/); vocabulario: [`GLOSSARY.md`](GLOSSARY.md); detalle técnico: [`docs/referencia-tecnica.md`](docs/referencia-tecnica.md).
+[MIT](LICENSE). Hecho por [Rural Hackers](https://ruralhackers.com) para [Reforesta](https://reforesta.es) en el reto 1hack A Coruña de [Common Seeds](https://common-seeds.theagilemonkeys.com/onehack) (The Agile Monkeys). Datos de BDNS (IGAE), el portal Funding & Tenders de la Comisión Europea, la Plataforma de Contratación del Sector Público (datos abiertos), el BOE (datos abiertos) y el Registro de huella de carbono del MITECO. Diseño: [`docs/superpowers/specs/`](docs/superpowers/specs/); vocabulario: [`GLOSSARY.md`](GLOSSARY.md); detalle técnico: [`docs/referencia-tecnica.md`](docs/referencia-tecnica.md).
 
 ## English summary
 

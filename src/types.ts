@@ -47,6 +47,16 @@ export interface Perfil {
   umbralEncaje?: number | null;
   /** Finalidades (descripcionFinalidad de BDNS) claramente ajenas a la organización. */
   finalidadesExcluidas: string[];
+  /**
+   * Licitaciones públicas (fuente PLACSP): lo que la entidad puede ejecutar. Ausente en perfiles guardados antes de este campo: se usan
+   * `PRESUPUESTO_MAXIMO_LICITACION` e `INGRESOS_ANUALES_POR_DEFECTO` (src/perfil.ts).
+   */
+  licitaciones?: {
+    /** Presupuesto base de licitación (sin IVA) por encima del cual un contrato es «probablemente fuera de escala». */
+    presupuestoMaximo: number | null;
+    /** Ingresos anuales por servicios, para juzgar la solvencia económica exigida (volumen anual de negocio). */
+    ingresosAnuales: number | null;
+  };
 }
 
 export interface OrganizacionParecida {

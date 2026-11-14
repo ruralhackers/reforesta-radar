@@ -84,6 +84,23 @@ export function leerConfig(env: Entorno) {
       pausaMs: num('RADAR_PAUSA_CASCADA_MS', 500),
       maxPeticiones: num('RADAR_MAX_PETICIONES_CASCADA', 4),
     },
+    /**
+     * Fuente de licitaciones (PLACSP, sindicación ATOM de licitaciones de perfiles de contratante, sin agregadas). Cada página trae unas 500 entradas y pesa
+     * unos 14 MB: tope de páginas por pasada (la diaria llega a cubrir ~1 día laborable con 12), de bytes por página y totales, pausa entre páginas y
+     * tiempo máximo por petición. `RADAR_LICITACIONES=0` apaga la fuente. Pre-filtro en seed/licitaciones.json (más CPV y palabras extra por entorno).
+     */
+    placsp: {
+      activa: env.RADAR_LICITACIONES !== '0',
+      urlFeed: env.PLACSP_URL || 'https://contrataciondelestado.es/sindicacion/sindicacion_643/licitacionesPerfilesContratanteCompleto3.atom',
+      rutaFiltro: env.PLACSP_FILE || fileURLToPath(new URL('../seed/licitaciones.json', import.meta.url)),
+      cpvExtra: (env.RADAR_CPV_PLACSP ?? '').split(',').map((t) => t.trim()).filter(Boolean),
+      palabrasExtra: (env.RADAR_TERMINOS_PLACSP ?? '').split(',').map((t) => t.trim()).filter(Boolean),
+      maxPaginas: num('RADAR_MAX_PAGINAS_PLACSP', 12, { min: 1, max: 200 }),
+      maxBytesPagina: num('RADAR_MAX_BYTES_PLACSP', 40 * 1024 * 1024, { min: 1024 }),
+      maxBytesTotal: num('RADAR_MAX_BYTES_TOTAL_PLACSP', 300 * 1024 * 1024, { min: 1024 }),
+      pausaMs: num('RADAR_PAUSA_PLACSP_MS', 2000),
+      timeoutMs: num('RADAR_TIMEOUT_PLACSP_MS', 120_000, { min: 1 }),
+    },
     /** Fundaciones vigiladas: pausa entre páginas, tiempo máximo y tamaño máximo de cada una, tope de fuentes por ejecución y de texto que se pasa al LLM. */
     fundaciones: {
       pausaMs: num('RADAR_PAUSA_FUNDACIONES_MS', 1000),

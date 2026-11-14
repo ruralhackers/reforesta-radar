@@ -145,13 +145,16 @@ export interface EjemploDecision {
 
 const recortar = (t: string, n: number) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
 
-/** Las últimas `max` decisiones (más recientes primero) con título, órgano y resumen corto (finalidad o tipo). */
-export function ejemplosDecisiones(db: DatabaseSync, max: number): EjemploDecision[] {
+/**
+ * Las últimas `max` decisiones (más recientes primero) con título, órgano y resumen corto (finalidad o tipo). Las de licitaciones (fuente placsp) van aparte:
+ * `licitaciones` = true devuelve solo esas (ejemplos de los prompts de licitaciones) y false, todas las demás (los de las convocatorias no cambian).
+ */
+export function ejemplosDecisiones(db: DatabaseSync, max: number, licitaciones = false): EjemploDecision[] {
   if (max <= 0) return [];
   const filas = db.prepare(`
     SELECT d.decision, d.motivo, d.detalle, c.titulo, c.organo_nivel1, c.organo_nivel2, c.organo_nivel3, c.finalidad, c.tipo
-    FROM decisiones d JOIN convocatorias c ON c.id = d.convocatoria_id ORDER BY d.decidida_en DESC, d.convocatoria_id LIMIT ?
-  `).all(max) as Record<string, string | null>[];
+    FROM decisiones d JOIN convocatorias c ON c.id = d.convocatoria_id WHERE (c.fuente = 'placsp') = ? ORDER BY d.decidida_en DESC, d.convocatoria_id LIMIT ?
+  `).all(Number(licitaciones), max) as Record<string, string | null>[];
   return filas.map((f) => ({
     decision: f.decision as Decision,
     motivo: f.decision === 'descartada' ? (f.motivo === 'Otro' ? (f.detalle ?? 'Otro') : [f.motivo, f.detalle].filter(Boolean).join(': ')) : null,

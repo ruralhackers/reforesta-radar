@@ -8,6 +8,8 @@ Generadas con `npm run build && npm run capturas` (`scripts/capturas.ts`): arran
 | `esta-semana` | «Esta semana»: frase de resumen, tarjetas de lo que pasa el corte, «El radar vio otras N con menos encaje» y consorcio UE plegados |
 | `ficha-cerrada` | Ficha de la convocatoria anual de la CAM (`bdns:904719`): panel de datos con su cita, «Reforesta ganó…», «Cerrada el …» |
 | `ficha-abierta` | Ficha de la primera convocatoria abierta y analizada de «Esta semana» |
+| `licitaciones` | Página «Licitaciones» con los datos de hoy: la criba descartó las pocas que pasan el pre-filtro, así que sale el mensaje de vacío |
+| `licitaciones-demo`, `ficha-licitacion-demo` | DEMOSTRACIÓN sobre una copia de la BD: se da por buena la criba de dos licitaciones reales de Madrid (bike park de Paracuellos, acuerdo marco del distrito de Salamanca) para ver tarjetas y ficha; no son encajes reales |
 | `empresas` | Tabla de empresas con una fila desplegada (cita, enlace y notas) |
 | `perfil` | Perfil, con el umbral del corte |
 | `como-sabemos` | Las pruebas y la sección de límites |

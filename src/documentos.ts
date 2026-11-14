@@ -82,7 +82,10 @@ async function textoDeUrl(db: DatabaseSync, f: typeof fetch, url: string, ahora:
       }
     } else if (/html/i.test(tipoContenido) || /^\s*</.test(new TextDecoder().decode(bytes.slice(0, 64)))) {
       tipo = 'html';
-      if (!yaLeido) guardarTexto(db, hash, htmlATexto(new TextDecoder().decode(bytes)), null, ahora);
+      const html = new TextDecoder().decode(bytes);
+      // Un cortafuegos (la Plataforma de Contratación rechaza a veces las descargas automáticas de pliegos) devuelve una página de error con HTTP 200: no es el documento.
+      if (html.length < 3000 && /request rejected|the requested url was rejected/i.test(html)) throw new ErrorDocumento('el servidor rechazó la descarga automática («Request Rejected»)', false);
+      if (!yaLeido) guardarTexto(db, hash, htmlATexto(html), null, ahora);
     } else {
       throw new ErrorDocumento(`formato no soportado (${tipoContenido || 'desconocido'})`, false);
     }

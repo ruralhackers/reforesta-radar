@@ -198,7 +198,7 @@ export function aplicarCitas(bruto: unknown, textos: TextoLeido[], perfil: Perfi
 const IMPORTE = /\d[\d.,]*\s*(?:€|euros?|eur\b)|(?:€|eur)\s*\d[\d.,]*/gi;
 
 /** La idea no lleva cita, pero no puede inventar importes: los que no están en los textos se sustituyen. */
-function limpiarIdea(idea: string | null, todo: string, correcciones: string[]): string | null {
+export function limpiarIdea(idea: string | null, todo: string, correcciones: string[]): string | null {
   if (!idea) return null;
   const cifras = new Set((todo.match(/\d[\d.,]*\d|\d/g) ?? []).map((n) => n.replace(/\D/g, '')));
   return idea.replace(IMPORTE, (m) => {

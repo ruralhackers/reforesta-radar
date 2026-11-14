@@ -4,6 +4,7 @@ const FUENTES: Record<string, { etiqueta: string; clase: string }> = {
   fundacion: { etiqueta: 'Fundación', clase: 'bg-aviso-suave text-aviso ring-aviso-borde' },
   eu_cascada: { etiqueta: 'UE · en cascada', clase: 'bg-blue-50 text-blue-800 ring-blue-200' },
   eu_ft: { etiqueta: 'UE · Funding & Tenders', clase: 'bg-blue-50 text-blue-800 ring-blue-200' },
+  placsp: { etiqueta: 'PLACSP', clase: 'bg-fondo-suave text-tinta ring-linea' },
 };
 
 export function etiquetaFuente(fuente: string): string {
