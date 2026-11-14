@@ -42,6 +42,16 @@ export interface ConfigLlm {
    * las haya devuelto o no la fuente en esta ejecución.
    */
   diasPendientes: number;
+  /**
+   * Presupuesto en USD de una ejecución, común a TODAS las fases con LLM (criba, análisis, extracción de fundaciones, DIA, huella). Cuentan
+   * también las llamadas fallidas que se cobran (max_tokens, rechazo, JSON no válido). Al alcanzarlo no se hacen más llamadas: lo que falta
+   * queda como "sin hacer por el tope" para la siguiente. Las llamadas ya en vuelo terminan (puede pasarse por unas pocas).
+   */
+  presupuestoUsd: number;
+  /** Tope de caracteres de documentos en el prompt de UN análisis; lo que sobra se recorta con una nota. */
+  maxCaracteresAnalisis: number;
+  /** Intentos fallidos por error del LLM, sumados entre ejecuciones, tras los que una convocatoria deja de reintentarse en esa fase. */
+  maxIntentos: number;
 }
 
 export const CONFIG_LLM_POR_DEFECTO: ConfigLlm = {
@@ -49,4 +59,7 @@ export const CONFIG_LLM_POR_DEFECTO: ConfigLlm = {
   modeloAnalisis: 'claude-sonnet-5-5',
   maxAnalisis: 20,
   diasPendientes: 30,
+  presupuestoUsd: 1,
+  maxCaracteresAnalisis: 300_000,
+  maxIntentos: 3,
 };

@@ -17,7 +17,8 @@ import type { Reloj } from './types.ts';
 export interface ConfigResumen {
   destinatarios: string[];
   remitente: string;
-  urlPublica: string;
+  /** URL pública de la web para los enlaces. null = sin configurar: la vista previa usa enlaces relativos y el envío se niega. */
+  urlPublica: string | null;
 }
 
 export interface DependenciasResumen {
@@ -56,6 +57,7 @@ export function prepararResumen(deps: Pick<DependenciasResumen, 'db' | 'reloj' |
   const ahora = reloj.now();
   const hoy = diaLocal(ahora);
   const cfg = deps.puntuacion ?? leerConfigPuntuacion(config.rutaPuntuacion);
+  const urlPublica = cfgResumen.urlPublica ?? '';
   const ranking = calcularRanking(db, ahora, cfg, deps.probabilidad ?? crearProbabilidad(db));
   const entrada = (f: (typeof ranking)[number]): EntradaItem => {
     const datos = leerFases(db, f.id).find((v) => v.fase === FASE_ANALISIS)?.datos as { analisis?: Analisis } | undefined;
@@ -65,7 +67,7 @@ export function prepararResumen(deps: Pick<DependenciasResumen, 'db' | 'reloj' |
   const tomar = (filas: typeof ranking, max: number) => {
     const r = filas.filter((f) => !usadas.has(f.id)).slice(0, max);
     for (const f of r) usadas.add(f.id);
-    return r.map((f) => itemCorreo(entrada(f), cfgResumen.urlPublica));
+    return r.map((f) => itemCorreo(entrada(f), urlPublica));
   };
 
   // Destacadas: las de mayor puntuación de cualquier sección. Cierran pronto: las que faltan, por fecha de cierre. Parecidas: las que faltan.
@@ -74,14 +76,14 @@ export function prepararResumen(deps: Pick<DependenciasResumen, 'db' | 'reloj' |
   const cierran = tomar([...cierranTodas].sort((a, b) => (a.plazo?.fechaCierre ?? '9999').localeCompare(b.plazo?.fechaCierre ?? '9999')), MAX_CIERRAN);
   const parecidas = tomar(seccionParecidas(ranking), MAX_PARECIDAS);
 
-  const extras = deps.seccionesExtra?.({ db, hoy, urlPublica: cfgResumen.urlPublica }) ?? [];
+  const extras = deps.seccionesExtra?.({ db, hoy, urlPublica }) ?? [];
   const secciones: SeccionCorreo[] = [
     { titulo: 'Destacadas de la semana', items: destacadas },
     { titulo: 'Cierran pronto', intro: `Plazo de ${cfg.cierranProntoDias} días o menos.`, items: cierran },
     { titulo: 'Las ganan organizaciones como vosotros', intro: 'Convocatorias que ya han ganado organizaciones parecidas a Reforesta.', items: parecidas },
     ...extras,
   ];
-  const correo = componerCorreo({ hoy, lunes: lunesDeLaSemana(hoy), total: usadas.size, cierranPronto: cierranTodas.length, secciones, urlPublica: cfgResumen.urlPublica });
+  const correo = componerCorreo({ hoy, lunes: lunesDeLaSemana(hoy), total: usadas.size, cierranPronto: cierranTodas.length, secciones, urlPublica });
   return { correo, convocatorias: [...usadas], semana: semanaIso(hoy), extras: extras.reduce((n, x) => n + x.items.length, 0) };
 }
 
@@ -96,6 +98,7 @@ export async function enviarResumen(deps: DependenciasResumen, opciones: Opcione
     return { estado: 'sin_destinatarios', semana };
   }
   if (!deps.emisor) throw new Error('Hay destinatarios pero falta RESEND_API_KEY: no se puede enviar el resumen');
+  if (!cfg.urlPublica) throw new Error('Hay destinatarios pero falta RADAR_URL_PUBLICA (la URL pública de esta instancia, p. ej. https://radar.tu-dominio.org): sin ella los enlaces del correo no llevarían a ninguna parte');
   if (!opciones.forzar && db.prepare('SELECT 1 FROM envios_resumen WHERE semana = ? AND error IS NULL').get(semana)) {
     log(`El resumen de ${semana} ya se envió; usa --forzar para repetirlo`);
     return { estado: 'ya_enviado', semana };

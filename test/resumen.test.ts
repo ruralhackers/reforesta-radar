@@ -5,7 +5,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { semanaIso } from '../src/dates.ts';
 import { decidir } from '../src/db/decisiones.ts';
 import { guardarConvocatoria, guardarFase, guardarPlazo } from '../src/db/repo.ts';
-import { enviarResumen } from '../src/engine.ts';
+import { enviarResumen, prepararResumen } from '../src/engine.ts';
 import { crearEmisorResend, type CorreoSaliente, type Emisor } from '../src/mailer.ts';
 import { leerConfigPuntuacion } from '../src/puntuacion.ts';
 import { acortar, componerCorreo, textoImporte } from '../src/correo.ts';
@@ -110,6 +110,17 @@ describe('correo del lunes', () => {
   test('con destinatarios y sin emisor (falta la clave) es un error claro', async () => {
     const db = escenario();
     await assert.rejects(enviarResumen(deps(db, null)), /falta RESEND_API_KEY/);
+    db.close();
+  });
+
+  test('sin RADAR_URL_PUBLICA: el envío se niega con un mensaje claro y la vista previa usa enlaces relativos', async () => {
+    const db = escenario();
+    const { enviados, emisor } = emisorFalso();
+    await assert.rejects(enviarResumen(deps(db, emisor, { config: { ...CFG, urlPublica: null } })), /falta RADAR_URL_PUBLICA/);
+    assert.equal(enviados.length, 0);
+    const { correo } = prepararResumen({ db, reloj: { now: () => AHORA } }, { urlPublica: null });
+    assert.match(correo.html, /href="\/convocatoria\/bdns%3A/);
+    assert.ok(!correo.html.includes('ruralhackers.com/convocatoria'));
     db.close();
   });
 

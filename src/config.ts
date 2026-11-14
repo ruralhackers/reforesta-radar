@@ -1,90 +1,151 @@
 // Configuración por variables de entorno (ver .env.example).
+//
+// Los valores numéricos se validan al arrancar (`leerConfig`): vacío o ausente = valor por defecto; no numérico, negativo o fuera de rango =
+// error claro y salida con código 1 (un `RADAR_MAX_ANALISIS=abc` no puede quitar el tope de gasto ni un `RADAR_PAUSA_BDNS_MS=` dejar la pausa en 0).
 import { fileURLToPath } from 'node:url';
 import { CONFIG_LLM_POR_DEFECTO } from './llm/llm.ts';
 
-export const config = {
-  rutaBd: process.env.DB_PATH ?? 'data/radar.sqlite',
-  rutaSemilla: process.env.SEED_FILE ?? 'seed/perfil.json',
-  /** Festivos (nacionales y regionales) para contar días hábiles. */
-  rutaFestivos: process.env.FESTIVOS_FILE ?? fileURLToPath(new URL('../seed/festivos.json', import.meta.url)),
-  /** Pesos y umbrales de la puntuación. */
-  rutaPuntuacion: process.env.PUNTUACION_FILE ?? fileURLToPath(new URL('../seed/puntuacion.json', import.meta.url)),
-  /** Informe público del backtest ("Cómo sabemos") que se sirve cuando la BD aún no tiene resultados (lo escribe `npm run backtest`). */
-  rutaBacktest: process.env.BACKTEST_FILE ?? fileURLToPath(new URL('../seed/backtest.json', import.meta.url)),
-  /** Backtest: BD de trabajo (criba y caché del LLM; nunca la del radar), tope de convocatorias del conjunto (b) por ejecución y pasada de construcción. */
-  backtest: {
-    rutaBdTrabajo: process.env.BACKTEST_DB ?? 'data/backtest/trabajo.sqlite',
-    maxB: Number(process.env.BACKTEST_MAX_B ?? 150),
-    maxDetallesB: Number(process.env.BACKTEST_MAX_DETALLES_B ?? 400),
-  },
-  puerto: Number(process.env.PORT ?? 8116),
-  host: process.env.HOST ?? '127.0.0.1',
-  diasAtras: Number(process.env.LOOKBACK_DAYS ?? 7),
-  dirWeb: process.env.WEB_DIR ?? 'dist/web',
-  /** Sin clave, la criba y el análisis se saltan (con aviso en el registro de la ejecución). */
-  anthropicApiKey: process.env.ANTHROPIC_API_KEY || null,
-  /** Concesiones de BDNS (ganadores previos y organizaciones parecidas): días de caché de cada consulta, tope de peticiones HTTP por ejecución y pausa entre peticiones. */
-  ganadores: {
-    diasCache: Number(process.env.RADAR_DIAS_CACHE_GANADORES ?? 7),
-    maxPeticiones: Number(process.env.RADAR_MAX_PETICIONES_GANADORES ?? 200),
-    pausaMs: Number(process.env.RADAR_PAUSA_BDNS_MS ?? 250),
-  },
-  /** Descubrimiento por organizaciones parecidas (comparte caché y pausa con los ganadores; su tope sale del tope total de peticiones). */
-  parecidas: {
-    maxPeticiones: Number(process.env.RADAR_MAX_PETICIONES_PARECIDAS ?? 100),
-    desdeAnio: Number(process.env.RADAR_DESDE_ANIO_PARECIDAS ?? 2022),
-    diasEdicion: Number(process.env.RADAR_DIAS_EDICION_PARECIDAS ?? 400),
-  },
-  /** Fuente EU Funding & Tenders: pausa entre páginas y tope de peticiones por ejecución (50 resultados por página). */
-  euFt: {
-    pausaMs: Number(process.env.RADAR_PAUSA_FT_MS ?? 500),
-    maxPeticiones: Number(process.env.RADAR_MAX_PETICIONES_FT ?? 8),
-  },
-  /** Fundaciones vigiladas: pausa entre páginas, tiempo máximo y tamaño máximo de cada una, tope de fuentes por ejecución y de texto que se pasa al LLM. */
-  fundaciones: {
-    pausaMs: Number(process.env.RADAR_PAUSA_FUNDACIONES_MS ?? 1000),
-    timeoutMs: Number(process.env.RADAR_TIMEOUT_FUNDACIONES_MS ?? 30_000),
-    maxBytes: Number(process.env.RADAR_MAX_BYTES_FUNDACIONES ?? 3 * 1024 * 1024),
-    maxFuentes: Number(process.env.RADAR_MAX_FUNDACIONES ?? 60),
-    maxCaracteres: Number(process.env.RADAR_MAX_CARACTERES_FUNDACIONES ?? 60_000),
-  },
-  /** Empresas desde las DIA del BOE: días hacia atrás (la primera vez; luego solo lo no revisado), tope de resoluciones leídas con el LLM por ejecución y pausa entre peticiones al BOE. */
-  empresas: {
-    diasAtras: Number(process.env.RADAR_DIAS_DIA_BOE ?? 60),
-    maxResoluciones: Number(process.env.RADAR_MAX_DIA_BOE ?? 40),
-    pausaMs: Number(process.env.RADAR_PAUSA_BOE_MS ?? 300),
-    maxCaracteres: Number(process.env.RADAR_MAX_CARACTERES_DIA_BOE ?? 150_000),
-  },
-  /** Empresas del registro de huella de carbono del MITECO: tope de organizaciones que se criban con el LLM por ejecución, años de huella que cuentan como recientes y tiempo máximo por descarga. */
-  huella: {
-    maxCribadas: Number(process.env.RADAR_MAX_HUELLA ?? 50),
-    aniosAtras: Number(process.env.RADAR_ANIOS_HUELLA ?? 3),
-    timeoutMs: Number(process.env.RADAR_TIMEOUT_HUELLA_MS ?? 60_000),
-    /** Letras CNAE de los sectores afines para el nivel B (zona + sector sin compensación). Por defecto B,D,E,F,G,H: extractivas, energía, agua y residuos, construcción, comercio, transporte. La zona sale del ámbito del perfil. */
-    sectores: (process.env.RADAR_SECTORES_HUELLA ?? 'B,D,E,F,G,H').split(',').map((x) => x.trim().toUpperCase()).filter(Boolean),
-  },
-  /** Aprendizaje ligero: cuántas de las últimas decisiones del equipo se pasan como ejemplos a la criba y el análisis de lo nuevo. */
-  decisiones: {
-    maxEjemplos: Number(process.env.RADAR_EJEMPLOS_DECISIONES ?? 20),
-  },
-  /** Modo privado: sin TEAM_PASSWORD todo está abierto (demo). SESSION_SECRET refuerza la firma de la cookie; RADAR_COOKIE_SECURE=1/0 fuerza la marca Secure. */
-  equipo: {
-    password: process.env.TEAM_PASSWORD || null,
-    secret: process.env.SESSION_SECRET || null,
-    confiarXForwardedFor: process.env.RADAR_CONFIAR_X_FORWARDED_FOR === '1',
-    secure: process.env.RADAR_COOKIE_SECURE === undefined || process.env.RADAR_COOKIE_SECURE === '' ? undefined : process.env.RADAR_COOKIE_SECURE === '1',
-  },
-  /** Correo del lunes (npm run digest). Sin destinatarios no se envía nada; con destinatarios y sin clave, error. */
-  resumen: {
-    resendApiKey: process.env.RESEND_API_KEY || null,
-    destinatarios: (process.env.RADAR_DIGEST_DESTINATARIOS ?? '').split(',').map((d) => d.trim()).filter(Boolean),
-    remitente: process.env.RADAR_DIGEST_REMITENTE || 'Radar Reforesta <no-reply@out.ruralhackers.com>',
-    urlPublica: process.env.RADAR_URL_PUBLICA || 'https://radar-reforesta.ruralhackers.com',
-  },
-  llm: {
-    modeloCriba: process.env.RADAR_MODELO_CRIBA || CONFIG_LLM_POR_DEFECTO.modeloCriba,
-    modeloAnalisis: process.env.RADAR_MODELO_ANALISIS || CONFIG_LLM_POR_DEFECTO.modeloAnalisis,
-    maxAnalisis: Number(process.env.RADAR_MAX_ANALISIS ?? CONFIG_LLM_POR_DEFECTO.maxAnalisis),
-    diasPendientes: Number(process.env.RADAR_DIAS_PENDIENTES ?? CONFIG_LLM_POR_DEFECTO.diasPendientes),
-  },
-};
+export class ErrorConfig extends Error {}
+
+type Entorno = Record<string, string | undefined>;
+
+/**
+ * Lee un número de una variable de entorno. Vacío o ausente → `porDefecto`. Lanza ErrorConfig si no es un número finito, si `entero` y no lo es,
+ * o si está fuera de [min, max]. Por defecto: entero >= 0.
+ */
+export function numeroEnv(env: Entorno, nombre: string, porDefecto: number, o: { min?: number; max?: number; entero?: boolean } = {}): number {
+  const crudo = env[nombre]?.trim();
+  if (crudo === undefined || crudo === '') return porDefecto;
+  const n = Number(crudo);
+  const min = o.min ?? 0;
+  const entero = o.entero ?? true;
+  if (!Number.isFinite(n)) throw new ErrorConfig(`${nombre}="${crudo}" no es un número`);
+  if (entero && !Number.isInteger(n)) throw new ErrorConfig(`${nombre}="${crudo}" debe ser un número entero`);
+  if (n < min) throw new ErrorConfig(`${nombre}=${crudo} no puede ser menor que ${min}`);
+  if (o.max !== undefined && n > o.max) throw new ErrorConfig(`${nombre}=${crudo} no puede ser mayor que ${o.max}`);
+  return n;
+}
+
+/** Toda la configuración a partir de un entorno. Lanza ErrorConfig con todos los fallos juntos. */
+export function leerConfig(env: Entorno) {
+  const errores: string[] = [];
+  const num = (nombre: string, porDefecto: number, o?: { min?: number; max?: number; entero?: boolean }) => {
+    try {
+      return numeroEnv(env, nombre, porDefecto, o);
+    } catch (e) {
+      errores.push((e as Error).message);
+      return porDefecto;
+    }
+  };
+  const c = {
+    rutaBd: env.DB_PATH || 'data/radar.sqlite',
+    rutaSemilla: env.SEED_FILE || 'seed/perfil.json',
+    /** Festivos (nacionales y regionales) para contar días hábiles. */
+    rutaFestivos: env.FESTIVOS_FILE || fileURLToPath(new URL('../seed/festivos.json', import.meta.url)),
+    /** Pesos y umbrales de la puntuación. */
+    rutaPuntuacion: env.PUNTUACION_FILE || fileURLToPath(new URL('../seed/puntuacion.json', import.meta.url)),
+    /** Informe público del backtest ("Cómo sabemos") que se sirve cuando la BD aún no tiene resultados (lo escribe `npm run backtest`). */
+    rutaBacktest: env.BACKTEST_FILE || fileURLToPath(new URL('../seed/backtest.json', import.meta.url)),
+    /** Backtest: BD de trabajo (criba y caché del LLM; nunca la del radar), tope de convocatorias del conjunto (b) por ejecución y pasada de construcción. */
+    backtest: {
+      rutaBdTrabajo: env.BACKTEST_DB || 'data/backtest/trabajo.sqlite',
+      maxB: num('BACKTEST_MAX_B', 150),
+      maxDetallesB: num('BACKTEST_MAX_DETALLES_B', 400),
+    },
+    puerto: num('PORT', 8116, { min: 1, max: 65535 }),
+    host: env.HOST || '127.0.0.1',
+    diasAtras: num('LOOKBACK_DAYS', 7, { min: 1 }),
+    dirWeb: env.WEB_DIR || 'dist/web',
+    /** Sin clave, la criba y el análisis se saltan (con aviso en el registro de la ejecución). */
+    anthropicApiKey: env.ANTHROPIC_API_KEY || null,
+    /** Concesiones de BDNS (ganadores previos y organizaciones parecidas): días de caché de cada consulta, tope de peticiones HTTP por ejecución y pausa entre peticiones. */
+    ganadores: {
+      diasCache: num('RADAR_DIAS_CACHE_GANADORES', 7),
+      maxPeticiones: num('RADAR_MAX_PETICIONES_GANADORES', 200),
+      pausaMs: num('RADAR_PAUSA_BDNS_MS', 250),
+    },
+    /** Descubrimiento por organizaciones parecidas (comparte caché y pausa con los ganadores; su tope sale del tope total de peticiones). */
+    parecidas: {
+      maxPeticiones: num('RADAR_MAX_PETICIONES_PARECIDAS', 100),
+      desdeAnio: num('RADAR_DESDE_ANIO_PARECIDAS', 2022, { min: 2000, max: 2100 }),
+      diasEdicion: num('RADAR_DIAS_EDICION_PARECIDAS', 400, { min: 1 }),
+    },
+    /** Fuente EU Funding & Tenders: pausa entre páginas y tope de peticiones por ejecución (50 resultados por página). */
+    euFt: {
+      pausaMs: num('RADAR_PAUSA_FT_MS', 500),
+      maxPeticiones: num('RADAR_MAX_PETICIONES_FT', 8),
+    },
+    /** Fundaciones vigiladas: pausa entre páginas, tiempo máximo y tamaño máximo de cada una, tope de fuentes por ejecución y de texto que se pasa al LLM. */
+    fundaciones: {
+      pausaMs: num('RADAR_PAUSA_FUNDACIONES_MS', 1000),
+      timeoutMs: num('RADAR_TIMEOUT_FUNDACIONES_MS', 30_000, { min: 1 }),
+      maxBytes: num('RADAR_MAX_BYTES_FUNDACIONES', 3 * 1024 * 1024, { min: 1 }),
+      maxFuentes: num('RADAR_MAX_FUNDACIONES', 60),
+      maxCaracteres: num('RADAR_MAX_CARACTERES_FUNDACIONES', 60_000, { min: 1 }),
+    },
+    /** Empresas desde las DIA del BOE: días hacia atrás (la primera vez; luego solo lo no revisado), tope de resoluciones leídas con el LLM por ejecución y pausa entre peticiones al BOE. */
+    empresas: {
+      diasAtras: num('RADAR_DIAS_DIA_BOE', 60, { min: 1 }),
+      maxResoluciones: num('RADAR_MAX_DIA_BOE', 40),
+      pausaMs: num('RADAR_PAUSA_BOE_MS', 300),
+      maxCaracteres: num('RADAR_MAX_CARACTERES_DIA_BOE', 150_000, { min: 1 }),
+    },
+    /** Empresas del registro de huella de carbono del MITECO: tope de organizaciones que se criban con el LLM por ejecución, años de huella que cuentan como recientes y tiempo máximo por descarga. */
+    huella: {
+      maxCribadas: num('RADAR_MAX_HUELLA', 50),
+      aniosAtras: num('RADAR_ANIOS_HUELLA', 3, { min: 1 }),
+      timeoutMs: num('RADAR_TIMEOUT_HUELLA_MS', 60_000, { min: 1 }),
+      /** Letras CNAE de los sectores afines para el nivel B (zona + sector sin compensación). Por defecto B,D,E,F,G,H: extractivas, energía, agua y residuos, construcción, comercio, transporte. La zona sale del ámbito del perfil. */
+      sectores: (env.RADAR_SECTORES_HUELLA || 'B,D,E,F,G,H').split(',').map((x) => x.trim().toUpperCase()).filter(Boolean),
+    },
+    /** Aprendizaje ligero: cuántas de las últimas decisiones del equipo se pasan como ejemplos a la criba y el análisis de lo nuevo. */
+    decisiones: {
+      maxEjemplos: num('RADAR_EJEMPLOS_DECISIONES', 20),
+    },
+    /** Modo privado: sin TEAM_PASSWORD todo está abierto (demo). SESSION_SECRET refuerza la firma de la cookie; RADAR_COOKIE_SECURE=1/0 fuerza la marca Secure. */
+    equipo: {
+      password: env.TEAM_PASSWORD || null,
+      secret: env.SESSION_SECRET || null,
+      confiarXForwardedFor: env.RADAR_CONFIAR_X_FORWARDED_FOR === '1',
+      secure: env.RADAR_COOKIE_SECURE === undefined || env.RADAR_COOKIE_SECURE === '' ? undefined : env.RADAR_COOKIE_SECURE === '1',
+    },
+    /**
+     * Correo del lunes (npm run digest). Sin destinatarios no se envía nada; con destinatarios y sin clave, error. Sin RADAR_URL_PUBLICA no hay
+     * valor por defecto: el envío se niega (los enlaces irían a otra instancia) y la vista previa usa enlaces relativos.
+     */
+    resumen: {
+      resendApiKey: env.RESEND_API_KEY || null,
+      destinatarios: (env.RADAR_DIGEST_DESTINATARIOS ?? '').split(',').map((d) => d.trim()).filter(Boolean),
+      remitente: env.RADAR_DIGEST_REMITENTE || 'Radar Reforesta <no-reply@out.ruralhackers.com>',
+      urlPublica: env.RADAR_URL_PUBLICA?.trim() || null,
+    },
+    llm: {
+      modeloCriba: env.RADAR_MODELO_CRIBA || CONFIG_LLM_POR_DEFECTO.modeloCriba,
+      modeloAnalisis: env.RADAR_MODELO_ANALISIS || CONFIG_LLM_POR_DEFECTO.modeloAnalisis,
+      maxAnalisis: num('RADAR_MAX_ANALISIS', CONFIG_LLM_POR_DEFECTO.maxAnalisis),
+      diasPendientes: num('RADAR_DIAS_PENDIENTES', CONFIG_LLM_POR_DEFECTO.diasPendientes, { min: 1 }),
+      /** Presupuesto en USD por ejecución, común a todas las fases con LLM (criba, análisis, extracción de fundaciones, DIA, huella). */
+      presupuestoUsd: num('RADAR_PRESUPUESTO_USD', CONFIG_LLM_POR_DEFECTO.presupuestoUsd, { entero: false }),
+      /** Tope de caracteres de documentos que se pasan a un análisis (el resto se recorta con una nota). */
+      maxCaracteresAnalisis: num('RADAR_MAX_CARACTERES_ANALISIS', CONFIG_LLM_POR_DEFECTO.maxCaracteresAnalisis, { min: 1000 }),
+      /** Intentos fallidos por error del LLM (entre ejecuciones) tras los que una convocatoria deja de reintentarse en esa fase. */
+      maxIntentos: num('RADAR_MAX_INTENTOS_LLM', CONFIG_LLM_POR_DEFECTO.maxIntentos, { min: 1 }),
+    },
+  };
+  if (errores.length) throw new ErrorConfig(`Configuración no válida:\n${errores.map((e) => `  - ${e}`).join('\n')}`);
+  return c;
+}
+
+export type Config = ReturnType<typeof leerConfig>;
+
+function cargar(): Config {
+  try {
+    return leerConfig(process.env);
+  } catch (e) {
+    if (!(e instanceof ErrorConfig)) throw e;
+    console.error(e.message);
+    process.exit(1);
+  }
+}
+
+export const config = cargar();
