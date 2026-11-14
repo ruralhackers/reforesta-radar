@@ -25,7 +25,8 @@
     "record:boe": "node scripts/record-boe.ts",
     "record:huella": "node scripts/record-huella.ts",
     "backtest": "node src/cli/backtest.ts",
-    "capturas": "node scripts/capturas.ts"
+    "capturas": "node scripts/capturas.ts",
+    "video": "node scripts/video/grabar.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

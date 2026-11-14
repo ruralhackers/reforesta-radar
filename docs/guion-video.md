@@ -1,25 +1,74 @@
-# Guion del vídeo (2:30 aprox.)
+# Guion del vídeo (≈2:40)
 
-Para la entrega del reto 1hack A Coruña. Pantalla + voz en off, sin cara. Solo datos reales del radar. Lo marcado con **[VERIFICAR]** hay que
-comprobarlo en la grabación contra la instancia en marcha (el dato sale de los informes de desarrollo, no de la pantalla final).
+Para la entrega del reto 1hack A Coruña. Grabación de pantalla de la web real, **sin voz**: solo subtítulos incrustados (≈17 caracteres/s, mínimo 2,5 s cada uno).
+Este documento es la fuente de los subtítulos: `scripts/video/grabar.ts` (`npm run video`) lleva el mismo texto y genera `video/radar-reforesta-demo.mp4`, el `.srt` y un fotograma por escena en `video/frames/`.
 
-Preparar antes: instancia con una pasada reciente, `/` abierta en "Esta semana", la ficha de la convocatoria anual de la CAM a la que se presenta Reforesta (edición 2026, Orden 1689/2026), la página Empresas, `/como-sabemos` y la vista previa del correo (`npm run digest -- --vista-previa`).
+Solo hay lo que se ve en pantalla hoy: dos convocatorias para preparar (El Boalo y Fundación Endesa), barra lateral, fichas a dos columnas y la tabla de Empresas. La convocatoria de Usera ya no aparece en «Esta semana»: se muestra solo como ejemplo de lo que el radar descarta (exige sede en Usera).
 
-| # | Tiempo | En pantalla | Voz en off |
-|---|---|---|---|
-| 1 | 0:00–0:20 | Título "Radar Reforesta". Corte a reforesta.es (charcas, plantación) | "Reforesta lleva más de 30 años restaurando ecosistemas con seis o siete personas. Presentan cuatro o cinco solicitudes al año, las que encuentran en Google o en las mismas cuatro fuentes. Y casi el 90 % de sus ingresos es privado, con las empresas a cero. Les falta capacidad de encontrar y priorizar, no de redactar." |
-| 2 | 0:20–0:40 | Diagrama de arquitectura del README (fuentes → criba → análisis → puntuación → web y correo) | "Radar Reforesta recoge cada día convocatorias públicas, de la UE y de fundaciones, y descubre las que ganan organizaciones parecidas. Las lee, las puntúa y se lo cuenta al equipo el lunes a las ocho." |
-| 3 | 0:40–1:00 | Correo del lunes (vista previa): destacadas, "cierran pronto", empresas nuevas. Después "Esta semana" en la web | "Un correo corto, no cuarenta convocatorias: las destacadas con su porqué, las que cierran pronto y las empresas nuevas. Y la misma información en la web, que el equipo puede abrir ya, sin esperar a ningún correo." |
-| 4 | 1:00–1:35 | Ficha de la convocatoria anual de la CAM (2026): desglose de la puntuación ("Por qué está donde está"), cita literal del plazo o importe, bloque de ganadores previos con "Reforesta ganó la edición 2025 con 29.378,15 €" **[VERIFICAR]** y la lista de organizaciones parecidas que la ganaron (GREFA, Grupo Brinzal…) | "Esta es la convocatoria anual de la Comunidad de Madrid a la que se presenta Reforesta. Cada dato lleva su cita literal y su enlace; lo que no se sabe se marca como desconocido, nunca se inventa. La puntuación se explica factor a factor. Y aquí, el historial: Reforesta ganó la edición 2025 con 29.378,15 euros, y esto es lo que ganaron organizaciones como ella. Si no consta, la ficha dice 'no figura entre los ganadores', nunca 'perdió'." |
-| 5 | 1:35–2:00 | Página Empresas: Red Eléctrica de España (DIA de la línea de 400 kV de Almazán–Coscurita, Soria; medidas de hábitat para aves esteparias, con la cita) y BRUC Las Quinientas, SL (Cádiz, compensación de hábitat) **[VERIFICAR que siguen en la BD y el texto de la medida]** | "El canal de empresas empieza por un motivo verificable. Cuando el BOE publica una declaración de impacto ambiental que obliga a una empresa a restaurar o compensar hábitat, el radar la convierte en una señal, con la cita de la medida. Aquí, una línea eléctrica en Soria con medidas de hábitat para aves esteparias, y un parque eólico en Cádiz con compensación de hábitat. Son empresas con una razón concreta para financiar lo que Reforesta ya hace." |
-| 6 | 2:00–2:20 | `/como-sabemos`: tabla (a) "6 de 6 detectadas", métrica (b) "23 de 25" y la sección "Límites" a la vista | "¿Cómo sabemos que funciona? Probamos con convocatorias reales. Las seis conocidas, incluida la convocatoria anual de la Comunidad de Madrid a la que se presenta Reforesta, las detecta. Y de veinticinco convocatorias que ganaron organizaciones parecidas, veintitrés pasan la criba. No es una precisión: lo decimos en la propia página, con sus límites." |
-| 7 | 2:20–2:40 | README: "Despliegue" y "Coste mensual estimado"; terminal con `docker compose up -d` | "El lunes, abren la web, miran las tres primeras, marcan 'nos interesa' o descartan con un clic, y el radar aprende de eso. Cuesta unos tres a diez euros al mes de API, con un tope configurable, se despliega con un solo docker compose y es código abierto. Para otra ONG, basta cambiar los ficheros de semilla." |
+Preparar antes: instancia en marcha (por defecto `http://localhost:8116`, variable `RADAR_URL`), `npm run build`, y `RADAR_URL_PUBLICA=https://radar-reforesta.ruralhackers.com npm run digest -- --vista-previa` para regenerar `data/digest-preview.html`.
 
-Cierre (en el último plano, 3 s): URL del repositorio y "Radar Reforesta · Rural Hackers · Common Seeds".
+## 1. Título y problema (tarjeta)
 
-## Notas de grabación
+Tarjeta: «Radar para Reforesta», 6–7 personas, 4–5 solicitudes al año, ~90 % de financiación privada, empresas (RSC) a cero.
 
-- Cifras citadas, de `/como-sabemos` y `seed/backtest.json`: 6/6 detectadas; 23/25 (92 %) pasan la criba (308 examinadas). Coste: ver el README ("Coste mensual estimado"; es una estimación, por eso se dice "unos").
-- No afirmar que Reforesta perdiera ninguna convocatoria ni que el radar "habría ganado" nada: no se ha verificado. La ganada 2025 (29.378,15 €), 2024 y 2022 son concesiones públicas de BDNS.
-- La Orden 1689/2026 es la edición 2026 de esa línea (BDNS 904719); en la instancia de desarrollo esa convocatoria no estaba en la BD de la última pasada, así que **[VERIFICAR]** que aparece en la instancia que se graba (si no, usar la edición más reciente que haya y ajustar la voz).
-- Mostrar solo datos públicos. Si se activa el modo privado para grabar, cuidar que no salgan notas internas.
+- Reforesta son 6 o 7 personas y presentan 4 o 5 solicitudes al año.
+- Cerca del 90 % de su financiación es privada, y la de empresas (RSC) está a cero.
+- Radar para Reforesta busca por ellos: convocatorias y empresas, con su porqué.
+
+## 2. Esta semana (`/`)
+
+- Esta semana: 2 convocatorias para preparar. 1 cierra en menos de 3 semanas.
+- El Boalo: un ayuntamiento que financia sensibilización ambiental. 21.500 € en total; cierra el 30 de noviembre.
+- Fundación Endesa: hasta 45.000 euros por proyecto para restauración de ecosistemas.
+- Aparte queda 1 con menos encaje: el radar no esconde lo que ha visto.
+- Y 8 convocatorias de la UE, solo para entrar como socio de un consorcio.
+
+## 3. Ficha de El Boalo
+
+- La ficha de El Boalo. Cada dato lleva su cita literal del documento.
+- ¿Podemos pedirla? Sí: admite entidades sin ánimo de lucro, con la cita que lo dice.
+- Lo que no consta, como la cofinanciación, se marca como desconocido: nunca se inventa.
+- Y propone una idea de proyecto: sensibilización ambiental en El Boalo, Cerceda y Mataelpino.
+
+## 4. Ficha CAM 2026 (cerrada, con historial)
+
+- Hasta 30.000 euros por proyecto, con la cita literal de las bases.
+- Está cerrada desde el 8 de junio de 2026, y la ficha lo dice.
+- Reforesta la ganó en 2025 con 29.378,15 €, en 2024 con 29.076,85 € y en 2022 con 50.532,31 €.
+- Así la encontró el radar: otras 22 organizaciones parecidas ganaron una edición anterior.
+
+## 5. Descartada: Usera
+
+- También enseña lo que descarta. Esta ayuda de Usera parece buena: hasta 5.000 euros.
+- ¿Podemos pedirla? No: exige sede social en Usera, y la entidad está en Tres Cantos.
+- Descartada en el análisis, con la cita literal que lo demuestra.
+
+## 6. Empresas (CRM)
+
+- Empresas: primero las que una declaración de impacto ambiental del BOE obliga a restaurar o compensar.
+- Seis, como Red Eléctrica, BRUC Las Quinientas o Sistemas Energéticos Barandón.
+- Al abrir una fila aparece la cita del BOE que lo dice.
+- Después, 192 empresas que ya compensan su huella de carbono en el registro del MITECO.
+
+## 7. Cómo sabemos (`/como-sabemos`)
+
+- De 6 convocatorias conocidas, el radar habría detectado las 6.
+- Y de 25 que ganaron organizaciones parecidas, 23 pasan la criba (92 %).
+- Con una advertencia en la propia página: son pocas, y no es una precisión.
+
+## 8. Correo del lunes (vista previa)
+
+- Cada lunes, un correo corto: las destacadas de la semana, con su porqué y su cierre.
+- Y las empresas nuevas más claras, cada una con su enlace al BOE.
+
+## 9. Cierre (tarjeta)
+
+Tarjeta: repositorio https://github.com/ruralhackers/reforesta-radar, demo https://radar-reforesta.ruralhackers.com, «Hecho por Rural Hackers para Common Seeds · 1hack A Coruña». Sin subtítulos (6,5 s).
+
+
+## Notas
+
+- Cifras de `/como-sabemos`: 6 de 6 detectadas; 23 de 25 (92 %) pasan la criba. Con la advertencia de la propia página (pocas convocatorias; no es una precisión).
+- El chip de El Boalo muestra «21.500,00 € en total» porque el análisis no extrajo importe por proyecto («No consta en los textos»); el «límite de 1.500 euros» solo aparece en el motivo de la línea. Por eso el vídeo dice «21.500 € en total» y no cita 1.500 €.
+- La edición 2026 de la CAM (BDNS 904719) está cerrada (8 jun 2026): se dice así. No se afirma que Reforesta perdiera ninguna convocatoria.
+- Mostrar solo datos públicos; no hay notas internas en las fichas grabadas.
