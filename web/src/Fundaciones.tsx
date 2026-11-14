@@ -1,3 +1,4 @@
+import { ChipYaFinanciador } from './Experiencia.tsx';
 import { type FormEvent, useEffect, useState } from 'react';
 import { activarFundacion, anadirFundacion, type FuenteVigilada, leerFundaciones, quitarFundacion } from './api.ts';
 import { useSesion } from './Sesion.tsx';
@@ -66,6 +67,7 @@ export function Fundaciones() {
                 <div className="min-w-0">
                   <p className="font-semibold [overflow-wrap:anywhere]">
                     {f.nombre} <span className="ml-1 rounded-full bg-fondo-suave px-2 py-0.5 align-middle text-[11px] font-medium text-tinta-suave">{f.tipo === 'agregador' ? 'Agregador' : f.tipo === 'premio' ? 'Premio' : 'Fundación'}</span>
+                    <ChipYaFinanciador ya={f.yaFinanciador} />
                   </p>
                   {f.url
                     ? <p className="mt-0.5 text-xs [overflow-wrap:anywhere]"><a href={f.url} target="_blank" rel="noreferrer" className="text-marca-fuerte hover:underline">{f.url}</a></p>

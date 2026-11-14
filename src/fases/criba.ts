@@ -35,9 +35,9 @@ export function textosSinDescarga(c: Convocatoria, fuentes?: Fuente[]) {
 
 /** La petición exacta que la criba hace para una convocatoria (la usa también el backtest para estimar coste y mirar la caché sin llamar). */
 export function peticionCriba(
-  perfil: Perfil, c: Convocatoria, condicion: string | null, modelo: string, ejemplos: ContextoFase['ejemplos'], fuentes?: Fuente[],
+  perfil: Perfil, c: Convocatoria, condicion: string | null, modelo: string, ejemplos: ContextoFase['ejemplos'], fuentes?: Fuente[], experiencia?: string,
 ) {
-  const { sistema, mensaje } = promptCriba(perfil, c, condicion, textosSinDescarga(c, fuentes), ejemplos);
+  const { sistema, mensaje } = promptCriba(perfil, c, condicion, textosSinDescarga(c, fuentes), ejemplos, experiencia);
   return { tarea: 'criba' as const, modelo, sistema, mensaje, esquema: ESQUEMA_CRIBA, maxTokens: 4000 };
 }
 
@@ -48,7 +48,7 @@ export async function cribarConLlm(
   const pendientes = pendientesDeFase(ctx.db, FASE_CRIBA, publicadasDesde, null, { incluirIds: ctx.incluirIds, soloIncluidas: ctx.soloIncluidas, maxIntentos: ctx.maxIntentos });
   await enParalelo(pendientes, EN_PARALELO, async ({ convocatoria: c, condicion }) => {
     try {
-      const peticion = peticionCriba(perfil, c, condicion, modelo, c.fuente === 'placsp' ? ctx.ejemplosLicitaciones : ctx.ejemplos, fuentes);
+      const peticion = peticionCriba(perfil, c, condicion, modelo, c.fuente === 'placsp' ? ctx.ejemplosLicitaciones : ctx.ejemplos, fuentes, ctx.experiencia);
       const clave = claveCache(peticion);
       const r = desdeCache(ctx.db, clave) ?? (await llamar(ctx, registro, peticion));
       if (r.desdeCache) registro.desdeCache++;

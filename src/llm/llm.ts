@@ -3,7 +3,7 @@
 
 export interface PeticionLlm {
   /** Para qué es (criba, analisis, extraccion de fundaciones): solo para el registro y los tests. */
-  tarea: 'criba' | 'analisis' | 'extraccion' | 'titulo';
+  tarea: 'criba' | 'analisis' | 'extraccion' | 'titulo' | 'memorias';
   modelo: string;
   sistema: string;
   mensaje: string;

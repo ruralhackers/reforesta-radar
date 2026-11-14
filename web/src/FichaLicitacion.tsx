@@ -5,6 +5,7 @@ import { type CamposLicitacion, type DecisionEquipo, type Ficha as TFicha, type 
 import { BotonesDecision, Notas } from './Decision.tsx';
 import { Cita, citado, Dato, Desconocido, euros, fecha, TARJETA } from './ficha-comun.tsx';
 import { OrigenFuente } from './Origen.tsx';
+import { SeccionExperiencia } from './Experiencia.tsx';
 import { SeccionPlazo, textoCierre } from './Plazo.tsx';
 import { SeccionPuntuacion } from './Puntuacion.tsx';
 import { useSesion } from './Sesion.tsx';
@@ -176,6 +177,7 @@ export function FichaLicitacion({ ficha, licitacion, decision, setDecision, nota
             </section>
           )}
 
+          <SeccionExperiencia experiencia={ficha.experiencia} />
           <SeccionPlazo plazo={ficha.plazo} />
           {ficha.criba && !ficha.criba.descarta && <p className="mb-5 text-sm text-tinta-suave"><span className="font-medium">Criba:</span> {ficha.criba.motivo}</p>}
           <SeccionPuntuacion puntuacion={ficha.puntuacion} />

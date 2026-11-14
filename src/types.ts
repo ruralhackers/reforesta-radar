@@ -53,6 +53,13 @@ export interface Perfil {
    */
   entidad?: { equipo: string | null; formaJuridica: string | null };
   /**
+   * Memorias anuales de la entidad (URL de cada documento, PDF o web): el radar las lee una vez para saber qué ha hecho de verdad (proyectos y
+   * financiadores propios). Editable en la página Perfil; otra ONG apunta aquí a las suyas. Ausente o vacío = sin experiencia propia.
+   */
+  memorias?: string[];
+  /** Página donde la entidad publica sus memorias: de ella se descubren los enlaces (PDF con «memoria» en su dirección) que faltan en `memorias`. */
+  paginaMemorias?: string | null;
+  /**
    * Licitaciones públicas (fuente PLACSP): lo que la entidad puede ejecutar. Ausente = sin umbral de escala ni de solvencia (la criba no juzga la escala y la
    * puntuación no penaliza el tamaño). Los perfiles guardados antes de este campo lo reciben de la semilla (`migrarLicitaciones`).
    */

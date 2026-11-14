@@ -11,6 +11,7 @@
     "radar": "node src/cli/radar.ts",
     "digest": "node src/cli/digest.ts",
     "cargar": "node src/cli/cargar.ts",
+    "memorias": "node src/cli/memorias.ts",
     "seed": "node src/cli/seed.ts",
     "start": "node src/server.ts",
     "dev:web": "vite --config web/vite.config.ts",

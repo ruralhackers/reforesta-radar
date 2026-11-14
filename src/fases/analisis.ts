@@ -36,7 +36,7 @@ interface Modo {
 
 const MODO_CONVOCATORIAS: Modo = {
   registro: FASE_ANALISIS, fuente: { sin: FUENTE_LICITACIONES }, esquema: esquemaAnalisis, nombre: 'convocatorias',
-  prompt: (perfil, c, textos, ctx) => promptAnalisis(perfil, c, textos, textoGanadoresParaPrompt(ctx.db, c, perfil), ctx.ejemplos),
+  prompt: (perfil, c, textos, ctx) => promptAnalisis(perfil, c, textos, textoGanadoresParaPrompt(ctx.db, c, perfil), ctx.ejemplos, ctx.experiencia),
   aplicar: aplicarCitas,
   veredicto: (a) => {
     const e = a.elegibilidadEsfl;
@@ -49,7 +49,7 @@ const MODO_CONVOCATORIAS: Modo = {
 
 const MODO_LICITACIONES: Modo = {
   registro: FASE_ANALISIS_LICITACIONES, fuente: { solo: FUENTE_LICITACIONES }, esquema: esquemaAnalisisLicitacion, nombre: 'licitaciones',
-  prompt: (perfil, c, textos, ctx) => promptAnalisisLicitacion(perfil, c, textos, ctx.ejemplosLicitaciones),
+  prompt: (perfil, c, textos, ctx) => promptAnalisisLicitacion(perfil, c, textos, ctx.ejemplosLicitaciones, ctx.experiencia),
   aplicar: aplicarCitasLicitacion,
   veredicto: (a) => {
     const r = a.reservaSocial;

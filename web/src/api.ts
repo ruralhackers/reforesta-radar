@@ -312,8 +312,29 @@ export interface Ficha {
   serie: SerieFicha;
   parecidas: InfoParecidas | null;
   enlaces: { tipo: 'ficha' | 'bases' | 'extracto' | 'sede' | 'documento'; titulo: string; url: string }[];
+  /** Hasta 3 proyectos propios parecidos (según las memorias de la entidad); vacío si no hay. */
+  experiencia: ExperienciaRelacionada[];
   /** Solo licitaciones (fuente placsp). */
   licitacion: { anuncio: AnuncioLicitacion; tarjeta: TarjetaLicitacion; esAnalisisLicitacion: boolean } | null;
+}
+
+/** Proyecto propio (de una memoria anual) parecido a la convocatoria. */
+export interface ExperienciaRelacionada {
+  nombre: string;
+  anio: number | null;
+  lugar: string;
+  linea: string;
+  memoriaUrl: string;
+  memoriaAnio: number | null;
+  /** Fragmento literal de la memoria que muestra el proyecto. */
+  cita: string;
+}
+
+/** Una entidad que ya figura como financiadora en las memorias: años en que figura y si fue financiación o solo colaboración. */
+export interface YaFinanciador {
+  nombre: string;
+  anios: number[];
+  relacion: 'financiacion' | 'voluntariado_corporativo' | 'otra';
 }
 
 export async function leerFicha(id: string): Promise<Ficha> {
@@ -368,7 +389,14 @@ export interface PerfilWeb {
   importeMinimo: number | null;
   /** Puntuación mínima (0-100) para entrar arriba en "Esta semana". */
   umbralEncaje: number;
+  /** Direcciones de las memorias anuales de la entidad y la página donde se publican. */
+  memorias: string[];
+  paginaMemorias: string | null;
 }
+
+export interface ResumenMemoriaWeb { url: string; anio: number | null; proyectos: number; financiadores: number; metricas: { nombre: string; valor: string; cita: string }[]; procesadaEn: string }
+export interface MemoriasWeb { enLista: string[]; pendientes: string[]; memorias: ResumenMemoriaWeb[]; totales: { proyectos: number; financiadores: number } }
+export const leerMemorias = () => pedir<MemoriasWeb>('/api/memorias');
 
 export async function leerPerfil(): Promise<PerfilWeb> {
   const res = await fetch('/api/perfil');
@@ -377,7 +405,7 @@ export async function leerPerfil(): Promise<PerfilWeb> {
   return datos;
 }
 
-export async function guardarPerfil(p: Pick<PerfilWeb, 'lineas' | 'ambito' | 'importeMinimo' | 'umbralEncaje'> & { domicilio?: NonNullable<PerfilWeb['domicilio']> }): Promise<PerfilWeb> {
+export async function guardarPerfil(p: Pick<PerfilWeb, 'lineas' | 'ambito' | 'importeMinimo' | 'umbralEncaje' | 'memorias' | 'paginaMemorias'> & { domicilio?: NonNullable<PerfilWeb['domicilio']> }): Promise<PerfilWeb> {
   const res = await fetch('/api/perfil', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
   const datos = await res.json().catch(() => ({})) as PerfilWeb & { error?: string };
   if (!res.ok) throw new Error(datos.error ?? `Error ${res.status}`);
@@ -439,6 +467,8 @@ export interface FuenteVigilada {
   ultimaRevision: string | null;
   /** Error de la última revisión (null = fue bien). */
   ultimoError: string | null;
+  /** Figura como financiadora en las memorias de la entidad (solo las de tipo fundación); null si no consta. */
+  yaFinanciador?: YaFinanciador | null;
 }
 
 export const leerFundaciones = async () => (await pedir<{ fundaciones: FuenteVigilada[] }>('/api/fundaciones')).fundaciones;
@@ -479,6 +509,8 @@ export interface Empresa {
   estado?: EstadoEmpresa;
   /** Solo si se lee como equipo. */
   nota?: string | null;
+  /** Figura como financiadora en las memorias de la entidad; null si no consta. */
+  yaFinanciador: YaFinanciador | null;
   senales: SenalEmpresa[];
 }
 /** Ordenadas por prioridad (DIA, registro con compensación, y con `baja` también el registro de baja confianza). `ocultas` = las de baja confianza que no vienen. */

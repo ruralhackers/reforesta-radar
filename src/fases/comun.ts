@@ -18,6 +18,11 @@ export interface ContextoFase {
   ejemplos?: EjemploDecision[];
   /** Lo mismo para las licitaciones (las decisiones sobre licitaciones no se mezclan con las de las convocatorias). */
   ejemplosLicitaciones?: EjemploDecision[];
+  /**
+   * «Experiencia de la entidad» (proyectos propios de las memorias) para los prompts de criba y análisis: se calcula una vez por ejecución para que todas las
+   * llamadas vean el mismo texto (orden estable). Ausente o vacía = los prompts quedan como sin memorias.
+   */
+  experiencia?: string;
   /** Intentos fallidos por error del LLM (entre ejecuciones) tras los que una convocatoria deja de reintentarse; ausente = sin límite. */
   maxIntentos?: number;
   /** Convocatorias que se procesan aunque estén fuera de la ventana de pendientes (`npm run cargar`). */

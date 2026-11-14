@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { useSesion } from './Sesion.tsx';
-import { guardarPerfil, leerPerfil, type PerfilWeb } from './api.ts';
+import { guardarPerfil, leerMemorias, leerPerfil, type MemoriasWeb, type PerfilWeb } from './api.ts';
 
 const NIVELES = ['ESTADO', 'AUTONOMICA', 'LOCAL', 'OTROS'];
 const aLista = (t: string) => t.split(/[\n,]/).map((x) => x.trim()).filter(Boolean);
@@ -24,6 +24,9 @@ export function Perfil() {
   const [domicilio, setDomicilio] = useState({ municipio: '', provincia: '', comunidad: '', distrito: '' });
   const [importe, setImporte] = useState('');
   const [umbral, setUmbral] = useState('50');
+  const [memorias, setMemorias] = useState('');
+  const [paginaMemorias, setPaginaMemorias] = useState('');
+  const [resumen, setResumen] = useState<MemoriasWeb | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
   const [ocupado, setOcupado] = useState(false);
@@ -34,8 +37,9 @@ export function Perfil() {
     setDomicilio({ municipio: p.domicilio?.municipio ?? '', provincia: p.domicilio?.provincia ?? '', comunidad: p.domicilio?.comunidad ?? '', distrito: p.domicilio?.distrito ?? '' });
     setImporte(p.importeMinimo === null ? '' : String(p.importeMinimo));
     setUmbral(String(p.umbralEncaje));
+    setMemorias(p.memorias.join('\n')); setPaginaMemorias(p.paginaMemorias ?? '');
   };
-  useEffect(() => { leerPerfil().then(cargar, (e: Error) => setError(e.message)); }, []);
+  useEffect(() => { leerPerfil().then(cargar, (e: Error) => setError(e.message)); leerMemorias().then(setResumen, () => {}); }, []);
 
   const cambiarLinea = (i: number, campo: 'nombre' | 'descripcion', v: string) => setLineas(lineas.map((l, j) => (j === i ? { ...l, [campo]: v } : l)));
 
@@ -54,7 +58,9 @@ export function Perfil() {
         ambito: { descripcion, nivelesSiempre: niveles, territorios: aTerritorios(territorios), comunidades: [], regiones: aLista(regiones) },
         importeMinimo: n,
         umbralEncaje: u,
+        memorias: aLista(memorias), paginaMemorias: paginaMemorias.trim() || null,
       }));
+      leerMemorias().then(setResumen, () => {});
       setOk(true);
     } catch (e) { setError((e as Error).message); } finally { setOcupado(false); }
   }
@@ -145,6 +151,39 @@ export function Perfil() {
               <input value={umbral} onChange={(e) => setUmbral(e.target.value)} inputMode="numeric" className={`mt-1 font-normal sm:w-32 ${entrada}`} />
             </label>
             <p className="mt-1 text-xs text-tinta-suave">«Esta semana» solo pone arriba (hasta 7) las convocatorias ya analizadas con al menos esta puntuación; el resto queda plegado en «El radar vio otras…». Se aplica enseguida.</p>
+          </section>
+
+          <section className="space-y-3 rounded-[var(--radio)] bg-superficie p-4 ring-1 ring-linea">
+            <h2 className="font-semibold">Memorias</h2>
+            <p className="text-xs text-tinta-suave">
+              Las memorias anuales de la entidad (PDF o web, una dirección por línea). El radar las lee una vez para saber qué habéis hecho de verdad (proyectos y
+              financiadores, con cita) y lo usa en la criba, en la idea de proyecto, en «Experiencia relacionada» de cada ficha y para marcar a quien ya os financió.
+              La lectura la hace el motor (o <code>npm run memorias</code>), no esta página: se retoma en la siguiente ejecución.
+            </p>
+            <label className="block text-sm">Direcciones de las memorias
+              <textarea value={memorias} onChange={(e) => setMemorias(e.target.value)} rows={5} className={`mt-1 font-mono text-xs ${entrada}`} />
+            </label>
+            <label className="block text-sm">Página donde se publican (opcional: de ella se descubren las memorias nuevas, como mucho una vez a la semana)
+              <input value={paginaMemorias} onChange={(e) => setPaginaMemorias(e.target.value)} type="url" placeholder="https://…" className={`mt-1 ${entrada}`} />
+            </label>
+            {resumen && resumen.memorias.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <caption className="mb-1 text-left text-xs text-tinta-suave">Leído hasta ahora: {resumen.totales.proyectos} proyectos y {resumen.totales.financiadores} financiadores en {resumen.memorias.length} memorias.</caption>
+                  <thead className="text-xs text-tinta-suave"><tr><th className="py-1 pr-3 font-medium">Año</th><th className="py-1 pr-3 font-medium">Proyectos</th><th className="py-1 pr-3 font-medium">Financiadores</th><th className="py-1 font-medium">Memoria</th></tr></thead>
+                  <tbody>
+                    {resumen.memorias.map((m) => (
+                      <tr key={m.url} className="border-t border-linea">
+                        <td className="py-1 pr-3">{m.anio ?? '—'}</td><td className="py-1 pr-3">{m.proyectos}</td><td className="py-1 pr-3">{m.financiadores}</td>
+                        <td className="py-1"><a href={m.url} target="_blank" rel="noreferrer" className="text-marca-fuerte hover:underline">Abrir</a></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {resumen && resumen.pendientes.length > 0 && <p className="text-xs text-tinta-suave">Pendientes de leer: {resumen.pendientes.length} (se leen en la siguiente ejecución del radar o con <code>npm run memorias</code>).</p>}
+            {resumen && resumen.memorias.length === 0 && resumen.enLista.length === 0 && <p className="text-xs text-tinta-suave">Sin memorias todavía.</p>}
           </section>
 
           {puedeEditar && <button type="submit" disabled={ocupado} className="w-full rounded bg-marca px-4 py-2 font-medium text-white hover:bg-marca-fuerte disabled:opacity-50 sm:w-auto">{ocupado ? 'Guardando…' : 'Guardar perfil'}</button>}

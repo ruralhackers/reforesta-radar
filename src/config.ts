@@ -132,6 +132,19 @@ export function leerConfig(env: Entorno) {
       aniosRecientes: num('RADAR_ANIOS_COMPRAS', 3, { min: 1 }),
       timeoutMs: num('RADAR_TIMEOUT_COMPRAS_MS', 60_000, { min: 1 }),
     },
+    /**
+     * Memorias anuales de la entidad (`perfil.memorias`): `npm run memorias` las lee una vez con Sonnet. Como es un trabajo puntual, su presupuesto por defecto
+     * es 3 USD (RADAR_PRESUPUESTO_USD lo cambia, el mismo que en el radar), con un tope de proyección de 5 USD antes de llamar al LLM. `experiencia` = proyectos propios
+     * que entran en los prompts de criba y análisis (0 = ninguno).
+     */
+    memorias: {
+      presupuestoUsd: num('RADAR_PRESUPUESTO_USD', 3, { entero: false }),
+      maxProyeccionUsd: num('RADAR_MAX_PROYECCION_MEMORIAS_USD', 5, { entero: false }),
+      maxCaracteres: num('RADAR_MAX_CARACTERES_MEMORIAS', 150_000, { min: 1000 }),
+      /** Extracciones de memorias como mucho por pasada del radar (el comando `npm run memorias` no tiene tope, solo el presupuesto). */
+      maxPorEjecucion: num('RADAR_MAX_MEMORIAS', 2),
+      experiencia: num('RADAR_EXPERIENCIA_PROYECTOS', 15),
+    },
     /** Aprendizaje ligero: cuántas de las últimas decisiones del equipo se pasan como ejemplos a la criba y el análisis de lo nuevo. */
     decisiones: {
       maxEjemplos: num('RADAR_EJEMPLOS_DECISIONES', 20),

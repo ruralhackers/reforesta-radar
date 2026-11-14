@@ -504,6 +504,46 @@ const MIGRACIONES: string[] = [
   `
   ALTER TABLE empresa_senales ADD COLUMN tco2 REAL NOT NULL DEFAULT 0;
   `,
+  // 19: memorias anuales de la propia entidad: lo que ha hecho (proyectos) y quién la ha financiado, con la cita literal de cada dato
+  `
+  CREATE TABLE IF NOT EXISTS memorias (
+    url TEXT PRIMARY KEY,
+    hash TEXT NOT NULL,                  -- sha256 del documento leído: mismo hash = no se vuelve a extraer
+    anio INTEGER,                        -- año de la memoria (el que dice el documento)
+    modelo TEXT NOT NULL,
+    paginas INTEGER,
+    metricas TEXT NOT NULL,              -- JSON: [{ nombre, valor, cita }] cifras de cabecera con cita comprobada
+    correcciones TEXT NOT NULL,          -- JSON: lo que el código quitó por no poder comprobarlo contra el texto
+    procesada_en TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS proyectos_propios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memoria_url TEXT NOT NULL REFERENCES memorias (url) ON DELETE CASCADE,
+    nombre TEXT NOT NULL,
+    anio INTEGER,
+    lugar TEXT NOT NULL DEFAULT '',
+    municipio TEXT NOT NULL DEFAULT '',
+    provincia TEXT NOT NULL DEFAULT '',
+    linea TEXT NOT NULL DEFAULT '',      -- una línea del perfil o vacía
+    descripcion TEXT NOT NULL DEFAULT '',
+    socios TEXT NOT NULL,                -- JSON: [nombre]
+    financiadores TEXT NOT NULL,         -- JSON: [nombre]
+    datos TEXT NOT NULL,                 -- JSON: [{ concepto, etiqueta, valor, cita }] importe, hectáreas, árboles, charcas, voluntarios… con cita
+    cita TEXT NOT NULL                   -- literal de la memoria que muestra el proyecto
+  );
+  CREATE INDEX IF NOT EXISTS proyectos_propios_por_memoria ON proyectos_propios (memoria_url);
+  CREATE TABLE IF NOT EXISTS financiadores_propios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memoria_url TEXT NOT NULL REFERENCES memorias (url) ON DELETE CASCADE,
+    nombre TEXT NOT NULL,
+    clave TEXT NOT NULL,                 -- nombre normalizado (sin acentos, forma societaria ni «fundación») para casarlo con empresas y fundaciones
+    tipo TEXT NOT NULL,                  -- fundacion | empresa | administracion | otro
+    relacion TEXT NOT NULL,              -- financiacion | voluntariado_corporativo | otra
+    anio INTEGER,
+    cita TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS financiadores_propios_por_clave ON financiadores_propios (clave);
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

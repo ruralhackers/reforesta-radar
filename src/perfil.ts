@@ -13,6 +13,7 @@
 // Importe mínimo: no entra en ninguna versión; se aplica al puntuar en cada ejecución y en cada petición de /api/semana.
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
+import { urlPermitidaSintactica } from './fetch-seguro.ts';
 import { transaccion } from './db/repo.ts';
 import type { Domicilio, Perfil, TerritorioAmbito } from './types.ts';
 
@@ -27,7 +28,14 @@ export interface PerfilEditable {
   importeMinimo: number | null;
   /** undefined = no se toca el que ya hay. */
   umbralEncaje?: number;
+  /** Memorias anuales (URL de cada documento); undefined = no se toca la lista que ya hay. */
+  memorias?: string[];
+  /** Página donde se publican las memorias; undefined = no se toca; null = se quita. */
+  paginaMemorias?: string | null;
 }
+
+/** Máximo de memorias que acepta el perfil (una al año da para décadas). */
+export const MAX_MEMORIAS = 60;
 
 /** Puntuación mínima del corte de "Esta semana" cuando el perfil no fija una. */
 export const UMBRAL_CORTE_POR_DEFECTO = 50;
@@ -64,6 +72,23 @@ function validarTerritorios(v: unknown): TerritorioAmbito[] {
     if (salida.some((y) => y.comunidad.toLowerCase() === comunidad.toLowerCase())) throw new ErrorPerfil(`El territorio "${comunidad}" está repetido`);
     salida.push({ comunidad, provincias: lista(x.provincias ?? [], `provincias de ${comunidad}`) });
   }
+  return salida;
+}
+
+/** Lista de URL http(s) públicas (sin repetir). Lanza ErrorPerfil con el motivo. */
+function validarUrls(v: unknown, campo: string, max: number): string[] {
+  if (!Array.isArray(v)) throw new ErrorPerfil(`"${campo}" debe ser una lista de direcciones`);
+  const salida: string[] = [];
+  for (const x of v) {
+    const t = typeof x === 'string' ? x.trim() : '';
+    if (!t) throw new ErrorPerfil(`"${campo}" no admite elementos vacíos`);
+    let u: URL;
+    try { u = new URL(t); } catch { throw new ErrorPerfil(`"${campo}": «${t}» no es una dirección válida (p. ej. https://entidad.org/memoria-2024.pdf)`); }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new ErrorPerfil(`"${campo}": «${t}» debe empezar por http:// o https://`);
+    if (!urlPermitidaSintactica(u.toString())) throw new ErrorPerfil(`"${campo}": «${t}» debe ser una web pública (con nombre de dominio, no una IP ni una dirección interna)`);
+    if (!salida.includes(u.toString())) salida.push(u.toString());
+  }
+  if (salida.length > max) throw new ErrorPerfil(`"${campo}": como mucho ${max}`);
   return salida;
 }
 
@@ -117,7 +142,13 @@ export function validarPerfilEditable(cuerpo: unknown): PerfilEditable {
     umbralEncaje = Math.round(o.umbralEncaje);
   }
   const domicilio = o.domicilio === undefined || o.domicilio === null ? undefined : validarDomicilio(o.domicilio);
-  return { ...(umbralEncaje === undefined ? {} : { umbralEncaje }), ...(domicilio ? { domicilio } : {}), lineas, ambito: { descripcion, nivelesSiempre, territorios, comunidades: territorios.filter((t) => t.provincias.length === 0).map((t) => t.comunidad), regiones }, importeMinimo };
+  const memorias = o.memorias === undefined ? undefined : validarUrls(o.memorias, 'memorias', MAX_MEMORIAS);
+  let paginaMemorias: string | null | undefined;
+  if (o.paginaMemorias !== undefined) {
+    if (o.paginaMemorias === null || (typeof o.paginaMemorias === 'string' && !o.paginaMemorias.trim())) paginaMemorias = null;
+    else paginaMemorias = validarUrls([o.paginaMemorias], 'página de memorias', 1)[0];
+  }
+  return { ...(memorias === undefined ? {} : { memorias }), ...(paginaMemorias === undefined ? {} : { paginaMemorias }), ...(umbralEncaje === undefined ? {} : { umbralEncaje }), ...(domicilio ? { domicilio } : {}), lineas, ambito: { descripcion, nivelesSiempre, territorios, comunidades: territorios.filter((t) => t.provincias.length === 0).map((t) => t.comunidad), regiones }, importeMinimo };
 }
 
 const hash = (x: unknown) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
@@ -156,7 +187,7 @@ function versionesAnteriores(p: Perfil): { criba: string; lineas: string } {
 export function guardarPerfilEditable(db: DatabaseSync, e: PerfilEditable, ahora: Date): Perfil {
   const fila = db.prepare('SELECT datos FROM perfil WHERE id = 1').get() as { datos: string } | undefined;
   if (!fila) throw new Error('La BD no tiene perfil');
-  const nuevo: Perfil = { ...(JSON.parse(fila.datos) as Perfil), ...(e.domicilio ? { domicilio: e.domicilio } : {}), lineas: e.lineas, ambito: e.ambito, importeMinimo: e.importeMinimo, ...(e.umbralEncaje === undefined ? {} : { umbralEncaje: e.umbralEncaje }) };
+  const nuevo: Perfil = { ...(JSON.parse(fila.datos) as Perfil), ...(e.domicilio ? { domicilio: e.domicilio } : {}), lineas: e.lineas, ambito: e.ambito, importeMinimo: e.importeMinimo, ...(e.umbralEncaje === undefined ? {} : { umbralEncaje: e.umbralEncaje }), ...(e.memorias === undefined ? {} : { memorias: e.memorias }), ...(e.paginaMemorias === undefined ? {} : { paginaMemorias: e.paginaMemorias }) };
   db.prepare('UPDATE perfil SET datos = ?, actualizado_en = ? WHERE id = 1').run(JSON.stringify(nuevo), ahora.toISOString());
   return nuevo;
 }
@@ -241,4 +272,25 @@ export function migrarLicitaciones(db: DatabaseSync, semilla: Perfil, ahora: Dat
   if (nuevo.licitaciones === p.licitaciones && nuevo.entidad === p.entidad) return false;
   db.prepare('UPDATE perfil SET datos = ?, actualizado_en = ? WHERE id = 1').run(JSON.stringify(nuevo), ahora.toISOString());
   return true;
+}
+
+/** Perfiles guardados antes de las memorias reciben de la semilla la lista y la página; nunca pisa lo que ya tengan (aunque la hayan vaciado a propósito: `memorias: []` cuenta como tenerla). */
+export function migrarMemorias(db: DatabaseSync, semilla: Perfil, ahora: Date): boolean {
+  const fila = db.prepare('SELECT datos FROM perfil WHERE id = 1').get() as { datos: string } | undefined;
+  if (!fila) return false;
+  const p = JSON.parse(fila.datos) as Perfil;
+  const nuevo: Perfil = { ...p, ...(p.memorias !== undefined || !semilla.memorias ? {} : { memorias: semilla.memorias }), ...(p.paginaMemorias !== undefined || semilla.paginaMemorias === undefined ? {} : { paginaMemorias: semilla.paginaMemorias }) };
+  if (nuevo.memorias === p.memorias && nuevo.paginaMemorias === p.paginaMemorias) return false;
+  db.prepare('UPDATE perfil SET datos = ?, actualizado_en = ? WHERE id = 1').run(JSON.stringify(nuevo), ahora.toISOString());
+  return true;
+}
+
+/** Añade a la lista de memorias del perfil las direcciones descubiertas en su página (las que ya estaban no se repiten). Devuelve el perfil guardado. */
+export function anadirMemorias(db: DatabaseSync, urls: string[], ahora: Date): Perfil {
+  const fila = db.prepare('SELECT datos FROM perfil WHERE id = 1').get() as { datos: string } | undefined;
+  if (!fila) throw new Error('La BD no tiene perfil');
+  const p = JSON.parse(fila.datos) as Perfil;
+  const nuevo: Perfil = { ...p, memorias: [...new Set([...(p.memorias ?? []), ...urls])] };
+  db.prepare('UPDATE perfil SET datos = ?, actualizado_en = ? WHERE id = 1').run(JSON.stringify(nuevo), ahora.toISOString());
+  return nuevo;
 }

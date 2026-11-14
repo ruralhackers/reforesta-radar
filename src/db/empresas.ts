@@ -4,6 +4,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { diaLocal } from '../dates.ts';
 import type { Perfil } from '../types.ts';
 import { rangoTerritorio } from '../zona.ts';
+import { claveFinanciador, financiadoresConocidos, type YaFinanciador } from './memorias.ts';
 import { transaccion } from './repo.ts';
 
 export type EstadoEmpresa = 'pendiente' | 'contactada' | 'descartada';
@@ -60,6 +61,8 @@ export interface Empresa {
   estado: EstadoEmpresa;
   /** Solo en la lectura del equipo; la pública no la trae. */
   nota?: string | null;
+  /** Ya figura como financiadora en alguna memoria de la entidad (por nombre normalizado); null si no consta. */
+  yaFinanciador: YaFinanciador | null;
   senales: SenalEmpresa[];
 }
 
@@ -193,13 +196,17 @@ export function leerEmpresas(db: DatabaseSync, opciones: { estado?: EstadoEmpres
   const filas = db.prepare(`SELECT * FROM empresas WHERE oculta IS NULL AND (? IS NULL OR estado = ?) AND (? = 1 OR prioridad >= ?) ORDER BY prioridad DESC, primera_vez_vista DESC, id DESC`)
     .all(opciones.estado ?? null, opciones.estado ?? null, opciones.incluirBaja ? 1 : 0, PRIORIDAD_MINIMA_VISIBLE) as Record<string, unknown>[];
   const senales = db.prepare('SELECT * FROM empresa_senales WHERE empresa_id = ? ORDER BY fecha_publicacion DESC, id DESC');
+  const conocidos = financiadoresConocidos(db).empresas;
   const lista = filas.map((f) => ({
     id: Number(f.id), nombre: String(f.nombre), cif: (f.cif as string | null) ?? null, origen: String(f.origen), motivo: String(f.motivo), cita: String(f.cita),
     enlace: String(f.enlace), provincia: (f.provincia as string | null) ?? null, paginaRsc: (f.pagina_rsc as string | null) ?? null, prioridad: Number(f.prioridad),
     primeraVezVista: String(f.primera_vez_vista), estado: f.estado as EstadoEmpresa,
     ...(opciones.conNota ? { nota: (f.nota as string | null) ?? null } : {}),
+    yaFinanciador: conocidos.get(claveFinanciador(String(f.nombre))) ?? null,
     senales: (senales.all(Number(f.id)) as Record<string, unknown>[]).map(aSenal),
   }));
+  // Un financiador de las memorias sube dentro de su misma prioridad (desempate al alza: no cambia de grupo ni salta por encima de otra prioridad).
+  lista.sort((a, b) => b.prioridad - a.prioridad || Number(b.yaFinanciador !== null) - Number(a.yaFinanciador !== null));
   return opciones.perfil ? ordenarPorZona(lista, opciones.perfil) : lista;
 }
 
@@ -221,8 +228,8 @@ function diaCompensacion(e: Empresa): string {
  */
 export function ordenarPorZona(lista: Empresa[], perfil: Perfil): Empresa[] {
   const compensan = lista.filter((e) => e.prioridad === PRIORIDAD_REGISTRO_COMPENSA)
-    .map((e, i) => ({ e, i, tco2: e.senales.reduce((s, x) => s + x.tco2, 0), rango: rangoEmpresa(e, perfil) ?? Number.MAX_SAFE_INTEGER, dia: diaCompensacion(e) }))
-    .sort((a, b) => b.tco2 - a.tco2 || a.rango - b.rango || (a.dia < b.dia ? 1 : a.dia > b.dia ? -1 : 0) || a.i - b.i)
+    .map((e, i) => ({ e, i, ya: e.yaFinanciador !== null, tco2: e.senales.reduce((s, x) => s + x.tco2, 0), rango: rangoEmpresa(e, perfil) ?? Number.MAX_SAFE_INTEGER, dia: diaCompensacion(e) }))
+    .sort((a, b) => b.tco2 - a.tco2 || a.rango - b.rango || Number(b.ya) - Number(a.ya) || (a.dia < b.dia ? 1 : a.dia > b.dia ? -1 : 0) || a.i - b.i)
     .map((x) => x.e);
   let k = 0;
   return lista.map((e) => (e.prioridad === PRIORIDAD_REGISTRO_COMPENSA ? compensan[k++] : e));

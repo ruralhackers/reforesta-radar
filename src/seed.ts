@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 import { guardarSemilla, leerPerfil, sembrarFuentesFaltantes } from './db/repo.ts';
-import { migrarAmbito, migrarDomicilio, migrarLicitaciones } from './perfil.ts';
+import { migrarAmbito, migrarDomicilio, migrarLicitaciones, migrarMemorias } from './perfil.ts';
 import type { Semilla } from './types.ts';
 
 export function leerSemilla(ruta: string): Semilla {
@@ -23,6 +23,7 @@ export function sembrarSiVacia(db: DatabaseSync, rutaSemilla: string, ahora: Dat
     migrarAmbito(db, completa.perfil, ahora);
     migrarDomicilio(db, completa.perfil, ahora);
     migrarLicitaciones(db, completa.perfil, ahora);
+    migrarMemorias(db, completa.perfil, ahora);
     sembrarFuentesFaltantes(db, completa.fundaciones);
     return false;
   }

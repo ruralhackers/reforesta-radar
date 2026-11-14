@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useId, useState } from 'react';
 import { actualizarEmpresa, type Empresa, type EstadoEmpresa, leerEmpresas } from './api.ts';
+import { ChipYaFinanciador } from './Experiencia.tsx';
 import { useSesion } from './Sesion.tsx';
 
 const ESTADOS: { valor: EstadoEmpresa; etiqueta: string }[] = [
@@ -60,6 +61,7 @@ function Fila({ e, puedeEditar, conEstado, alCambiar, columnas }: { e: Empresa; 
             <span className="min-w-0">
               <span className="font-semibold text-tinta [overflow-wrap:anywhere]">{e.nombre}</span>
               <span className={`ml-2 rounded px-1.5 py-0.5 align-middle text-[11px] font-medium ${origen.clase}`}>{origen.texto}</span>
+              <ChipYaFinanciador ya={e.yaFinanciador} />
               {e.prioridad < 3 && e.senales.some((s) => s.tipo === 'compra_absorcion') && <span className="ml-1 rounded bg-marca-suave px-1.5 py-0.5 align-middle text-[11px] font-medium text-marca-fuerte">Compra absorción</span>}
               <span className="mt-0.5 block text-sm font-normal text-tinta sm:hidden">{e.motivo}</span>
               {e.provincia && <span className="block text-xs font-normal text-tinta-suave sm:hidden">{e.provincia}</span>}

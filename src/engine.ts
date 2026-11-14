@@ -9,6 +9,7 @@ import {
 import { analizarConLlm, analizarLicitaciones, FASE_ANALISIS } from './fases/analisis.ts';
 import { cribarConLlm, FASE_CRIBA } from './fases/criba.ts';
 import { rellenarTitulosCortos } from './fases/titulos.ts';
+import { type ConfigMemorias, CONFIG_MEMORIAS_POR_DEFECTO, procesarMemorias, type ResumenMemorias, tocaDescubrir } from './fases/memorias.ts';
 import { CONFIG_COMPRAS_POR_DEFECTO, type ConfigCompras, recogerEmpresasCompras, type ResumenCompras } from './fases/compras.ts';
 import { CONFIG_HUELLA_POR_DEFECTO, type ConfigHuella, recogerEmpresasHuella, type ResumenHuella } from './fases/huella.ts';
 import { CONFIG_EMPRESAS_POR_DEFECTO, type ConfigEmpresas, recogerEmpresasDia, type ResumenEmpresas } from './fases/empresas.ts';
@@ -17,6 +18,7 @@ import { CONFIG_GANADORES_POR_DEFECTO, type ConfigGanadores, recogerGanadores, t
 import { recogerHistorialSeries, type ResumenSeries } from './fases/series.ts';
 import { CONFIG_PARECIDAS_POR_DEFECTO, type ConfigParecidas, descubrirParecidas, type ResumenParecidas } from './fases/parecidas.ts';
 import { ejemplosDecisiones } from './db/decisiones.ts';
+import { experienciaDeLaEntidad } from './memorias.ts';
 import { quitarMarcaDescubierta } from './db/ganadores.ts';
 import { crearProbabilidad } from './ganadores.ts';
 import { marcarDuplicadas, type ResumenDuplicadas } from './fases/duplicadas.ts';
@@ -74,6 +76,14 @@ export interface DependenciasMotor {
   huella?: boolean | Partial<ConfigHuella>;
   /** Empresas que compran créditos de absorción (fase `empresas_compra_absorcion`, sin LLM, tras la de huella). Solo se ejecuta si se pide, como la de huella. */
   compras?: boolean | Partial<ConfigCompras>;
+  /**
+   * Memorias anuales de la entidad (fase `memorias`, Sonnet, antes de la criba para que los prompts ya cuenten con la experiencia). Solo lee las de `perfil.memorias` que
+   * aún no tienen extracción guardada (cuando la lista cambia) y, como mucho una vez a la semana, mira la página de memorias del perfil por si hay enlaces nuevos.
+   * Ausente/false = se salta (sin red). Con `npm run memorias` se revisa toda la lista.
+   */
+  memorias?: boolean | Partial<ConfigMemorias>;
+  /** Proyectos propios que entran en los prompts como «Experiencia de la entidad» (por defecto RADAR_EXPERIENCIA_PROYECTOS, 15). */
+  maxProyectosExperiencia?: number;
   /** Espera entre peticiones a BDNS (por defecto setTimeout); los tests la inyectan. */
   dormir?: (ms: number) => Promise<void>;
   log?: (mensaje: string) => void;
@@ -106,6 +116,8 @@ export interface ResumenEjecucion {
   empresas: ResumenEmpresas | null;
   huella: ResumenHuella | null;
   compras: ResumenCompras | null;
+  /** Memorias anuales de la entidad; null si no se pidió la fase. */
+  memorias: ResumenMemorias | null;
   /** Convocatorias de otras fuentes marcadas como duplicadas de una de BDNS (mismo título). */
   duplicadas: ResumenDuplicadas;
   /** Presupuesto de LLM de la ejecución (común a todas las fases) y lo gastado, fallos cobrados incluidos. */
@@ -156,6 +168,7 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
   let empresas: ResumenEmpresas | null = null;
   let huella: ResumenHuella | null = null;
   let compras: ResumenCompras | null = null;
+  let memorias: ResumenMemorias | null = null;
   let errorGeneral: string | null = null;
   let conErrores = false;
 
@@ -196,7 +209,20 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
       for (const e of series.errores) log(`  ! ${e}`);
       for (const a of series.avisos) log(`  · ${a}`);
     };
-    fases = [...fasesDeFuentes, ...(await fasesLlm(deps, ejecucionId, perfil, inicio, pedirGanadores, opciones.incluirIds, opciones.soloIncluidas))];
+    // Memorias de la entidad: antes de la criba, para que los prompts de esta ejecución ya lleven la experiencia. Solo lo que falta (ver `DependenciasMotor.memorias`).
+    const fasesMemorias: RegistroFase[] = [];
+    if (deps.memorias && deps.llm) {
+      const modelo = { ...CONFIG_LLM_POR_DEFECTO, ...deps.configLlm }.modeloAnalisis;
+      const cfgM: Partial<ConfigMemorias> = { ...CONFIG_MEMORIAS_POR_DEFECTO, soloPendientes: true, maxExtracciones: config.memorias.maxPorEjecucion, descubrir: !!perfil.paginaMemorias && tocaDescubrir(db, reloj.now()), ...(typeof deps.memorias === 'object' ? deps.memorias : {}) };
+      memorias = await procesarMemorias({ db, fetch: deps.fetch, reloj, llm: deps.llm, resolver: deps.resolver }, perfil, modelo, cfgM);
+      guardarRegistroFase(db, ejecucionId, memorias.fase);
+      fasesMemorias.push(memorias.fase);
+      const m = memorias;
+      if (m.enLista || m.descubiertas.length) log(`memorias: ${m.enLista} en la lista, ${m.descubiertas.length} descubiertas, ${m.extraidas} extraídas (${m.proyectos} proyectos, ${m.financiadores} financiadores), ${m.sinCambios} ya guardadas, ${m.fase.costeUsd.toFixed(4)} USD, ${m.errores.length} errores`);
+      for (const a of m.fase.avisos) log(`  · ${a}`);
+      for (const x of m.errores) log(`  ! ${x}`);
+    }
+    fases = [...fasesDeFuentes, ...fasesMemorias, ...(await fasesLlm(deps, ejecucionId, perfil, inicio, pedirGanadores, opciones.incluirIds, opciones.soloIncluidas))];
     if (deps.empresas || deps.huella || deps.compras) {
       // Filas guardadas antes del filtro de persona jurídica: se ocultan (con motivo), no se borran.
       const ocultadas = ocultarSinFormaJuridica(db);
@@ -248,7 +274,7 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
     throw e;
   } finally {
     const listas = [...resumen.map((f) => f.errores), ...fases.map((f) => f.errores), plazos?.errores, puntuacion?.errores, ganadores?.errores, series?.errores,
-      parecidas?.errores, empresas?.errores, huella?.errores, compras?.errores];
+      parecidas?.errores, empresas?.errores, huella?.errores, compras?.errores, memorias?.errores];
     conErrores = errorGeneral !== null || listas.some((e) => (e?.length ?? 0) > 0);
     try {
       terminarEjecucion(db, ejecucionId, reloj.now(), conErrores, errorGeneral);
@@ -259,7 +285,7 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
   }
   if (deps.llm && presupuesto.gastadoUsd >= presupuesto.limiteUsd) log(`Presupuesto de LLM agotado: ${presupuesto.gastadoUsd.toFixed(4)} de ${presupuesto.limiteUsd.toFixed(2)} USD`);
 
-  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, series, parecidas, empresas, huella, compras, duplicadas, presupuesto };
+  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, series, parecidas, empresas, huella, compras, memorias, duplicadas, presupuesto };
 }
 
 /**
@@ -283,6 +309,7 @@ async function fasesLlm(
       db: deps.db, llm: deps.llm, reloj: deps.reloj, fetch: deps.fetch, resolver: deps.resolver, maxIntentos: cfg.maxIntentos, incluirIds, soloIncluidas,
       ejemplos: ejemplosDecisiones(deps.db, deps.maxEjemplosDecisiones ?? config.decisiones.maxEjemplos),
       ejemplosLicitaciones: ejemplosDecisiones(deps.db, deps.maxEjemplosDecisiones ?? config.decisiones.maxEjemplos, true),
+      experiencia: experienciaDeLaEntidad(deps.db, deps.maxProyectosExperiencia ?? config.memorias.experiencia),
     };
     const publicadasDesde = sumarDias(diaLocal(inicio), -(cfg.diasPendientes - 1));
     const criba = await cribarConLlm(ctx, perfil, cfg.modeloCriba, publicadasDesde, deps.fuentes);

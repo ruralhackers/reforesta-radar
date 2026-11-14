@@ -35,6 +35,10 @@ El flujo de un lunes:
 
 **Canal de empresas (RSC)**: empresas con un motivo verificable para financiar restauración, no una lista fría. (1) Las **declaraciones de impacto ambiental (DIA) del BOE** que obligan a una empresa a restaurar o compensar hábitat; (2) el **registro de huella de carbono** del MITECO (nivel A: compensan, con motivo concreto; nivel B: gran empresa afín de la zona, baja confianza, oculto por defecto); (3) las **empresas que compran créditos de absorción** de proyectos forestales (listado de compensaciones y proyectos de absorción del MITECO, sin LLM): «compensó 130 tCO2 en 2026 con el proyecto «…» (Ávila)», con prioridad solo si el proyecto está en los territorios del perfil y la compra es de los últimos 3 años (ordenadas por tCO2 en territorio).
 
+## Qué ha hecho la entidad
+
+El radar lee las memorias anuales de la propia ONG (lista editable en Perfil) y extrae sus proyectos y financiadores con cita literal. Con eso la criba y el análisis conocen su experiencia, la idea de proyecto se apoya en proyectos parecidos ya hechos, cada ficha enseña «Experiencia relacionada» con enlace a la memoria y Empresas y Fundaciones marcan a quien ya os financió.
+
 ## Cómo decide
 
 Pasa por embudo, de lo barato a lo caro, y cada paso deja rastro:
@@ -76,7 +80,7 @@ LOOKBACK_DAYS=60 RADAR_MAX_ANALISIS=10 npm run radar   # primera carga: unos 60 
 npm run build && npm start  # abre http://127.0.0.1:8116
 ```
 
-Más comandos: `npm test` (respuestas reales grabadas), `npm run digest -- --vista-previa` (escribe `data/digest-preview.html` sin enviar nada), `npm run cargar -- 904719` (mete una convocatoria concreta de BDNS por su número), `npm run licitaciones -- --paginas 40` (relleno puntual del feed de licitaciones, ~14 MB por página), `npm run dev:web` (web con recarga). Sin `ANTHROPIC_API_KEY` el radar se salta criba y análisis y lo apunta en el registro (`/api/ejecuciones`), y «Esta semana» queda vacía. Con Docker: `docker compose up -d`.
+Más comandos: `npm test` (respuestas reales grabadas), `npm run digest -- --vista-previa` (escribe `data/digest-preview.html` sin enviar nada), `npm run cargar -- 904719` (mete una convocatoria concreta de BDNS por su número), `npm run memorias` (lee las memorias anuales de `perfil.memorias`: proyectos y financiadores propios con cita, ~1 USD una sola vez; presupuesto por defecto 3 USD), `npm run licitaciones -- --paginas 40` (relleno puntual del feed de licitaciones, ~14 MB por página), `npm run dev:web` (web con recarga). Sin `ANTHROPIC_API_KEY` el radar se salta criba y análisis y lo apunta en el registro (`/api/ejecuciones`), y «Esta semana» queda vacía. Con Docker: `docker compose up -d`.
 
 ## Desplegar
 
@@ -92,6 +96,7 @@ Solo `ANTHROPIC_API_KEY` es obligatoria; el resto tiene valor por defecto ([`src
 | `ANTHROPIC_API_KEY` | **sí** | — | Clave de la API de Claude (sin ella no hay criba ni análisis) |
 | `RADAR_PRESUPUESTO_USD` | no | `1.00` | Techo de gasto de LLM por ejecución, común a todas las fases |
 | `RADAR_MAX_ANALISIS` | no | `20` | Máximo de análisis (Sonnet) por ejecución |
+| `RADAR_MAX_MEMORIAS`, `RADAR_EXPERIENCIA_PROYECTOS` | no | `2`, `15` | Memorias de la entidad: extracciones por pasada del radar y proyectos propios en los prompts |
 | `LOOKBACK_DAYS` | no | `7` | Días hacia atrás que revisa cada pasada |
 | `RADAR_MODELO_CRIBA` / `RADAR_MODELO_ANALISIS` | no | `claude-haiku-5-5` / `claude-sonnet-5-5` | Modelos |
 | `TEAM_PASSWORD` | no | vacío = demo pública | Activa el modo privado |

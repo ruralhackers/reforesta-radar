@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { type DecisionEquipo, type Ficha as TFicha, type NotaEquipo, leerEquipoFicha, leerFicha } from './api.ts';
 import { BotonesDecision, Notas } from './Decision.tsx';
 import { SeccionGanadores } from './Ganadores.tsx';
+import { SeccionExperiencia } from './Experiencia.tsx';
 import { SeccionSerie } from './Serie.tsx';
 import { OrigenFuente, TEXTO_CASCADA, etiquetaFuente } from './Origen.tsx';
 import { SeccionPlazo, textoCierre } from './Plazo.tsx';
@@ -160,6 +161,7 @@ export function Ficha({ id }: { id: string }) {
             </section>
           )}
 
+          <SeccionExperiencia experiencia={ficha.experiencia} />
           <SeccionSerie serie={ficha.serie} />
           <SeccionGanadores ganadores={ficha.ganadoresPrevios} />
           <SeccionPlazo plazo={ficha.plazo} />

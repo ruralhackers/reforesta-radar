@@ -25,6 +25,8 @@ import { actualizarEmpresa, contarEmpresasBaja, ErrorEmpresa, ESTADOS_EMPRESA, t
 import { activarFuente, altaFuente, ErrorFundacion, leerFuentesVigiladas, quitarFuente } from '../db/fundaciones.ts';
 import { construirInforme, type Informe } from '../backtest/informe.ts';
 import { config } from '../config.ts';
+import { financiadoresConocidos, proyectosPropios, resumenMemorias, claveFinanciador } from '../db/memorias.ts';
+import { aniosMemorias, experienciaRelacionada } from '../memorias.ts';
 import { crearAcceso, type OpcionesEquipo } from './equipo.ts';
 import { fuentePorNombre } from '../sources/index.ts';
 import type { Fuente } from '../sources/source.ts';
@@ -122,7 +124,20 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
   // --- Fundaciones y agregadores vigilados ---
   // GET público (nombre, URL, última revisión, último cambio y último error: nada del equipo). Altas, bajas y activación en `privadaFundaciones`.
   // Lo que se añade o quita cuenta desde la siguiente ejecución del radar (la fuente lee la tabla en cada pasada).
-  api.get('/fundaciones', (c) => c.json({ fundaciones: leerFuentesVigiladas(db).map(({ huella: _huella, ...f }) => f) }));
+  // `yaFinanciador`: la fundación figura entre los financiadores de las memorias de la entidad (por nombre normalizado); solo las de tipo fundación.
+  api.get('/fundaciones', (c) => {
+    const k = financiadoresConocidos(db);
+    return c.json({ fundaciones: leerFuentesVigiladas(db).map(({ huella: _huella, ...f }) => ({ ...f, yaFinanciador: f.tipo === 'fundacion' ? (k.fundaciones.get(claveFinanciador(f.nombre)) ?? k.empresas.get(claveFinanciador(f.nombre)) ?? null) : null })) });
+  });
+
+  // --- Memorias de la entidad (las lee el motor o `npm run memorias`; aquí solo se ve el resultado) ---
+  // `enLista`: las direcciones del perfil; `pendientes`: las de la lista aún sin extraer; `memorias`: una fila por memoria extraída (año, proyectos, financiadores, cifras de cabecera).
+  api.get('/memorias', (c) => {
+    const memorias = resumenMemorias(db);
+    const enLista = leerPerfil(db)?.memorias ?? [];
+    const hechas = new Set(memorias.map((m) => m.url));
+    return c.json({ enLista, pendientes: enLista.filter((u) => !hechas.has(u)), memorias, totales: { proyectos: memorias.reduce((n, m) => n + m.proyectos, 0), financiadores: memorias.reduce((n, m) => n + m.financiadores, 0) } });
+  });
 
   const privadaFundaciones = new Hono();
   privadaFundaciones.use('*', acceso.requiereEquipo);
@@ -196,7 +211,7 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
   // --- Perfil editable (líneas de trabajo, ámbito, importe mínimo). NIF e idPersona solo se leen. ---
   // PUT va en su propio sub-router `privadaPerfil` (Task 9: `privadaPerfil.use('*', ...)`).
   const vistaPerfil = (p: NonNullable<ReturnType<typeof leerPerfil>>) => ({
-    nombre: p.nombre, nif: p.nif, bdnsIdPersona: p.bdnsIdPersona, domicilio: p.domicilio ?? null, lineas: p.lineas, ambito: p.ambito, importeMinimo: p.importeMinimo, umbralEncaje: umbralDelPerfil(p),
+    nombre: p.nombre, nif: p.nif, bdnsIdPersona: p.bdnsIdPersona, domicilio: p.domicilio ?? null, lineas: p.lineas, ambito: p.ambito, importeMinimo: p.importeMinimo, umbralEncaje: umbralDelPerfil(p), memorias: p.memorias ?? [], paginaMemorias: p.paginaMemorias ?? null,
   });
   api.get('/perfil', (c) => {
     const p = leerPerfil(db);
@@ -369,6 +384,11 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
       serie: serieDeConvocatoria(db, conv, perfil, diaLocal(reloj.now())),
       // Las parecidas activas relacionadas (origen del descubrimiento y/o entre los ganadores previos); null si ninguna.
       parecidas: infoParecidas(db, conv, perfil),
+      // Hasta 3 proyectos propios parecidos (palabras, línea, lugar; sin LLM) con enlace a su memoria; [] si no hay memorias o ninguno se parece.
+      experiencia: experienciaRelacionada(proyectosPropios(db), aniosMemorias(db), {
+        texto: [conv.titulo, datosAnalisis?.analisis?.tituloCorto, conv.finalidad, conv.organo.nivel2, conv.organo.nivel3].filter(Boolean).join(' '),
+        lineas: datosAnalisis?.analisis?.lineas?.map((l) => l.linea) ?? [],
+      }),
       enlaces: fuentePorNombre(conv.fuente, fuentes)?.enlaces?.(conv) ?? [{ tipo: 'ficha', titulo: 'Ficha en la fuente', url: conv.url }],
       // Solo licitaciones (fuente placsp): lo que dice el anuncio de la Plataforma (expediente, órgano, presupuestos, plazo, duración, procedimiento, lotes, CPV, lugar,
       // solvencia y criterios de adjudicación) y el resumen de la tarjeta; `analisis.campos` es entonces un AnalisisLicitacion (campos con cita). null en el resto.

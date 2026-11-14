@@ -79,6 +79,7 @@ npm run build            # compila la web (dist/web)
 npm start                # web + API en http://127.0.0.1:8116
 npm test                 # node --test (respuestas reales grabadas de BDNS, UE, BOE, fundaciones y MITECO)
 npm run digest -- --vista-previa   # escribe data/digest-preview.html sin enviar nada
+npm run memorias                   # lee las memorias anuales del perfil (una vez; ~1 USD con las 14 de Reforesta)
 npm run cargar -- 904719           # mete convocatorias concretas de BDNS por su número (ver abajo)
 npm run licitaciones -- --paginas 40   # relleno puntual hacia atrás del feed de licitaciones (PLACSP; ver «Fuente PLACSP»)
 ```
@@ -133,6 +134,7 @@ claro (código 1), en vez de quitar un tope sin avisar.
 | `DB_PATH` | no | `data/radar.sqlite` | Fichero SQLite |
 | `SEED_FILE`, `FESTIVOS_FILE`, `PUNTUACION_FILE` | no | `seed/perfil.json`, `seed/festivos.json`, `seed/puntuacion.json` | Semillas (ver "Adaptarlo a otra ONG") |
 | `LOOKBACK_DAYS` | no | `7` | Días hacia atrás que revisa cada pasada |
+| `RADAR_MAX_PROYECCION_MEMORIAS_USD`, `RADAR_MAX_CARACTERES_MEMORIAS`, `RADAR_MAX_MEMORIAS`, `RADAR_EXPERIENCIA_PROYECTOS` | no | `5`, `150000`, `2`, `15` | Memorias de la entidad: tope de proyección de coste del comando, caracteres por memoria, extracciones por pasada del radar y proyectos propios en los prompts (el presupuesto del comando es `RADAR_PRESUPUESTO_USD`, por defecto 3 en `npm run memorias`) |
 | `RADAR_MODELO_CRIBA`, `RADAR_MODELO_ANALISIS` | no | `claude-haiku-5-5`, `claude-sonnet-5-5` | Modelos |
 | **`RADAR_PRESUPUESTO_USD`** | no | `1.00` | **Techo de gasto de LLM por ejecución, común a todas las fases** (criba, análisis, fundaciones, DIA, huella); cuentan también las llamadas que fallan tras cobrarse. Al llegar, lo que falta queda para la siguiente |
 | **`RADAR_MAX_ANALISIS`** | no | `20` (igual en la producción de ejemplo) | **Tope de análisis (Sonnet) por pasada** |
@@ -567,6 +569,18 @@ Un **comprador** es un nombre del listado (con su forma societaria; «S.L.» y �
 **Unión** con empresas existentes por `registrarSenal`: el listado no trae NIF, así que se une por nombre normalizado con forma societaria y nunca contradice un CIF (no lo cambia). Si hay dos o más empresas con ese nombre y CIF distintos, la compra no se une a ninguna (`ambiguos`, con aviso). Una empresa de baja confianza que una señal sube a visible adopta el motivo, la cita y el enlace de esa señal (antes se quedaba con «no consta compensación»). Idempotente: repetir la pasada actualiza prioridad y motivo sin duplicar.
 
 Web (`/empresas`): chips de origen (Todos, DIA, Compensa huella, Compra absorción) que filtran por las señales de la empresa; las compras salen en el grupo «Compensan su huella o compran absorciones» con la etiqueta «Compra absorción». Los contadores cuentan las visibles (prioridad ≥ 2) y el correo, las nuevas relevantes (DIA, o prioridad ≥ 2 con alguna señal dentro de los territorios).
+
+### Memorias de la entidad
+
+Qué ha hecho Reforesta de verdad, leído de sus memorias anuales (nada propio de Reforesta en el código: las direcciones son `perfil.memorias`, sembradas desde `seed/perfil.json` con las 14 memorias 2011-2024 que enlaza `https://reforesta.es/quienes-somos/`, y editables en Perfil; `perfil.paginaMemorias` permite descubrir las nuevas).
+
+- **Lectura**: `src/fases/memorias.ts`. Descarga con `fetchSeguro` (tope de 25 MB), PDF → texto con unpdf y caché por hash (`documentos`/`textos`), Sonnet con salida estructurada (`src/memorias.ts`). Un documento con el mismo hash no se vuelve a extraer.
+- **Validación**: sin cita literal (comprobada contra el texto enviado) no hay proyecto, financiador, métrica ni cifra; los nombres de socios, financiadores y lugares tienen que aparecer en el texto; las cifras, en su cita. Lo quitado queda en `memorias.correcciones` y en los avisos de la ejecución.
+- **Tablas** (migración 19): `memorias`, `proyectos_propios`, `financiadores_propios`.
+- **Comando** `npm run memorias [-- --refrescar]`: revisa toda la lista (y descubre enlaces nuevos). Presupuesto por defecto **3 USD** (`RADAR_PRESUPUESTO_USD`, el mismo nombre que en el radar) y se niega a llamar si la proyección previa pasa de `RADAR_MAX_PROYECCION_MEMORIAS_USD` (5 USD). Coste medido sobre las 14 memorias: ~1,11 USD (190 k tokens de entrada, 73 k de salida); repetirlo cuesta 0 (caché y hash).
+- **Motor**: `npm run radar` pasa `memorias: true`: antes de la criba lee solo las URL de la lista que aún no tienen extracción (como mucho `RADAR_MAX_MEMORIAS`, 2, por pasada, para no gastar el presupuesto diario) y mira la página de memorias como mucho una vez a la semana.
+- **Prompts**: `ctx.experiencia` (calculada una vez por ejecución, `RADAR_EXPERIENCIA_PROYECTOS`=15 proyectos, primero los que casan con una línea, luego los recientes; orden estable por año y nombre) entra tras el perfil en criba y análisis; el análisis pide anclar la idea de proyecto en un proyecto parecido citando su memoria. Sin memorias el prompt no cambia.
+- **Ficha**: `experiencia` en `/api/convocatorias/:id` (raíces de palabras + línea + lugar, sin LLM, máximo 3). **Empresas/Fundaciones**: `yaFinanciador` por nombre normalizado (`claveFinanciador`: sin forma societaria ni «fundación»); las administraciones no casan; en Empresas desempata al alza dentro de su prioridad. **Perfil**: `/api/memorias` (lista, pendientes, proyectos y financiadores por año).
 
 ### Cómo sabemos (backtest)
 

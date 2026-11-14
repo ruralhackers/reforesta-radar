@@ -102,6 +102,15 @@ funciones y tablas usan estas mismas palabras.
 - **Comprador relevante**: prioridad 2 (como el nivel A): compró en un proyecto dentro de los territorios del perfil en los últimos 3 años (las compras recientes de fuera quedan en baja confianza); se ordenan por las tCO2 compradas en territorio. Con una DIA además, sigue en 3. Sin NIF en el listado, se une a otras empresas solo por nombre con forma societaria y nunca con un CIF distinto.
 - **Estado de empresa**: pendiente, contactada o descartada. Trabajo del equipo: privado con `TEAM_PASSWORD`.
 
+## Memorias y experiencia propia
+
+- **Memoria**: informe anual de la propia entidad (PDF o web) que apunta `perfil.memorias`, editable en Perfil; `perfil.paginaMemorias` es la página de la que se descubren las nuevas. Tabla `memorias` (hash del documento leído: sin cambios, no se vuelve a extraer).
+- **Proyecto propio**: proyecto que la memoria dice haber hecho (nombre, año, lugar, línea del perfil, socios, financiadores, cifras), con su cita literal comprobada. Tabla `proyectos_propios`.
+- **Financiador propio**: entidad que figura en una memoria como financiadora, patrocinadora o colaboradora (tipo fundación/empresa/administración; relación financiación, voluntariado corporativo u otra). Tabla `financiadores_propios`.
+- **Experiencia de la entidad**: bloque de hasta 15 proyectos propios que va en los prompts de criba y análisis (orden estable) para que la idea de proyecto se apoye en lo ya hecho.
+- **Experiencia relacionada**: en la ficha, 1–3 proyectos propios parecidos a la convocatoria (palabras, línea y lugar; sin LLM), con enlace a su memoria.
+- **Ya financiador**: marca en Empresas y Fundaciones cuando el nombre normalizado coincide con un financiador propio («Ya os financió en 2022, 2023»); solo desempata al alza dentro de la misma prioridad.
+
 ## Coste y control
 
 - **Tope**: máximo de algo por ejecución (análisis, peticiones, resoluciones). Lo que no cabe queda "sin hacer por el tope" para la siguiente.

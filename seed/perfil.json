@@ -41,7 +41,24 @@
       "SUBVENCIONES AL TRANSPORTE"
     ],
     "entidad": { "equipo": "6-7 personas", "formaJuridica": "asociación ecologista sin ánimo de lucro" },
-    "licitaciones": { "presupuestoMaximo": 300000, "ingresosAnuales": 105000 }
+    "licitaciones": { "presupuestoMaximo": 300000, "ingresosAnuales": 105000 },
+    "paginaMemorias": "https://reforesta.es/quienes-somos/",
+    "memorias": [
+      "https://reforesta.es/wp-content/uploads/2020/04/Memoria-descriptiva-de-Reforesta-2011.pdf",
+      "https://reforesta.es/wp-content/uploads/2020/04/Memoria-2012.pdf",
+      "https://reforesta.es/wp-content/uploads/2020/04/Memoria-2013.pdf",
+      "https://reforesta.es/wp-content/uploads/2020/04/Memoria-Reforesta-2014.pdf",
+      "https://reforesta.es/wp-content/uploads/2020/04/Memoria-2015.pdf",
+      "https://reforesta.es/wp-content/uploads/2020/04/Memoria_2016.pdf",
+      "https://reforesta.es/wp-content/uploads/2020/11/Memoria-2017.pdf",
+      "https://reforesta.es/wp-content/uploads/2020/04/Memoria-2018.pdf",
+      "https://reforesta.es/wp-content/uploads/2020/04/Memoria-2019.pdf",
+      "https://reforesta.es/wp-content/uploads/2021/06/Memoria-2020.pdf",
+      "https://reforesta.es/wp-content/uploads/2022/12/Memoria-2021.pdf",
+      "https://reforesta.es/wp-content/uploads/2023/11/Memoria-2022.pdf",
+      "https://reforesta.es/wp-content/uploads/2024/12/Memoria-2023.pdf",
+      "https://reforesta.es/wp-content/uploads/2026/05/Memoria-Reforesta-2024.pdf"
+    ]
   },
   "organizacionesParecidas": [
     { "nif": "G78456118", "nombre": "GREFA" },
