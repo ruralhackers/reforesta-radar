@@ -419,15 +419,33 @@ const MIGRACIONES: string[] = [
     coste_usd REAL NOT NULL
   );
   `,
+  `
+  -- Intentos fallidos por error del LLM de una convocatoria en una fase (criba_llm, analisis). Al llegar al tope (RADAR_MAX_INTENTOS_LLM)
+  -- deja de reintentarse; un veredicto bueno borra la fila.
+  CREATE TABLE IF NOT EXISTS llm_fallos (
+    convocatoria_id TEXT NOT NULL REFERENCES convocatorias (id) ON DELETE CASCADE,
+    fase TEXT NOT NULL,
+    intentos INTEGER NOT NULL,
+    ultimo_error TEXT,
+    actualizado_en TEXT NOT NULL,
+    PRIMARY KEY (convocatoria_id, fase)
+  );
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {
-  const { user_version: version } = db.prepare('PRAGMA user_version').get() as { user_version: number };
-  for (let i = version; i < MIGRACIONES.length; i++) {
-    db.exec('BEGIN');
+  // Cada migración en BEGIN IMMEDIATE y releyendo user_version dentro: si el servidor y el cron abren a la vez una imagen nueva,
+  // el segundo espera al primero y no repite la misma migración.
+  for (;;) {
+    db.exec('BEGIN IMMEDIATE');
     try {
-      db.exec(MIGRACIONES[i]);
-      db.exec(`PRAGMA user_version = ${i + 1}`);
+      const { user_version: version } = db.prepare('PRAGMA user_version').get() as { user_version: number };
+      if (version >= MIGRACIONES.length) {
+        db.exec('COMMIT');
+        return;
+      }
+      db.exec(MIGRACIONES[version]);
+      db.exec(`PRAGMA user_version = ${version + 1}`);
       db.exec('COMMIT');
     } catch (e) {
       db.exec('ROLLBACK');

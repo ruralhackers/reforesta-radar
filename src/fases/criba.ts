@@ -1,13 +1,13 @@
 // Fase `criba_llm` (Haiku): para cada candidata de las reglas sin veredicto, "puede encajar / descartar + motivo".
 // Solo usa los textos que la fuente ya trae (extracto, ficha); no descarga documentos. Las de otra comunidad llevan
 // la condición de las reglas: si exigen sede o actividad allí, se descartan.
-import { guardarFase, pendientesDeFase, type RegistroFase, registroFaseVacio } from '../db/repo.ts';
+import { borrarFallosLlm, guardarFase, pendientesDeFase, type RegistroFase, registroFaseVacio } from '../db/repo.ts';
 import { versionCriba } from '../perfil.ts';
 import { ESQUEMA_CRIBA, promptCriba } from '../llm/prompts.ts';
 import { fuentePorNombre } from '../sources/index.ts';
 import type { Fuente } from '../sources/source.ts';
 import type { Convocatoria, Perfil } from '../types.ts';
-import { aCache, type ContextoFase, claveCache, desdeCache, enParalelo, llamar } from './comun.ts';
+import { aCache, type ContextoFase, claveCache, desdeCache, enParalelo, esPresupuestoAgotado, fallo, llamar, validarRespuesta } from './comun.ts';
 
 export const FASE_CRIBA = 'criba_llm';
 const EN_PARALELO = 4;
@@ -45,14 +45,14 @@ export async function cribarConLlm(
   ctx: ContextoFase, perfil: Perfil, modelo: string, publicadasDesde: string, fuentes?: Fuente[],
 ): Promise<RegistroFase> {
   const registro = registroFaseVacio(FASE_CRIBA, modelo);
-  const pendientes = pendientesDeFase(ctx.db, FASE_CRIBA, publicadasDesde);
+  const pendientes = pendientesDeFase(ctx.db, FASE_CRIBA, publicadasDesde, null, { incluirIds: ctx.incluirIds, maxIntentos: ctx.maxIntentos });
   await enParalelo(pendientes, EN_PARALELO, async ({ convocatoria: c, condicion }) => {
     try {
       const peticion = peticionCriba(perfil, c, condicion, modelo, ctx.ejemplos, fuentes);
       const clave = claveCache(peticion);
       const r = desdeCache(ctx.db, clave) ?? (await llamar(ctx, registro, peticion));
       if (r.desdeCache) registro.desdeCache++;
-      const v = validar(r.datos);
+      const v = validarRespuesta(() => validar(r.datos));
       aCache(ctx, clave, r);
       const porSede = condicion !== null && v.exigeSedeEnOtraComunidad === 'si';
       const descarta = v.decision === 'descartar' || porSede;
@@ -61,10 +61,12 @@ export async function cribarConLlm(
         convocatoriaId: c.id, fase: FASE_CRIBA, descarta, motivo,
         datos: { modelo: r.modelo, ...v, condicion, desdeCache: r.desdeCache, versionPerfil: versionCriba(perfil) },
       }, ctx.reloj.now());
+      borrarFallosLlm(ctx.db, c.id, FASE_CRIBA);
       registro.procesadas++;
       if (descarta) registro.descartadas++;
     } catch (e) {
-      registro.errores.push(`Criba ${c.id}: ${(e as Error).message}`);
+      if (esPresupuestoAgotado(e)) { registro.omitidasPorTope++; return; }
+      fallo(ctx, registro, FASE_CRIBA, c.id, e, 'Criba');
     }
   });
   return registro;

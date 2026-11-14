@@ -146,3 +146,13 @@ describe('motor con respuestas grabadas de BDNS', () => {
     assert.equal(ejecucion.fuentes.length, 1);
   });
 });
+
+test('una ejecución que quedó "en_curso" (proceso matado) se marca como abortada al empezar otra; una reciente no se toca', async () => {
+  const db = bdSembrada();
+  const e = ESCENARIOS.agosto2026;
+  db.prepare("INSERT INTO ejecuciones (inicio, estado) VALUES (?, 'en_curso')").run(new Date(e.ahora.getTime() - 24 * 3600_000).toISOString());
+  db.prepare("INSERT INTO ejecuciones (inicio, estado) VALUES (?, 'en_curso')").run(new Date(e.ahora.getTime() - 60_000).toISOString());
+  await ejecutar(db, 'agosto2026');
+  const estados = (db.prepare('SELECT estado FROM ejecuciones ORDER BY id').all() as { estado: string }[]).map((f) => f.estado);
+  assert.deepEqual(estados, ['abortada', 'en_curso', 'ok']);
+});

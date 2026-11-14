@@ -2,16 +2,17 @@
 // y se extraen los campos con cita literal (ver analisis-esquema.ts). Tope de llamadas reales por ejecución:
 // al alcanzarlo, las que faltan se quedan sin análisis (se reintentan en la siguiente mientras estén dentro de
 // `diasPendientes`) y se registra.
-import { guardarFase, pendientesDeFase, type RegistroFase, registroFaseVacio } from '../db/repo.ts';
+import { borrarFallosLlm, guardarFase, pendientesDeFase, type RegistroFase, registroFaseVacio } from '../db/repo.ts';
 import { leerDocumentos } from '../documentos.ts';
 import { textoGanadoresParaPrompt } from '../ganadores.ts';
-import { promptAnalisis } from '../llm/prompts.ts';
+import { promptAnalisis, recortarTextos } from '../llm/prompts.ts';
 import { fuentePorNombre } from '../sources/index.ts';
 import type { Fuente } from '../sources/source.ts';
 import { versionLineas } from '../perfil.ts';
 import type { Perfil } from '../types.ts';
+import { CONFIG_LLM_POR_DEFECTO } from '../llm/llm.ts';
 import { aplicarCitas, esquemaAnalisis } from './analisis-esquema.ts';
-import { aCache, type ContextoFase, claveCache, desdeCache, enParalelo, llamar } from './comun.ts';
+import { aCache, type ContextoFase, claveCache, desdeCache, enParalelo, esPresupuestoAgotado, fallo, llamar, validarRespuesta } from './comun.ts';
 import { FASE_CRIBA } from './criba.ts';
 
 export const FASE_ANALISIS = 'analisis';
@@ -19,9 +20,10 @@ const EN_PARALELO = 2;
 
 export async function analizarConLlm(
   ctx: ContextoFase, perfil: Perfil, modelo: string, maxLlamadas: number, publicadasDesde: string, fuentes?: Fuente[],
+  maxCaracteres: number = CONFIG_LLM_POR_DEFECTO.maxCaracteresAnalisis,
 ): Promise<RegistroFase> {
   const registro = registroFaseVacio(FASE_ANALISIS, modelo);
-  const pendientes = pendientesDeFase(ctx.db, FASE_ANALISIS, publicadasDesde, FASE_CRIBA);
+  const pendientes = pendientesDeFase(ctx.db, FASE_ANALISIS, publicadasDesde, FASE_CRIBA, { incluirIds: ctx.incluirIds, maxIntentos: ctx.maxIntentos });
   const esquema = esquemaAnalisis(perfil);
   let reservadas = 0; // llamadas reales comprometidas (se cuenta antes de esperar, por el paralelismo)
 
@@ -35,7 +37,10 @@ export async function analizarConLlm(
         registro.errores.push(`Análisis ${c.id} aplazado, documentos no disponibles ahora: ${lectura.erroresTransitorios.join(' · ')}`);
         return;
       }
-      const { sistema, mensaje } = promptAnalisis(perfil, c, lectura.textos, textoGanadoresParaPrompt(ctx.db, c, perfil), ctx.ejemplos);
+      // Tope del tamaño total del prompt: lo que sobra se recorta con una nota (y las citas se comprueban contra lo que el modelo vio).
+      const { textos, recortados } = recortarTextos(lectura.textos, maxCaracteres);
+      if (recortados) registro.avisos.push(`Documentos de ${c.id} recortados a ${maxCaracteres} caracteres en total (${recortados} sin leer)`);
+      const { sistema, mensaje } = promptAnalisis(perfil, c, textos, textoGanadoresParaPrompt(ctx.db, c, perfil), ctx.ejemplos);
       const peticion = { tarea: 'analisis' as const, modelo, sistema, mensaje, esquema, maxTokens: 16000 };
       const clave = claveCache(peticion);
       let r = desdeCache(ctx.db, clave);
@@ -49,7 +54,8 @@ export async function analizarConLlm(
         reservadas++;
         r = await llamar(ctx, registro, peticion);
       }
-      const analisis = aplicarCitas(r.datos, lectura.textos, perfil);
+      const datos = r.datos;
+      const analisis = validarRespuesta(() => aplicarCitas(datos, textos, perfil));
       aCache(ctx, clave, r);
       const e = analisis.elegibilidadEsfl;
       const descarta = e.valor === 'no';
@@ -59,14 +65,17 @@ export async function analizarConLlm(
         datos: {
           modelo: r.modelo, desdeCache: r.desdeCache, analisis, versionLineas: versionLineas(perfil),
           documentos: lectura.textos.map((t) => ({ titulo: t.titulo, caracteres: t.texto.length })),
+          ...(recortados ? { caracteresSinLeer: recortados } : {}),
           documentosConError: lectura.errores,
         },
       }, ctx.reloj.now());
+      borrarFallosLlm(ctx.db, c.id, FASE_ANALISIS);
       registro.procesadas++;
       if (descarta) registro.descartadas++;
       for (const err of lectura.errores) registro.avisos.push(`Documento ilegible en ${c.id}: ${err}`);
     } catch (err) {
-      registro.errores.push(`Análisis ${c.id}: ${(err as Error).message}`);
+      if (esPresupuestoAgotado(err)) { registro.omitidasPorTope++; return; }
+      fallo(ctx, registro, FASE_ANALISIS, c.id, err, 'Análisis');
     }
   });
 

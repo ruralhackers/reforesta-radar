@@ -153,8 +153,8 @@ describe('criba LLM y análisis con citas (LLM falso)', () => {
     // El análisis recibió el PDF de la convocatoria y las bases ya convertidos a texto.
     const peticionAnalisis = llamadas.find((p) => p.tarea === 'analisis')!;
     assert.equal(peticionAnalisis.modelo, 'claude-sonnet-5-5');
-    assert.match(peticionAnalisis.mensaje, /<documento titulo="Bases reguladoras">[\s\S]*Orden TED\/898\/2023/);
-    assert.match(peticionAnalisis.mensaje, /<documento titulo="Documento: Texto en castellano de la convocatoria">/);
+    assert.match(peticionAnalisis.mensaje, /<documento-[0-9a-f]{16} titulo="Bases reguladoras">[\s\S]*Orden TED\/898\/2023/);
+    assert.match(peticionAnalisis.mensaje, /<documento-[0-9a-f]{16} titulo="Documento: Texto en castellano de la convocatoria">/);
 
     assert.equal(r.conErrores, false);
     assert.ok(candidatasEntre(db, '2026-08-03', '2026-08-04').some((c) => c.id === 'bdns:923290'));

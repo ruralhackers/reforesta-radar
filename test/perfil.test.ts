@@ -162,6 +162,7 @@ describe('el perfil editado cambia la siguiente ejecución', () => {
     guardarPerfilEditable(db, { ...editable(db), lineas: [{ nombre: 'Nueva', descripcion: 'otra' }] }, reloj.now());
     await ejecutar();
     assert.ok(cribas > antesLineas, 'cambiar las líneas también rehace la criba');
-    assert.equal(leerFases(db, 'bdns:923290').find((f) => f.fase === 'analisis'), undefined, 'cambiar las líneas invalida el análisis');
+    const analisis = leerFases(db, 'bdns:923290').find((f) => f.fase === 'analisis');
+    assert.equal((analisis?.datos as { obsoleta?: boolean }).obsoleta, true, 'cambiar las líneas deja el análisis obsoleto (no se borra; se rehace cuando se pueda)');
   });
 });

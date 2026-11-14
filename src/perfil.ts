@@ -4,9 +4,13 @@
 // les llega solo. Los veredictos del LLM se guardan en `convocatoria_fases` y la fase no repite lo que ya tiene veredicto;
 // para que un cambio de perfil cuente se estampa en cada veredicto la versión del perfil con la que se hizo:
 //  - criba (Haiku): versión = hash de lo que ve el prompt (nombre, líneas, descripción del ámbito) + las regiones, niveles,
-//    comunidades y la bandera de otras comunidades. Si cambia, se borran los veredictos de criba y la siguiente
-//    ejecución los rehace (Haiku es barato y la caché de peticiones evita repetir las que no cambian de prompt).
+//    comunidades y la bandera de otras comunidades.
 //  - análisis (Sonnet): versión = hash de las líneas de trabajo. Si no cambian, los análisis se conservan (son caros).
+//  Las líneas entran como conjunto ordenado: reordenarlas no cambia ninguna versión (no repite análisis).
+//  Un veredicto con otra versión NO se borra: se marca obsoleto (`datos.obsoleta = true`) y conserva su efecto (si descartaba, sigue
+//  descartando). La fase vuelve a procesar solo los obsoletos que están en su ventana de pendientes (ver `pendientesDeFase`); fuera de
+//  ella se queda el veredicto anterior. Así un cambio de perfil sin LLM disponible (o con el presupuesto agotado) no devuelve al ranking
+//  lo que estaba descartado.
 // Importe mínimo: no entra en ninguna versión; se aplica al puntuar en cada ejecución y en cada petición de /api/semana.
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
@@ -74,15 +78,28 @@ export function validarPerfilEditable(cuerpo: unknown): PerfilEditable {
 
 const hash = (x: unknown) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
 
+/** Líneas como conjunto: ordenadas por nombre, para que el orden en el que se escriben no cuente. */
+const lineasOrdenadas = (p: Perfil) => p.lineas.map((l) => [l.nombre, l.descripcion]).sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]));
+
 /** Versión del perfil para la criba: todo lo que cambia el prompt o las condiciones de ámbito. */
 export function versionCriba(p: Perfil): string {
   const a = p.ambito;
-  return hash([p.nombre, p.lineas.map((l) => [l.nombre, l.descripcion]), a.descripcion, [...a.nivelesSiempre].sort(), [...a.comunidades].sort(), [...a.regiones].sort(), a.otrasComunidadesSiNoExigenSede === true]);
+  return hash([p.nombre, lineasOrdenadas(p), a.descripcion, [...a.nivelesSiempre].sort(), [...a.comunidades].sort(), [...a.regiones].sort(), a.otrasComunidadesSiNoExigenSede === true]);
 }
 
 /** Versión del perfil para el análisis: solo las líneas de trabajo (prompt y enumerado del esquema). */
 export function versionLineas(p: Perfil): string {
-  return hash([p.nombre, p.lineas.map((l) => [l.nombre, l.descripcion])]);
+  return hash([p.nombre, lineasOrdenadas(p)]);
+}
+
+/** Versiones con la fórmula anterior (líneas en su orden): un veredicto hecho con el mismo perfil se re-estampa sin rehacerse. */
+function versionesAnteriores(p: Perfil): { criba: string; lineas: string } {
+  const a = p.ambito;
+  const lineas = p.lineas.map((l) => [l.nombre, l.descripcion]);
+  return {
+    criba: hash([p.nombre, lineas, a.descripcion, [...a.nivelesSiempre].sort(), [...a.comunidades].sort(), [...a.regiones].sort(), a.otrasComunidadesSiNoExigenSede === true]),
+    lineas: hash([p.nombre, lineas]),
+  };
 }
 
 /** Aplica lo editado sobre el perfil guardado y lo guarda. Devuelve el perfil completo. */
@@ -97,23 +114,31 @@ export function guardarPerfilEditable(db: DatabaseSync, e: PerfilEditable, ahora
 export interface Reconsideradas { cribas: number; analisis: number }
 
 /**
- * Hace reconsiderables los veredictos de LLM hechos con otro perfil. Los veredictos sin versión (anteriores a esta función)
- * se estampan con la actual en vez de borrarse. Se llama al empezar cada ejecución, antes de las fases.
+ * Marca como obsoletos (sin borrarlos) los veredictos de LLM hechos con otro perfil; quita la marca a los que vuelven a coincidir (el perfil
+ * volvió a como estaba). Los veredictos sin versión (anteriores a esta función) o con la fórmula anterior del mismo perfil se estampan con la
+ * actual. Se llama al empezar cada ejecución, antes de las fases. Devuelve cuántos pasan a obsoletos en esta llamada.
  */
 export function reconsiderarVeredictos(db: DatabaseSync, perfil: Perfil): Reconsideradas {
   const vc = versionCriba(perfil);
   const vl = versionLineas(perfil);
+  const anteriores = versionesAnteriores(perfil);
   const r: Reconsideradas = { cribas: 0, analisis: 0 };
   transaccion(db, () => {
-    for (const [fase, version, clave] of [['criba_llm', vc, 'versionPerfil'], ['analisis', vl, 'versionLineas']] as const) {
+    const actualizar = db.prepare('UPDATE convocatoria_fases SET datos = ? WHERE convocatoria_id = ? AND fase = ?');
+    for (const [fase, version, anterior, clave] of [['criba_llm', vc, anteriores.criba, 'versionPerfil'], ['analisis', vl, anteriores.lineas, 'versionLineas']] as const) {
       const filas = db.prepare('SELECT convocatoria_id AS id, datos FROM convocatoria_fases WHERE fase = ?').all(fase) as { id: string; datos: string }[];
       for (const f of filas) {
         const d = JSON.parse(f.datos) as Record<string, unknown>;
-        if (d[clave] === version) continue;
-        if (d[clave] === undefined) {
-          db.prepare('UPDATE convocatoria_fases SET datos = ? WHERE convocatoria_id = ? AND fase = ?').run(JSON.stringify({ ...d, [clave]: version }), f.id, fase);
-        } else {
-          db.prepare('DELETE FROM convocatoria_fases WHERE convocatoria_id = ? AND fase = ?').run(f.id, fase);
+        if (d[clave] === undefined || (d[clave] === anterior && anterior !== version)) {
+          const { obsoleta: _o, ...resto } = d;
+          actualizar.run(JSON.stringify({ ...resto, [clave]: version }), f.id, fase);
+        } else if (d[clave] === version) {
+          if (d.obsoleta) {
+            const { obsoleta: _o, ...resto } = d;
+            actualizar.run(JSON.stringify(resto), f.id, fase);
+          }
+        } else if (!d.obsoleta) {
+          actualizar.run(JSON.stringify({ ...d, obsoleta: true }), f.id, fase);
           if (fase === 'criba_llm') r.cribas++; else r.analisis++;
         }
       }

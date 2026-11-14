@@ -176,25 +176,56 @@ export function leerConvocatoria(db: DatabaseSync, id: string): ConvocatoriaGuar
  */
 const FUENTES_VIGENTES = ['eu_ft'];
 
+/** SQL: el veredicto `f` está marcado como obsoleto (hecho con otro perfil; ver src/perfil.ts). */
+const OBSOLETA = `IFNULL(json_extract(f.datos, '$.obsoleta'), 0) = 1`;
+
+export interface OpcionesPendientes {
+  /** Además de la ventana, estas convocatorias (por id) aunque sean antiguas (`npm run cargar`). */
+  incluirIds?: string[];
+  /** Las que ya fallaron por error del LLM en esta fase tantas veces (entre ejecuciones) dejan de reintentarse. */
+  maxIntentos?: number;
+}
+
 /**
- * Convocatorias pendientes de `fase`: siguen en juego según las reglas y las fases anteriores, no tienen veredicto
- * de `fase` y se publicaron desde `publicadasDesde` (YYYY-MM-DD) — da igual que la fuente las haya vuelto a devolver
- * en esta ejecución: lo omitido por el tope o por un error se recupera en la siguiente aunque ya no esté en la ventana.
- * `requiereFase` exige además un veredicto no descartante de otra fase. Más recientes primero.
+ * Convocatorias pendientes de `fase`: siguen en juego según las reglas y las demás fases, no tienen veredicto vigente de `fase`
+ * (sin veredicto, o con uno obsoleto por un cambio de perfil) y se publicaron desde `publicadasDesde` (YYYY-MM-DD) — da igual que la
+ * fuente las haya vuelto a devolver en esta ejecución: lo omitido por el tope o por un error se recupera en la siguiente aunque ya no
+ * esté en la ventana. Un veredicto obsoleto fuera de la ventana se conserva tal cual (no se rehace).
+ * `requiereFase` exige además un veredicto vigente y no descartante de otra fase. Más recientes primero.
  */
 export function pendientesDeFase(
-  db: DatabaseSync, fase: string, publicadasDesde: string, requiereFase: string | null = null,
+  db: DatabaseSync, fase: string, publicadasDesde: string, requiereFase: string | null = null, opciones: OpcionesPendientes = {},
 ): { convocatoria: Convocatoria; condicion: string | null }[] {
+  const incluir = JSON.stringify(opciones.incluirIds ?? []);
   const filas = db.prepare(`
     SELECT * FROM convocatorias c
     WHERE (c.fecha_publicacion >= ? OR EXISTS (SELECT 1 FROM origenes_convocatoria o WHERE o.convocatoria_id = c.id)
-        OR (c.fuente IN (${FUENTES_VIGENTES.map((f) => `'${f}'`).join(',')}) AND c.ultima_vez >= ?)) AND c.descarte_regla IS NULL
-      AND NOT EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND (f.fase = ? OR f.descarta = 1))
+        OR (c.fuente IN (${FUENTES_VIGENTES.map((f) => `'${f}'`).join(',')}) AND c.ultima_vez >= ?)
+        OR c.id IN (SELECT value FROM json_each(?))) AND c.descarte_regla IS NULL
+      AND NOT EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND f.fase = ? AND NOT (${OBSOLETA}))
+      AND NOT EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND f.fase <> ? AND f.descarta = 1 AND NOT (${OBSOLETA}))
       AND ${NO_DESCARTADA_POR_EQUIPO}
-      AND (? IS NULL OR EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND f.fase = ? AND f.descarta = 0))
+      AND (? IS NULL OR EXISTS (SELECT 1 FROM convocatoria_fases f WHERE f.convocatoria_id = c.id AND f.fase = ? AND f.descarta = 0 AND NOT (${OBSOLETA})))
+      AND (? IS NULL OR NOT EXISTS (SELECT 1 FROM llm_fallos lf WHERE lf.convocatoria_id = c.id AND lf.fase = ? AND lf.intentos >= ?))
     ORDER BY c.fecha_publicacion DESC, c.id
-  `).all(publicadasDesde, publicadasDesde, fase, requiereFase, requiereFase) as Record<string, unknown>[];
+  `).all(publicadasDesde, publicadasDesde, incluir, fase, fase, requiereFase, requiereFase, opciones.maxIntentos ?? null, fase, opciones.maxIntentos ?? null) as Record<string, unknown>[];
   return filas.map((f) => ({ convocatoria: filaAConvocatoria(f), condicion: (f.condicion as string | null) ?? null }));
+}
+
+// --- Fallos del LLM por convocatoria y fase (límite de reintentos entre ejecuciones) ---
+
+/** Apunta un intento fallido por error del LLM (respuesta cortada, rechazo, JSON o esquema no válido). Devuelve los intentos acumulados. */
+export function apuntarFalloLlm(db: DatabaseSync, convocatoriaId: string, fase: string, error: string, ahora: Date): number {
+  db.prepare(`
+    INSERT INTO llm_fallos (convocatoria_id, fase, intentos, ultimo_error, actualizado_en) VALUES (?, ?, 1, ?, ?)
+    ON CONFLICT (convocatoria_id, fase) DO UPDATE SET intentos = intentos + 1, ultimo_error = excluded.ultimo_error, actualizado_en = excluded.actualizado_en
+  `).run(convocatoriaId, fase, error.slice(0, 500), ahora.toISOString());
+  return Number((db.prepare('SELECT intentos FROM llm_fallos WHERE convocatoria_id = ? AND fase = ?').get(convocatoriaId, fase) as { intentos: number }).intentos);
+}
+
+/** Tras un veredicto bueno se olvidan los fallos anteriores. */
+export function borrarFallosLlm(db: DatabaseSync, convocatoriaId: string, fase: string): void {
+  db.prepare('DELETE FROM llm_fallos WHERE convocatoria_id = ? AND fase = ?').run(convocatoriaId, fase);
 }
 
 export interface FilaDescarte extends FilaConvocatoria {
@@ -276,6 +307,16 @@ export interface ContadoresFuente {
 export function empezarEjecucion(db: DatabaseSync, ahora: Date): number {
   const r = db.prepare("INSERT INTO ejecuciones (inicio, estado) VALUES (?, 'en_curso')").run(ahora.toISOString());
   return Number(r.lastInsertRowid);
+}
+
+/**
+ * Ejecuciones que siguen "en_curso" y empezaron hace más de `horas` (ninguna pasada dura tanto): el proceso murió sin cerrarlas. Se marcan
+ * como abortadas. El margen evita tocar una pasada que de verdad está en marcha a la vez (p. ej. `npm run cargar` durante el cron).
+ */
+export function abortarEjecucionesColgadas(db: DatabaseSync, ahora: Date, horas = 6): number {
+  const antes = new Date(ahora.getTime() - horas * 3600_000).toISOString();
+  return Number(db.prepare("UPDATE ejecuciones SET estado = 'abortada', fin = ?, error = 'El proceso terminó antes de cerrar la ejecución' WHERE estado = 'en_curso' AND inicio < ?")
+    .run(ahora.toISOString(), antes).changes);
 }
 
 export function empezarFuente(db: DatabaseSync, ejecucionId: number, fuente: string, ahora: Date): void {

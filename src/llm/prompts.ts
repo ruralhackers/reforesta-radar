@@ -38,12 +38,39 @@ export function bloqueEjemplos(ejemplos: EjemploDecision[]): string[] {
   ];
 }
 
+/**
+ * Documentos entre marcas `<documento-XXXX titulo="…">` y `</documento-XXXX>`, con un código derivado del contenido de todos ellos: un
+ * documento (una página de fundación la controla un tercero) no puede escribir la marca de cierre sin conocer el hash de todo el bloque.
+ */
 function bloqueDocumentos(textos: TextoParaLlm[], max: number | null): string {
-  return textos.map((t) => {
+  const cuerpos = textos.map((t) => {
     const recortado = max !== null && t.texto.length > max;
-    const cuerpo = recortado ? `${t.texto.slice(0, max)}\n[… texto recortado para la criba: ${t.texto.length} caracteres en total]` : t.texto;
-    return `<documento titulo="${t.titulo.replace(/"/g, "'")}">\n${cuerpo}\n</documento>`;
-  }).join('\n\n');
+    return { titulo: t.titulo, cuerpo: recortado ? `${t.texto.slice(0, max)}\n[… texto recortado para la criba: ${t.texto.length} caracteres en total]` : t.texto };
+  });
+  const marca = createHash('sha256').update(JSON.stringify(cuerpos)).digest('hex').slice(0, 16);
+  return cuerpos.map((t) => `<documento-${marca} titulo="${t.titulo.replace(/["<>]/g, "'")}">\n${t.cuerpo}\n</documento-${marca}>`).join('\n\n');
+}
+
+/**
+ * Recorta los textos de un análisis para que entre todos no pasen de `max` caracteres: se reparte en orden (los primeros documentos —ficha,
+ * extracto— completos) y el que no cabe entero se corta con una nota. Devuelve también cuántos caracteres se quedan sin leer.
+ */
+export function recortarTextos(textos: TextoParaLlm[], max: number): { textos: TextoParaLlm[]; recortados: number } {
+  let quedan = max;
+  let recortados = 0;
+  const salida: TextoParaLlm[] = [];
+  for (const t of textos) {
+    if (t.texto.length <= quedan) {
+      salida.push(t);
+      quedan -= t.texto.length;
+      continue;
+    }
+    recortados += t.texto.length - quedan;
+    const nota = `[… documento recortado por el tope de tamaño del análisis: se leen ${quedan} de ${t.texto.length} caracteres]`;
+    salida.push({ titulo: t.titulo, texto: quedan > 0 ? `${t.texto.slice(0, quedan)}\n${nota}` : nota });
+    quedan = 0;
+  }
+  return { textos: salida, recortados };
 }
 
 /**

@@ -4,7 +4,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import {
   type ContadoresFuente, empezarEjecucion, empezarFuente, guardarConvocatoria, guardarRegistroFase, leerPerfil,
-  type RegistroFase, registroFaseVacio, terminarEjecucion, terminarFuente, transaccion,
+  type RegistroFase, registroFaseVacio, terminarEjecucion, terminarFuente, transaccion, abortarEjecucionesColgadas,
 } from './db/repo.ts';
 import { analizarConLlm, FASE_ANALISIS } from './fases/analisis.ts';
 import { cribarConLlm, FASE_CRIBA } from './fases/criba.ts';
@@ -24,6 +24,7 @@ import { leerFestivos, type TablaFestivos } from './festivos.ts';
 import { config } from './config.ts';
 import { diaLocal, sumarDias } from './dates.ts';
 import { CONFIG_LLM_POR_DEFECTO, type ConfigLlm, type Llm } from './llm/llm.ts';
+import { conPresupuesto, type Presupuesto } from './llm/presupuesto.ts';
 import { condicionAmbito, cribar } from './rules.ts';
 import { FUENTES } from './sources/index.ts';
 import type { Fuente } from './sources/source.ts';
@@ -96,18 +97,36 @@ export interface ResumenEjecucion {
   huella: ResumenHuella | null;
   /** Convocatorias de otras fuentes marcadas como duplicadas de una de BDNS (mismo título). */
   duplicadas: ResumenDuplicadas;
+  /** Presupuesto de LLM de la ejecución (común a todas las fases) y lo gastado, fallos cobrados incluidos. */
+  presupuesto: Presupuesto;
 }
 
-export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtras?: number } = {}): Promise<ResumenEjecucion> {
+export interface OpcionesEjecucion {
+  diasAtras?: number;
+  /**
+   * Convocatorias (ids) que pasan por criba, análisis y ganadores aunque estén fuera de la ventana de pendientes o ya no estén en juego
+   * (`npm run cargar`). El análisis sigue sujeto al tope y al presupuesto.
+   */
+  incluirIds?: string[];
+}
+
+export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: OpcionesEjecucion = {}): Promise<ResumenEjecucion> {
+  // Un solo presupuesto de LLM para toda la ejecución: el LLM se envuelve una vez y todas las fases (también las fuentes) usan el envuelto.
+  const cfgLlm = { ...CONFIG_LLM_POR_DEFECTO, ...depsEntrada.configLlm };
+  const presupuesto: Presupuesto = { limiteUsd: cfgLlm.presupuestoUsd, gastadoUsd: 0 };
+  const deps: DependenciasMotor = { ...depsEntrada, llm: depsEntrada.llm ? conPresupuesto(depsEntrada.llm, presupuesto) : null };
   const { db, reloj } = deps;
   const log = deps.log ?? (() => {});
   const perfil = leerPerfil(db);
   if (!perfil) throw new Error('La BD no tiene perfil: carga la semilla antes (npm run seed)');
 
-  // Veredictos de LLM hechos con otro perfil (ámbito, líneas) se borran para que esta ejecución los reconsidere.
+  // Veredictos de LLM hechos con otro perfil (ámbito, líneas) se marcan obsoletos: se rehacen los de la ventana de pendientes.
   const reconsideradas = reconsiderarVeredictos(db, perfil);
-  if (reconsideradas.cribas || reconsideradas.analisis) log(`Perfil cambiado: ${reconsideradas.cribas} cribas y ${reconsideradas.analisis} análisis se rehacen`);
+  if (reconsideradas.cribas || reconsideradas.analisis) log(`Perfil cambiado: ${reconsideradas.cribas} cribas y ${reconsideradas.analisis} análisis quedan obsoletos (se rehacen los de los últimos ${cfgLlm.diasPendientes} días)`);
   const inicio = reloj.now();
+  // Una ejecución anterior que quedó "en_curso" (proceso matado) ya no va a terminar.
+  const abortadas = abortarEjecucionesColgadas(db, inicio);
+  if (abortadas) log(`${abortadas} ejecuciones anteriores quedaron a medias: se marcan como abortadas`);
   const ejecucionId = empezarEjecucion(db, inicio);
   const resumen: ResumenFuente[] = [];
   let fases: RegistroFase[] = [];
@@ -120,6 +139,7 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
   let empresas: ResumenEmpresas | null = null;
   let huella: ResumenHuella | null = null;
   let errorGeneral: string | null = null;
+  let conErrores = false;
 
   try {
     for (const fuente of deps.fuentes ?? FUENTES) {
@@ -143,11 +163,11 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
     const pedirGanadores = async () => {
       if (deps.ganadores === false || !(deps.fuentes ?? FUENTES).some((f) => f.nombre === 'bdns')) return;
       const cfgG = { ...cfgGan, maxPeticiones: Math.max(0, cfgGan.maxPeticiones - (parecidas?.peticiones ?? 0)) };
-      ganadores = await recogerGanadores({ db, fetch: deps.fetch, reloj, dormir: deps.dormir }, perfil, cfgG);
+      ganadores = await recogerGanadores({ db, fetch: deps.fetch, reloj, dormir: deps.dormir }, perfil, cfgG, opciones.incluirIds ?? []);
       log(`ganadores: ${ganadores.consultas} consultas, ${ganadores.peticiones} peticiones a BDNS (${ganadores.desdeCache} consultas en caché, ${ganadores.omitidasPorTope} sin hacer por el tope), ${ganadores.concesiones} concesiones, ${ganadores.parecidas} organizaciones parecidas, ${ganadores.errores.length} errores`);
       for (const e of ganadores.errores) log(`  ! ${e}`);
     };
-    fases = [...fasesDeFuentes, ...(await fasesLlm(deps, ejecucionId, perfil, inicio, pedirGanadores))];
+    fases = [...fasesDeFuentes, ...(await fasesLlm(deps, ejecucionId, perfil, inicio, pedirGanadores, opciones.incluirIds))];
     if (deps.empresas || deps.huella) {
       // Filas guardadas antes del filtro de persona jurídica: se ocultan (con motivo), no se borran.
       const ocultadas = ocultarSinFormaJuridica(db);
@@ -188,7 +208,9 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
     errorGeneral = (e as Error).message;
     throw e;
   } finally {
-    const conErrores = errorGeneral !== null || resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0 || (parecidas?.errores.length ?? 0) > 0 || (empresas?.errores.length ?? 0) > 0 || (huella?.errores.length ?? 0) > 0;
+    const listas = [...resumen.map((f) => f.errores), ...fases.map((f) => f.errores), plazos?.errores, puntuacion?.errores, ganadores?.errores,
+      parecidas?.errores, empresas?.errores, huella?.errores];
+    conErrores = errorGeneral !== null || listas.some((e) => (e?.length ?? 0) > 0);
     try {
       terminarEjecucion(db, ejecucionId, reloj.now(), conErrores, errorGeneral);
     } catch (e) {
@@ -196,9 +218,9 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
       if (errorGeneral === null) throw e; // si ya había un fallo, ese es el que se relanza
     }
   }
+  if (deps.llm && presupuesto.gastadoUsd >= presupuesto.limiteUsd) log(`Presupuesto de LLM agotado: ${presupuesto.gastadoUsd.toFixed(4)} de ${presupuesto.limiteUsd.toFixed(2)} USD`);
 
-  const conErrores = resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0 || (parecidas?.errores.length ?? 0) > 0 || (empresas?.errores.length ?? 0) > 0 || (huella?.errores.length ?? 0) > 0;
-  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, parecidas, empresas, huella, duplicadas };
+  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, parecidas, empresas, huella, duplicadas, presupuesto };
 }
 
 /**
@@ -206,7 +228,9 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
  * la fuente en esta ejecución). Cada fase salta las convocatorias que ya tienen su
  * veredicto (no se repiten llamadas). Sin LLM, ambas se registran como omitidas con un aviso.
  */
-async function fasesLlm(deps: DependenciasMotor, ejecucionId: number, perfil: Perfil, inicio: Date, entreCribaYAnalisis: () => Promise<void>): Promise<RegistroFase[]> {
+async function fasesLlm(
+  deps: DependenciasMotor, ejecucionId: number, perfil: Perfil, inicio: Date, entreCribaYAnalisis: () => Promise<void>, incluirIds?: string[],
+): Promise<RegistroFase[]> {
   const log = deps.log ?? (() => {});
   const cfg = { ...CONFIG_LLM_POR_DEFECTO, ...deps.configLlm };
   let fases: RegistroFase[];
@@ -216,12 +240,15 @@ async function fasesLlm(deps: DependenciasMotor, ejecucionId: number, perfil: Pe
     for (const f of fases) f.avisos.push(aviso);
     await entreCribaYAnalisis();
   } else {
-    const ctx = { db: deps.db, llm: deps.llm, reloj: deps.reloj, fetch: deps.fetch, resolver: deps.resolver, ejemplos: ejemplosDecisiones(deps.db, deps.maxEjemplosDecisiones ?? config.decisiones.maxEjemplos) };
+    const ctx = {
+      db: deps.db, llm: deps.llm, reloj: deps.reloj, fetch: deps.fetch, resolver: deps.resolver, maxIntentos: cfg.maxIntentos, incluirIds,
+      ejemplos: ejemplosDecisiones(deps.db, deps.maxEjemplosDecisiones ?? config.decisiones.maxEjemplos),
+    };
     const publicadasDesde = sumarDias(diaLocal(inicio), -(cfg.diasPendientes - 1));
     const criba = await cribarConLlm(ctx, perfil, cfg.modeloCriba, publicadasDesde, deps.fuentes);
     guardarRegistroFase(deps.db, ejecucionId, criba);
     await entreCribaYAnalisis();
-    const analisis = await analizarConLlm(ctx, perfil, cfg.modeloAnalisis, cfg.maxAnalisis, publicadasDesde, deps.fuentes);
+    const analisis = await analizarConLlm(ctx, perfil, cfg.modeloAnalisis, cfg.maxAnalisis, publicadasDesde, deps.fuentes, cfg.maxCaracteresAnalisis);
     fases = [criba, analisis];
   }
   for (const f of fases) {

@@ -27,6 +27,20 @@ export interface RespuestaLlm {
   uso: UsoLlm;
 }
 
+/**
+ * Fallo del LLM con la respuesta ya cobrada (cortada por max_tokens, rechazo, JSON o esquema no válido): lleva el uso para que el coste se
+ * cuente en el registro y en el presupuesto de la ejecución, y cuenta como intento fallido de la convocatoria (ver RADAR_MAX_INTENTOS_LLM).
+ */
+export class ErrorLlm extends Error {
+  uso: UsoLlm | null;
+  modelo: string | null;
+  constructor(mensaje: string, uso: UsoLlm | null = null, modelo: string | null = null) {
+    super(mensaje);
+    this.uso = uso;
+    this.modelo = modelo;
+  }
+}
+
 export interface Llm {
   generar(p: PeticionLlm): Promise<RespuestaLlm>;
 }

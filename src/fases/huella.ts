@@ -19,7 +19,7 @@ import type { Llm } from '../llm/llm.ts';
 import { ESQUEMA_HUELLA, promptHuella } from '../llm/prompts.ts';
 import { descargarFichero, type FilaCompensacion, type FilaHuella, hash, leerListadoCompensacion, leerListadoHuella, textoCompensacion, textoFila, URL_COMPENSACION, URL_HUELLA } from '../sources/huella.ts';
 import type { Perfil, Reloj } from '../types.ts';
-import { aCache, claveCache, desdeCache, llamar } from './comun.ts';
+import { aCache, claveCache, desdeCache, esPresupuestoAgotado, llamar } from './comun.ts';
 import { diaLocal } from '../dates.ts';
 
 export const FASE_HUELLA = 'empresas_huella_carbono';
@@ -314,6 +314,7 @@ export async function recogerEmpresasHuella(ctx: ContextoHuella, cfg: ConfigHuel
       (nueva ? r.empresasNuevas : r.empresasUnidas).push(o.nombre);
     } catch (e) {
       pendientes = true;
+      if (esPresupuestoAgotado(e)) { r.omitidasPorTope++; continue; }
       const m = `${o.nombre}: ${(e as Error).message}`;
       r.errores.push(m);
       fase.errores.push(m);

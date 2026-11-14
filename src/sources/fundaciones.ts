@@ -16,7 +16,7 @@ import { config } from '../config.ts';
 import { diaLocal } from '../dates.ts';
 import { apuntarRevision, type FuenteVigilada, fuentesActivas, type ResultadoRevision } from '../db/fundaciones.ts';
 import { type RegistroFase, registroFaseVacio } from '../db/repo.ts';
-import { aCache, claveCache, desdeCache, llamar } from '../fases/comun.ts';
+import { aCache, claveCache, desdeCache, esPresupuestoAgotado, llamar } from '../fases/comun.ts';
 import { ESQUEMA_EXTRACCION, promptExtraccion } from '../llm/prompts.ts';
 import { fetchSeguro, type Resolver, urlPermitidaSintactica } from '../fetch-seguro.ts';
 import { huellaDeTexto, textoPrincipal } from '../pagina.ts';
@@ -177,13 +177,19 @@ export function crearFuenteFundaciones(opciones: () => OpcionesFundaciones = () 
           resultado = { tipo: 'cambiada', huella };
         }
       } catch (e) {
+        if (esPresupuestoAgotado(e)) {
+          // Sin presupuesto: como sin LLM, la huella no se guarda y la página se lee en la próxima ejecución.
+          fase.omitidasPorTope++;
+          apuntarRevision(db, f.id, { tipo: 'sin_cambios', huella: f.huella ?? '' }, ctx.ahora);
+          continue;
+        }
         resultado = { tipo: 'error', mensaje: (e as Error).message };
         errores.push(`${f.nombre} (${url}): ${(e as Error).message}`);
         fase.errores.push(`${f.nombre}: ${(e as Error).message}`);
       }
       apuntarRevision(db, f.id, resultado, ctx.ahora);
     }
-    const hizoAlgo = fase.llamadas > 0 || fase.desdeCache > 0 || fase.errores.length > 0;
+    const hizoAlgo = fase.llamadas > 0 || fase.desdeCache > 0 || fase.errores.length > 0 || fase.omitidasPorTope > 0;
     return { cribadas, errores, avisos, fase: hizoAlgo ? fase : null };
   }
   return { nombre: 'fundacion', recoger, documentos, enlaces, datosPlazo };

@@ -9,7 +9,7 @@ import {
   concesionesDe, consultaReciente, convocatoriasGanadasPor, edicionesDeSerie, guardarConcesionesDeConvocatoria,
   guardarConcesionesSueltas, guardarParecidasCalculadas, marcarConsulta, type ParecidaCalculada, registrarEdicion,
 } from '../db/ganadores.ts';
-import { enJuegoTodas } from '../db/repo.ts';
+import { enJuegoTodas, leerConvocatoria } from '../db/repo.ts';
 import { buscarConvocatoriasPorTitulo, concesionesDeConvocatoria, concesionesDeNif } from '../sources/bdns-concesiones.ts';
 import type { Perfil, Reloj } from '../types.ts';
 
@@ -51,6 +51,7 @@ const dormirReal = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
  */
 export async function recogerGanadores(
   ctx: { db: DatabaseSync; fetch: typeof fetch; reloj: Reloj; dormir?: (ms: number) => Promise<void> }, perfil: Perfil, cfg: ConfigGanadores = CONFIG_GANADORES_POR_DEFECTO,
+  incluirIds: string[] = [],
 ): Promise<ResumenGanadores> {
   const { db } = ctx;
   const ahora = ctx.reloj.now();
@@ -89,8 +90,10 @@ export async function recogerGanadores(
   for (const n of perfil.nif ? convocatoriasGanadasPor(db, perfil.nif) : []) { hechas.add(n); await pedirConvocatoria(n); }
   r.parecidas = recalcularParecidas(db, perfil, ahora);
 
-  // 2. Series de las candidatas en juego.
-  const candidatas = enJuegoTodas(db).filter((c) => c.fuente === 'bdns');
+  // 2. Series de las candidatas en juego (y de las pedidas a mano con `npm run cargar`, aunque ya no estén en juego).
+  const enJuego = enJuegoTodas(db);
+  const extra = incluirIds.filter((id) => !enJuego.some((c) => c.id === id)).flatMap((id) => leerConvocatoria(db, id)?.convocatoria ?? []);
+  const candidatas = [...extra, ...enJuego].filter((c) => c.fuente === 'bdns');
   const series = new Map<string, string>(); // clave → título sin año
   for (const c of candidatas) {
     registrarEdicion(db, c.fuenteId, c.titulo, c.organo, c.fechaPublicacion);

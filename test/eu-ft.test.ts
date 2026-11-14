@@ -171,9 +171,9 @@ describe('fuente EU Funding & Tenders', () => {
     assert.equal(r.conErrores, false);
     const criba = peticiones.find((p) => p.tarea === 'criba' && p.mensaje.includes(`Convocatoria ${NATURALEZA}:`))!;
     assert.match(criba.sistema, /están en inglés\. Responde en castellano/);
-    assert.match(criba.mensaje, /<documento titulo="Ficha Funding & Tenders">/);
+    assert.match(criba.mensaje, /<documento-[0-9a-f]{16} titulo="Ficha Funding & Tenders">/);
     assert.match(criba.mensaje, /Fecha límite \(hora de Bruselas\): 2027-01-14/);
-    assert.match(criba.mensaje, /<documento titulo="Descripción del topic \(inglés\)">/);
+    assert.match(criba.mensaje, /<documento-[0-9a-f]{16} titulo="Descripción del topic \(inglés\)">/);
     assert.match(criba.mensaje, /restoration/i);
     assert.match(criba.sistema, /CONVOCATORIAS DE LA UE .*prevalece sobre "ante la duda"/);
     assert.match(criba.sistema, /socia de un consorcio|socia de consorcio/);

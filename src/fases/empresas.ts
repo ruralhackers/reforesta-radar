@@ -18,7 +18,7 @@ import { ESQUEMA_DIA, ETIQUETA_MEDIDA_DIA, promptDia, TIPOS_MEDIDA_DIA, type Tip
 import { enlaceBoe, type ItemBoe, sumarioDia, textoResolucion } from '../sources/boe.ts';
 import { citaEnTexto, normalizarParaCita } from '../texto.ts';
 import type { Reloj } from '../types.ts';
-import { aCache, claveCache, desdeCache, llamar } from './comun.ts';
+import { aCache, claveCache, desdeCache, esPresupuestoAgotado, llamar } from './comun.ts';
 
 export const FASE_EMPRESAS = 'empresas_dia_boe';
 
@@ -150,6 +150,7 @@ export async function recogerEmpresasDia(ctx: ContextoEmpresas, cfg: ConfigEmpre
     return r;
   }
   let peticiones = 0;
+  let sinPresupuesto = false; // agotado el presupuesto de LLM de la ejecución: no se descargan más resoluciones
   const pausa = async () => { if (peticiones++ > 0 && cfg.pausaMs > 0) await dormir(cfg.pausaMs); };
 
   // De más antiguo a más reciente: los ids de las empresas siguen el orden del BOE.
@@ -168,12 +169,13 @@ export async function recogerEmpresasDia(ctx: ContextoEmpresas, cfg: ConfigEmpre
     for (const item of items) {
       if (resolucionProcesada(db, item.id)) continue;
       r.resolucionesNuevas++;
-      if (fase.llamadas + fase.desdeCache >= cfg.maxResoluciones) { r.omitidasPorTope++; completo = false; continue; }
+      if (sinPresupuesto || fase.llamadas + fase.desdeCache >= cfg.maxResoluciones) { r.omitidasPorTope++; completo = false; continue; }
       try {
         await pausa();
         await leerResolucion(ctx, cfg, item, dia, r);
       } catch (e) {
         completo = false;
+        if (esPresupuestoAgotado(e)) { r.omitidasPorTope++; sinPresupuesto = true; continue; }
         const m = `${item.id}: ${(e as Error).message}`;
         r.errores.push(m);
         fase.errores.push(m);
