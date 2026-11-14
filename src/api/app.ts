@@ -292,8 +292,8 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
         : null,
       plazo: leerPlazo(db, conv.id, diaLocal(reloj.now())),
       // Calculada ahora con el reloj de la petición; null si la convocatoria ya no está en juego (descartada).
-      // `excluida` = motivo por el que no entra en el ranking (cerrada).
-      puntuacion: enJuego ? { ...puntuarConvocatoria(db, conv, leerPlazo(db, conv.id, diaLocal(reloj.now())), leerPerfil(db)?.importeMinimo ?? null, cfg, probabilidad), calculadoEn: reloj.now().toISOString() } : null,
+      // `excluida` = motivo por el que no entra en el ranking (cerrada, no admite ESFL, plazo desconocido desde hace demasiado).
+      puntuacion: enJuego ? { ...puntuarConvocatoria(db, conv, leerPlazo(db, conv.id, diaLocal(reloj.now())), leerPerfil(db)?.importeMinimo ?? null, cfg, probabilidad, diaLocal(reloj.now())), calculadoEn: reloj.now().toISOString() } : null,
       // Quién la ganó antes: su propia resolución (si ya la hay) y las ediciones anteriores de su serie (mismo órgano y título salvo el año).
       // Cada edición: { numeroConvocatoria, anio, titulo, url, propia, ganadores: [{ nombre, nif, importe, fechaConcesion, esReforesta, esParecida }], importeTotal,
       // reforesta: 'gano' | 'no_figura' | 'sin_datos', importeReforesta }. BDNS solo publica ganadores: 'no_figura' no significa que la perdiera.

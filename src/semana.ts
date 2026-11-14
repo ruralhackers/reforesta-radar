@@ -14,7 +14,7 @@ export function calcularRanking(db: DatabaseSync, ahora: Date, cfg: ConfigPuntua
   const perfil = leerPerfil(db);
   const importeMinimo = perfil?.importeMinimo ?? null;
   // La puntuación se calcula aquí, con el reloj de la petición (función pura y barata): total, explicación de cierre y secciones coherentes.
-  const conParecidas = filasRanking(db, hoy, (conv, plazo) => puntuarConvocatoria(db, conv, plazo, importeMinimo, cfg, probabilidad), ahora)
+  const conParecidas = filasRanking(db, hoy, (conv, plazo) => puntuarConvocatoria(db, conv, plazo, importeMinimo, cfg, probabilidad, hoy), ahora)
     .map((f) => ({ ...f, parecidas: infoParecidas(db, leerConvocatoria(db, f.id)!.convocatoria, perfil) }));
   return construirRanking(conParecidas, hoy, { nuevasDias: cfg.nuevasDias, cierranProntoDias: cfg.cierranProntoDias });
 }

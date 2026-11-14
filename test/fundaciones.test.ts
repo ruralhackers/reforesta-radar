@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import type { DatabaseSync } from 'node:sqlite';
 import { crearApi } from '../src/api/app.ts';
-import { altaFuente, leerFuentesVigiladas } from '../src/db/fundaciones.ts';
-import { leerConvocatoria } from '../src/db/repo.ts';
+import { altaFuente, FASE_RETIRADA, leerFuentesVigiladas } from '../src/db/fundaciones.ts';
+import { leerConvocatoria, leerFases } from '../src/db/repo.ts';
 import { ejecutarRadar } from '../src/engine.ts';
 import type { Llm, PeticionLlm } from '../src/llm/llm.ts';
 import { huellaDeTexto, normalizarParaHuella, textoPrincipal } from '../src/pagina.ts';
@@ -497,5 +497,41 @@ describe('texto principal de una página', () => {
       if (f.url === null) assert.match(f.notas ?? '', /TODO/);
     }
     assert.equal(leerConvocatoria(db, 'fund:x'), null);
+  });
+});
+
+describe('convocatorias que desaparecen de su página (R15)', () => {
+  test('sin verla en 2 revisiones buenas seguidas se retira (sale de "en juego"); si vuelve, se recupera', async () => {
+    const db = bdFundaciones([MONTEMADRID]);
+    const reloj = relojFijo(AHORA);
+    const paginas = new Map<string, string | number>([[MONTEMADRID, conConvocatoriaNueva(paginaGrabada(MONTEMADRID))]]);
+    const id = idFundacion(MONTEMADRID, NUEVA, NUEVA_URL);
+    const retirada = () => leerFases(db, id).find((f) => f.fase === FASE_RETIRADA) ?? null;
+    const enJuego = async () => ((await (await crearApi({ db, reloj, equipo: { password: null } }).request(`/convocatorias/${encodeURIComponent(id)}`)).json()) as { enJuego: boolean }).enJuego;
+    const siguiente = async () => { reloj.adelantar(86_400_000); return pasada(db, fetchPaginas(paginas), llmFalso(llamadasVacias()), reloj); };
+
+    await pasada(db, fetchPaginas(paginas), llmFalso(llamadasVacias()), reloj);
+    assert.equal(await enJuego(), true);
+
+    paginas.set(MONTEMADRID, paginaGrabada(MONTEMADRID)); // la página cambia y ya no la trae
+    await siguiente();
+    assert.equal(retirada()?.descarta, false, 'una ausencia no basta');
+    assert.equal(await enJuego(), true);
+
+    paginas.set(MONTEMADRID, 503); // una revisión fallida no cuenta
+    await siguiente();
+    assert.equal(retirada()?.descarta, false);
+
+    paginas.set(MONTEMADRID, paginaGrabada(MONTEMADRID)); // misma página que la vez anterior (sin cambios): segunda ausencia
+    const r = await siguiente();
+    assert.equal(retirada()?.descarta, true);
+    assert.match(retirada()!.motivo!, /Ya no aparece en la página de Fuente www\.fundacionmontemadrid\.es \(2 revisiones seguidas\)/);
+    assert.equal(await enJuego(), false);
+    assert.ok(r.fuentes[0].avisos.some((a) => /1 convocatorias retiradas/.test(a)));
+
+    paginas.set(MONTEMADRID, conConvocatoriaNueva(paginaGrabada(MONTEMADRID))); // vuelve a publicarse
+    await siguiente();
+    assert.equal(retirada(), null);
+    assert.equal(await enJuego(), true);
   });
 });

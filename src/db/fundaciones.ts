@@ -93,3 +93,40 @@ export function apuntarRevision(db: DatabaseSync, id: number, r: ResultadoRevisi
   else if (r.tipo === 'sin_cambios') db.prepare('UPDATE fundaciones SET ultima_revision = ?, ultimo_error = NULL WHERE id = ?').run(t, id);
   else db.prepare('UPDATE fundaciones SET huella = ?, ultimo_cambio = ?, ultima_revision = ?, ultimo_error = NULL WHERE id = ?').run(r.huella, t, t, id);
 }
+
+// --- Convocatorias que desaparecen de su página ---
+
+/** Fase con la que se retira una convocatoria de fundación que ya no está en su página (descarta = sale de "en juego"). */
+export const FASE_RETIRADA = 'retirada';
+/** Revisiones buenas seguidas sin verla tras las que se retira. */
+export const AUSENCIAS_PARA_RETIRAR = 2;
+
+/**
+ * Apunta qué convocatorias de una página vigilada siguen en ella tras una revisión buena. `vistas` = ids extraídos ahora (la página cambió);
+ * null = la página no ha cambiado desde la última extracción (lo que faltaba entonces sigue faltando). Una convocatoria que no aparece en
+ * `AUSENCIAS_PARA_RETIRAR` revisiones seguidas se retira (fase `retirada`, que descarta); si vuelve a aparecer, se le quita. Devuelve las retiradas ahora.
+ */
+export function apuntarPresencia(db: DatabaseSync, paginaUrl: string, nombre: string, vistas: string[] | null, ahora: Date): number {
+  const ids = (db.prepare("SELECT id FROM convocatorias WHERE fuente = 'fundacion' AND json_extract(datos, '$.fundacion.paginaUrl') = ?").all(paginaUrl) as { id: string }[]).map((f) => f.id);
+  const leer = db.prepare('SELECT datos FROM convocatoria_fases WHERE convocatoria_id = ? AND fase = ?');
+  const guardar = db.prepare(`
+    INSERT INTO convocatoria_fases (convocatoria_id, fase, descarta, motivo, datos, actualizado_en) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT (convocatoria_id, fase) DO UPDATE SET descarta = excluded.descarta, motivo = excluded.motivo, datos = excluded.datos, actualizado_en = excluded.actualizado_en
+  `);
+  let retiradas = 0;
+  for (const id of ids) {
+    if (vistas?.includes(id)) {
+      db.prepare('DELETE FROM convocatoria_fases WHERE convocatoria_id = ? AND fase = ?').run(id, FASE_RETIRADA);
+      continue;
+    }
+    const previa = leer.get(id, FASE_RETIRADA) as { datos: string } | undefined;
+    const antes = previa ? Number((JSON.parse(previa.datos) as { ausencias?: number }).ausencias ?? 0) : 0;
+    if (vistas === null && antes === 0) continue; // sin cambios y estaba la última vez: sigue estando
+    const ausencias = antes + 1;
+    const retira = ausencias >= AUSENCIAS_PARA_RETIRAR;
+    if (retira && antes < AUSENCIAS_PARA_RETIRAR) retiradas++;
+    guardar.run(id, FASE_RETIRADA, Number(retira), retira ? `Ya no aparece en la página de ${nombre} (${ausencias} revisiones seguidas)` : null,
+      JSON.stringify({ ausencias, paginaUrl }), ahora.toISOString());
+  }
+  return retiradas;
+}

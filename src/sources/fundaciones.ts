@@ -5,6 +5,7 @@
 //   2. Se compara su huella con la última guardada. Igual → no hay llamada al LLM y no se devuelve nada (lo ya extraído sigue en la BD).
 //   3. Distinta (o primera vez) → Haiku extrae las convocatorias de la página (título, enlace, plazo, importe, extracto). El código comprueba
 //      que título, plazo, importe y extracto están en la página: lo que no se encuentra se queda vacío (nunca se inventa).
+//   3b. Una convocatoria que ya no aparece en su página en 2 revisiones buenas seguidas se retira (fase `retirada`; ver db/fundaciones.ts).
 //   4. Cada candidata entra como convocatoria `fund:<host>:<hash>`, con origen "fundacion" y el nombre de la fuente, y sigue el camino normal
 //      (criba, análisis —que descarga la página o el PDF propio de la convocatoria si tiene enlace—, plazo, puntuación, ranking).
 //
@@ -14,7 +15,7 @@
 import { createHash } from 'node:crypto';
 import { config } from '../config.ts';
 import { diaLocal } from '../dates.ts';
-import { apuntarRevision, type FuenteVigilada, fuentesActivas, type ResultadoRevision } from '../db/fundaciones.ts';
+import { apuntarPresencia, apuntarRevision, type FuenteVigilada, fuentesActivas, type ResultadoRevision } from '../db/fundaciones.ts';
 import { type RegistroFase, registroFaseVacio } from '../db/repo.ts';
 import { aCache, claveCache, desdeCache, esPresupuestoAgotado, llamar } from '../fases/comun.ts';
 import { ESQUEMA_EXTRACCION, promptExtraccion } from '../llm/prompts.ts';
@@ -152,6 +153,8 @@ export function crearFuenteFundaciones(opciones: () => OpcionesFundaciones = () 
         const huella = huellaDeTexto(texto);
         if (huella === f.huella) {
           resultado = { tipo: 'sin_cambios', huella };
+          const retiradas = apuntarPresencia(db, url, f.nombre, null, ctx.ahora);
+          if (retiradas) avisos.push(`${f.nombre}: ${retiradas} convocatorias retiradas (ya no aparecen en la página)`);
         } else if (!ctx.llm) {
           avisos.push(`${f.nombre}: la página ha cambiado pero no hay LLM configurado; se revisará cuando lo haya`);
           resultado = { tipo: 'sin_cambios', huella }; // no guarda huella: apuntarRevision con sin_cambios no la toca
@@ -174,6 +177,8 @@ export function crearFuenteFundaciones(opciones: () => OpcionesFundaciones = () 
             if (previa) conv.fechaPublicacion = previa.fecha_publicacion;
             cribadas.push({ convocatoria: conv, descarte: ctx.cribar(conv) });
           }
+          const retiradas = apuntarPresencia(db, url, f.nombre, cribadas.filter((x) => (x.convocatoria.datos as { fundacion?: DatosFundacion }).fundacion?.paginaUrl === url).map((x) => x.convocatoria.id), ctx.ahora);
+          if (retiradas) avisos.push(`${f.nombre}: ${retiradas} convocatorias retiradas (ya no aparecen en la página)`);
           resultado = { tipo: 'cambiada', huella };
         }
       } catch (e) {

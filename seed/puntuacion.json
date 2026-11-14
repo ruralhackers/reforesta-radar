@@ -2,6 +2,8 @@
   "_": "Pesos y umbrales de la puntuación 0-100 (src/puntuacion.ts; documentado en el README). Se cambian aquí, sin tocar el código. Los pesos son relativos: no hace falta que sumen 100. Cada factor da una subpuntuación 0-1; el total es la suma ponderada. 'valorDesconocido' es lo que vale un factor cuando falta el dato (nunca el máximo).",
   "pesos": { "encaje": 35, "importe": 20, "cierre": 15, "esfuerzo": 15, "probabilidad": 15 },
   "nuevasDias": 7,
+  "diasMaximosSinPlazo": 60,
+  "_diasMaximosSinPlazo": "Sin fecha de cierre conocida, una convocatoria sale del ranking y del correo pasados estos días desde que el radar la vio por primera vez.",
   "cierranProntoDias": 21,
   "encaje": {
     "_": "Subpuntuación según el número de líneas del perfil con las que encaja (índice = nº de líneas; el último valor vale para más). Si la elegibilidad para entidades sin ánimo de lucro es desconocida se multiplica por esflDesconocido.",

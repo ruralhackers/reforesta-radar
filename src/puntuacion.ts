@@ -5,10 +5,13 @@
 // Factores: encaje, importe, cierre (días que faltan), esfuerzo (cofinanciación y requisitos) y probabilidad.
 // Un dato desconocido nunca cuenta como bueno: el factor vale su `valorDesconocido` (configurable) y la
 // explicación empieza por "desconocido/a". La probabilidad es enchufable (`ProveedorProbabilidad`).
-// Quedan fuera del ranking (`excluida`) las que no admiten entidades sin ánimo de lucro y las ya cerradas.
+// Quedan fuera del ranking (`excluida`) las que no admiten entidades sin ánimo de lucro, las ya cerradas y las de plazo desconocido vistas
+// por primera vez hace más de `diasMaximosSinPlazo` días (60 por defecto).
 import { readFileSync } from 'node:fs';
 import type { Analisis } from './fases/analisis-esquema.ts';
 import type { Convocatoria } from './types.ts';
+
+export const DIAS_MAXIMOS_SIN_PLAZO = 60;
 
 export const FACTORES = ['encaje', 'importe', 'cierre', 'esfuerzo', 'probabilidad'] as const;
 export type IdFactor = (typeof FACTORES)[number];
@@ -22,6 +25,11 @@ export interface ConfigPuntuacion {
   cierre: { tramos: { hastaDias: number | null; valor: number }[]; valorDesconocido: number };
   esfuerzo: { cofinanciacionMaxima: number; requisitosSinPenalizar: number; penalizacionPorRequisito: number; suelo: number; valorDesconocido: number };
   probabilidad: { valorDesconocido: number };
+  /**
+   * Sin fecha de cierre conocida, una convocatoria deja de entrar en el ranking (y en el correo) pasados estos días desde que se vio por
+   * primera vez: si nadie ha sabido fijar el plazo en dos meses, lo más probable es que ya esté cerrada. Por defecto 60.
+   */
+  diasMaximosSinPlazo?: number;
 }
 
 export function leerConfigPuntuacion(ruta: string): ConfigPuntuacion {
@@ -46,6 +54,8 @@ export interface EntradaPuntuacion {
   plazo: { fechaCierre: string | null; tipo: 'literal' | 'calculada' | 'desconocida'; diasHastaCierre: number | null } | null;
   /** Importe mínimo del perfil, en euros. */
   importeMinimo: number | null;
+  /** Días desde que el radar la vio por primera vez (null/ausente = no se sabe; no excluye). */
+  diasDesdePrimeraVez?: number | null;
 }
 
 export interface Factor {
@@ -205,5 +215,8 @@ export function puntuar(
   const dias = entrada.plazo?.diasHastaCierre ?? null;
   if (entrada.analisis?.elegibilidadEsfl.valor === 'no') excluida = 'No admite entidades sin ánimo de lucro';
   else if (dias !== null && dias < 0) excluida = `Cerrada desde hace ${-dias} día${dias === -1 ? '' : 's'}`;
+  else if (dias === null && (entrada.diasDesdePrimeraVez ?? 0) > (config.diasMaximosSinPlazo ?? DIAS_MAXIMOS_SIN_PLAZO)) {
+    excluida = `Plazo desconocido y vista por primera vez hace ${entrada.diasDesdePrimeraVez} días: probablemente ya cerrada`;
+  }
   return { total: excluida ? 0 : total, excluida, analizada: entrada.analisis !== null, factores };
 }
