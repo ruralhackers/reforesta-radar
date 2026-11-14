@@ -406,8 +406,6 @@ const MIGRACIONES: string[] = [
     etapa TEXT NOT NULL,                   -- 'sin_datos' | 'reglas' | 'criba_llm' | 'analisis' | 'puntuacion' | 'puntuada' | 'pendiente'
     puntuacion REAL,
     factores TEXT NOT NULL DEFAULT '[]',
-    destacada INTEGER NOT NULL,            -- pasa reglas y criba y puntuacion >= umbral
-    umbral REAL NOT NULL,
     completa INTEGER NOT NULL,             -- 0 = criba sin hacer por el tope de llamadas
     calculado_en TEXT NOT NULL,
     PRIMARY KEY (conjunto, numero, modo)

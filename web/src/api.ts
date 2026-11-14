@@ -328,19 +328,18 @@ export const actualizarEmpresa = (id: number, cambios: { estado?: EstadoEmpresa;
 export interface BacktestFactor { nombre: string; peso: number; subpuntuacion: number; conocido: boolean; explicacion: string }
 export interface BacktestFilaA {
   numero: string; etiqueta: string | null; titulo: string; fechaPublicacion: string; urlBdns: string; notas: string[];
-  resultado: { pasoReglas: boolean; motivoReglas: string | null; pasoCriba: boolean; motivoCriba: string | null; etapa: string; puntuacion: number | null; factores: BacktestFactor[]; completa: boolean; destacada: boolean; exito: boolean } | null;
+  resultado: { pasoReglas: boolean; motivoReglas: string | null; pasoCriba: boolean; motivoCriba: string | null; etapa: string; puntuacion: number | null; factores: BacktestFactor[]; completa: boolean; exito: boolean } | null;
 }
 export interface BacktestFilaB {
   numero: string; titulo: string; organo: string; fechaPublicacion: string; urlBdns: string; reglas: string[]; ganadoras: string[];
-  procesada: boolean; pasoReglas: boolean | null; pasoCriba: boolean | null; etapa: string | null; motivo: string | null; puntuacion: number | null; destacada: boolean | null;
+  procesada: boolean; pasoReglas: boolean | null; pasoCriba: boolean | null; etapa: string | null; motivo: string | null; puntuacion: number | null;
 }
 export interface BacktestMetricaB {
   conjunto: number; procesadas: number; provisionales: number; sinProcesar: number; sinDatos: number; pasanCriba: number; porcentajePasaCriba: number | null;
-  puntuaciones: number[]; medianaPuntuacion: number | null; distribucion: { etiqueta: string; n: number }[]; destacadas: number; encajabanSinReforesta: number;
+  puntuaciones: number[]; medianaPuntuacion: number | null; distribucion: { etiqueta: string; n: number }[];
 }
 export interface BacktestModo {
   modo: 'sin_analisis' | 'con_analisis';
-  umbral: number;
   a: { filas: BacktestFilaA[]; total: number; calculadas: number; completas: number; exitos: number; pasanReglas: number; pasanCriba: number };
   b: { filas: BacktestFilaB[]; metrica: BacktestMetricaB; excluidas: { motivo: string; n: number }[]; examinadas: number };
   titular: string;

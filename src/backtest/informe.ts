@@ -22,8 +22,7 @@ export interface FilaInformeA {
     puntuacion: number | null;
     factores: unknown[];
     completa: boolean;
-    destacada: boolean;
-    /** Éxito = pasa reglas y criba y su puntuación llega al umbral de "destacada". Provisional nunca cuenta. */
+    /** Éxito = detectada: pasa las reglas y la criba (así aparece en "Esta semana"). La puntuación es solo un dato. Provisional nunca cuenta. */
     exito: boolean;
   } | null;
 }
@@ -42,7 +41,6 @@ export interface FilaInformeB {
   etapa: string | null;
   motivo: string | null;
   puntuacion: number | null;
-  destacada: boolean | null;
 }
 
 export interface MetricaB {
@@ -60,14 +58,10 @@ export interface MetricaB {
   puntuaciones: number[];
   medianaPuntuacion: number | null;
   distribucion: { etiqueta: string; n: number }[];
-  destacadas: number;
-  /** Encajaban (reglas objetivas), las ganó una parecida y Reforesta no figura entre los ganadores (por construcción del conjunto). */
-  encajabanSinReforesta: number;
 }
 
 export interface InformeModo {
   modo: Modo;
-  umbral: number;
   a: { filas: FilaInformeA[]; total: number; calculadas: number; completas: number; exitos: number; pasanReglas: number; pasanCriba: number };
   b: { filas: FilaInformeB[]; metrica: MetricaB; excluidas: { motivo: string; n: number }[]; examinadas: number };
   titular: string;
@@ -107,21 +101,19 @@ export function metricaB(conjunto: FilaConjunto[], resultados: ResultadoGuardado
     conjunto: admitidas.length, procesadas: definitivas.length, provisionales: con.length - definitivas.length - sinDatos, sinProcesar: admitidas.length - con.length, sinDatos,
     pasanCriba: pasan.length, porcentajePasaCriba: pct(pasan.length, definitivas.length), puntuaciones: puntuaciones.sort((a, b) => a - b),
     medianaPuntuacion: mediana(puntuaciones), distribucion: CUBOS.map(([etiqueta, f]) => ({ etiqueta, n: puntuaciones.filter(f).length })),
-    destacadas: definitivas.filter((r) => r.destacada).length, encajabanSinReforesta: admitidas.length,
   };
 }
 
 function informeModo(modo: Modo, conjuntoA: FilaConjunto[], conjuntoB: FilaConjunto[], resultados: ResultadoGuardado[], coste: InformeModo['coste']): InformeModo {
   const resA = new Map(resultados.filter((r) => r.conjunto === 'a').map((r) => [r.numero, r]));
   const resB = new Map(resultados.filter((r) => r.conjunto === 'b').map((r) => [r.numero, r]));
-  const umbral = resultados[0]?.umbral ?? 0;
   const filasA: FilaInformeA[] = conjuntoA.map((c) => {
     const r = resA.get(c.numero) ?? null;
     return {
       numero: c.numero, etiqueta: c.etiqueta, titulo: c.titulo, fechaPublicacion: c.fechaPublicacion, urlBdns: FICHA_BDNS + c.numero, notas: c.reglas,
       resultado: r && {
         pasoReglas: r.pasoReglas, motivoReglas: r.motivoReglas, pasoCriba: r.pasoCriba, motivoCriba: r.motivoCriba, etapa: r.etapa, puntuacion: r.puntuacion,
-        factores: r.factores, completa: r.completa, destacada: r.destacada, exito: r.completa && r.pasoReglas && r.pasoCriba && r.destacada,
+        factores: r.factores, completa: r.completa, exito: r.completa && r.pasoReglas && r.pasoCriba,
       },
     };
   });
@@ -130,7 +122,7 @@ function informeModo(modo: Modo, conjuntoA: FilaConjunto[], conjuntoB: FilaConju
     return {
       numero: c.numero, titulo: c.titulo, organo: c.organo, fechaPublicacion: c.fechaPublicacion, urlBdns: FICHA_BDNS + c.numero, reglas: c.reglas,
       ganadoras: c.ganadoras.map((g) => g.nombre), procesada: !!r && r.completa, pasoReglas: r ? r.pasoReglas : null, pasoCriba: r ? r.pasoCriba : null,
-      etapa: r?.etapa ?? null, motivo: r ? (r.motivoReglas ?? r.motivoCriba) : null, puntuacion: r?.puntuacion ?? null, destacada: r ? r.destacada : null,
+      etapa: r?.etapa ?? null, motivo: r ? (r.motivoReglas ?? r.motivoCriba) : null, puntuacion: r?.puntuacion ?? null,
     };
   });
   const motivos = new Map<string, number>();
@@ -144,13 +136,13 @@ function informeModo(modo: Modo, conjuntoA: FilaConjunto[], conjuntoB: FilaConju
   const metrica = metricaB(conjuntoB, resultados);
   const totalA = filasA.length;
   const titular = completas === totalA && totalA > 0
-    ? `De las ${totalA} convocatorias conocidas (las de Reforesta y los ejemplos del reto), el radar habría pasado ${exitos} por las reglas y la criba con puntuación destacada (${umbral} o más).`
-    : `Backtest (a) incompleto: ${completas} de ${totalA} convocatorias calculadas hasta ahora (${exitos} destacadas).`;
+    ? `De las ${totalA} convocatorias conocidas (las cinco ediciones de la convocatoria anual de la Comunidad de Madrid a la que se presenta Reforesta, más el ejemplo del MITECO; la Orden 1689/2026 del reto es el extracto de la 904719), el radar habría detectado ${exitos}: pasan las reglas y la criba, así que aparecerían en «Esta semana».`
+    : `Backtest (a) incompleto: ${completas} de ${totalA} convocatorias calculadas hasta ahora (${exitos} detectadas).`;
   const titularB = metrica.procesadas
-    ? `Además, de ${metrica.procesadas} convocatorias que encajaban por reglas objetivas, ganaron organizaciones parecidas y donde Reforesta no figura entre los ganadores, el radar habría dejado pasar la criba a ${metrica.pasanCriba} (${metrica.porcentajePasaCriba} %) y destacado ${metrica.destacadas}.`
+    ? `Además, de ${metrica.procesadas} convocatorias que encajaban por reglas objetivas, ganaron organizaciones parecidas y donde Reforesta no figura entre los ganadores, el radar habría dejado pasar la criba a ${metrica.pasanCriba} (${metrica.porcentajePasaCriba} %).`
     : null;
   return {
-    modo, umbral,
+    modo,
     a: {
       filas: filasA, total: totalA, calculadas: filasA.filter((f) => f.resultado).length, completas, exitos,
       pasanReglas: filasA.filter((f) => f.resultado?.completa && f.resultado.pasoReglas).length, pasanCriba: filasA.filter((f) => f.resultado?.completa && f.resultado.pasoCriba).length,

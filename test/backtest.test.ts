@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { construirConjuntoB, evaluarCandidataB, type DetalleBdns, ORDEN_DEL_RETO } from '../src/backtest/conjuntos.ts';
 import { guardarConjunto, leerConjunto, leerResultados } from '../src/backtest/db.ts';
-import { abrirBdTrabajo, ejecutarBacktest, type OpcionesBacktest } from '../src/backtest/ejecutar.ts';
+import { abrirBdTrabajo, comprobarRutasBd, ejecutarBacktest, type OpcionesBacktest } from '../src/backtest/ejecutar.ts';
 import { construirInforme, metricaB } from '../src/backtest/informe.ts';
 import { abrirBd } from '../src/db/schema.ts';
 import { leerPerfil } from '../src/db/repo.ts';
@@ -64,7 +64,7 @@ function opciones(db: ReturnType<typeof bdSembrada>, llm: ReturnType<typeof llmF
   };
 }
 
-test('la 825309 pasa reglas y criba y alcanza el umbral de destacada, sin concesiones ni parecidas y sin tocar lo vivo', async () => {
+test('la 825309 pasa reglas y criba y queda detectada (la puntuación es solo un dato), sin concesiones ni parecidas y sin tocar lo vivo', async () => {
   const db = bdSembrada();
   guardarConjunto(db, [fila('a', '825309', detalle825309)], AHORA);
   const llm = llmFalso();
@@ -75,9 +75,7 @@ test('la 825309 pasa reglas y criba y alcanza el umbral de destacada, sin conces
   assert.equal(res.pasoReglas, true);
   assert.equal(res.pasoCriba, true, `motivo: ${res.motivoCriba}`);
   assert.equal(res.etapa, 'puntuada');
-  assert.equal(res.umbral, 40);
-  assert.ok(res.puntuacion !== null && res.puntuacion >= res.umbral, `puntuación ${res.puntuacion}`);
-  assert.equal(res.destacada, true);
+  assert.ok(res.puntuacion !== null, 'la puntuación se guarda como dato');
   assert.equal(res.factores.length, 5, 'desglose guardado');
   const cierre = (res.factores as { id: string; explicacion: string }[]).find((f) => f.id === 'cierre')!;
   assert.doesNotMatch(cierre.explicacion, /cerrada|desconocid/i, 'el reloj está en su fecha de publicación, no en hoy');
@@ -144,7 +142,6 @@ test('(b) se puntúa sin la fuente "parecidas", respeta el tope por ejecución y
   assert.equal(m.procesadas, 2);
   assert.equal(m.pasanCriba, 1);
   assert.equal(m.porcentajePasaCriba, 50);
-  assert.equal(m.encajabanSinReforesta, 2);
 });
 
 test('(b) reglas objetivas: nominativas, ámbito, finalidad y ESFL, cada una con su motivo', () => {
@@ -211,11 +208,11 @@ test('(b) la métrica usa solo lo calculado del todo y reparte las puntuaciones'
   const f = (n: string, admitida = true) => ({ ...fila('b', n, detallesB['712977']), numero: n, admitida });
   const res = (n: string, o: Record<string, unknown>) => ({
     conjunto: 'b' as const, numero: n, modo: 'sin_analisis' as const, pasoReglas: true, motivoReglas: null, pasoCriba: true, motivoCriba: null, etapa: 'puntuada' as const,
-    puntuacion: 47, factores: [], destacada: true, umbral: 40, completa: true, ...o,
+    puntuacion: 47, factores: [], completa: true, ...o,
   });
   const m = metricaB(
     [f('1'), f('2'), f('3'), f('4'), f('5'), f('6'), f('7', false)],
-    [res('1', {}), res('2', { puntuacion: 38, destacada: false }), res('3', { pasoCriba: false, etapa: 'criba_llm', puntuacion: null, destacada: false }),
+    [res('1', {}), res('2', { puntuacion: 38 }), res('3', { pasoCriba: false, etapa: 'criba_llm', puntuacion: null }),
       res('4', { completa: false }), res('5', { etapa: 'sin_datos', completa: false, pasoReglas: false, pasoCriba: false })],
   );
   assert.equal(m.conjunto, 6);
@@ -225,7 +222,6 @@ test('(b) la métrica usa solo lo calculado del todo y reparte las puntuaciones'
   assert.equal(m.sinProcesar, 1);
   assert.equal(m.pasanCriba, 2);
   assert.equal(m.porcentajePasaCriba, 66.7);
-  assert.equal(m.destacadas, 1);
   assert.deepEqual(m.distribucion.map((d) => d.n), [0, 0, 1, 1, 0, 0]);
   assert.equal(m.medianaPuntuacion, 42.5);
 });
@@ -252,14 +248,13 @@ test('GET /backtest: informe desde la BD, desde el fichero exportado y vacío', 
     const informe = await res.json() as { origen: string; modos: { sin_analisis: InformeApi } };
     assert.equal(informe.origen, 'bd');
     const m = informe.modos.sin_analisis;
-    assert.equal(m.umbral, 40);
-    assert.equal(m.a.total, 1);
+      assert.equal(m.a.total, 1);
     assert.equal(m.a.exitos, 1);
     assert.equal(m.a.filas[0].urlBdns, 'https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/825309');
-    assert.equal(m.a.filas[0].resultado.puntuacion >= 40, true);
+    assert.ok(m.a.filas[0].resultado.puntuacion > 0);
     assert.equal(m.b.metrica.procesadas, 1);
     assert.equal(m.b.filas[0].reglas[0], 'regla', 'el conjunto (b) es revisable: cada fila lleva la regla que la admitió');
-    assert.match(m.titular, /De las 1 convocatorias conocidas .* 1 por las reglas y la criba con puntuación destacada \(40 o más\)/);
+    assert.match(m.titular, /De las 1 convocatorias conocidas .*Orden 1689\/2026.*el radar habría detectado 1: pasan las reglas y la criba/);
     assert.match(m.titularB!, /de 1 convocatorias que encajaban por reglas objetivas.*donde Reforesta no figura entre los ganadores/);
     assert.doesNotMatch(JSON.stringify(informe), /decision|password|"nota"/i);
     db.close();
@@ -269,7 +264,12 @@ test('GET /backtest: informe desde la BD, desde el fichero exportado y vacío', 
 });
 
 interface InformeApi {
-  umbral: number; titular: string; titularB: string | null;
+  titular: string; titularB: string | null;
   a: { total: number; exitos: number; filas: { urlBdns: string; resultado: { puntuacion: number } }[] };
   b: { metrica: { procesadas: number }; filas: { reglas: string[] }[] };
 }
+
+test('el backtest se niega a trabajar sobre la BD del radar', () => {
+  assert.throws(() => comprobarRutasBd('data/radar.sqlite', './data/../data/radar.sqlite'), /coincide con DB_PATH/);
+  assert.doesNotThrow(() => comprobarRutasBd('data/radar.sqlite', 'data/backtest/trabajo.sqlite'));
+});

@@ -17,8 +17,6 @@ export interface ConfigPuntuacion {
   pesos: Record<IdFactor, number>;
   nuevasDias: number;
   cierranProntoDias: number;
-  /** Puntuación desde la que una convocatoria cuenta como "destacada" en el backtest ("Cómo sabemos"); el correo toma las 5 mejores sin umbral. */
-  destacadaDesde: number;
   encaje: { porLineas: number[]; esflDesconocido: number; valorDesconocido: number };
   importe: { techo: number; minimoSiPerfilNoTiene: number; pesoSoloTotal: number; valorDesconocido: number };
   cierre: { tramos: { hastaDias: number | null; valor: number }[]; valorDesconocido: number };
@@ -37,7 +35,6 @@ export function leerConfigPuntuacion(ruta: string): ConfigPuntuacion {
   }
   if (suma <= 0) throw new Error(`Configuración de puntuación: los pesos suman 0 (${ruta})`);
   if (!(c.cierranProntoDias >= 0) || !(c.nuevasDias >= 0)) throw new Error(`Configuración de puntuación: nuevasDias/cierranProntoDias inválidos (${ruta})`);
-  if (!(c.destacadaDesde >= 0 && c.destacadaDesde <= 100)) throw new Error(`Configuración de puntuación: destacadaDesde debe estar entre 0 y 100 (${ruta})`);
   return c;
 }
 

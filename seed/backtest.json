@@ -1,9 +1,8 @@
 {
-  "generadoEn": "2026-11-14T02:00:10.613Z",
+  "generadoEn": "2026-11-14T02:07:13.981Z",
   "modos": {
     "sin_analisis": {
       "modo": "sin_analisis",
-      "umbral": 40,
       "a": {
         "filas": [
           {
@@ -63,8 +62,7 @@
                 }
               ],
               "completa": true,
-              "destacada": false,
-              "exito": false
+              "exito": true
             }
           },
           {
@@ -124,8 +122,7 @@
                 }
               ],
               "completa": true,
-              "destacada": false,
-              "exito": false
+              "exito": true
             }
           },
           {
@@ -185,8 +182,7 @@
                 }
               ],
               "completa": true,
-              "destacada": false,
-              "exito": false
+              "exito": true
             }
           },
           {
@@ -246,7 +242,6 @@
                 }
               ],
               "completa": true,
-              "destacada": true,
               "exito": true
             }
           },
@@ -309,7 +304,6 @@
                 }
               ],
               "completa": true,
-              "destacada": true,
               "exito": true
             }
           },
@@ -370,7 +364,6 @@
                 }
               ],
               "completa": true,
-              "destacada": true,
               "exito": true
             }
           }
@@ -378,7 +371,7 @@
         "total": 6,
         "calculadas": 6,
         "completas": 6,
-        "exitos": 3,
+        "exitos": 6,
         "pasanReglas": 6,
         "pasanCriba": 6
       },
@@ -404,8 +397,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "Convocatoria del Ayuntamiento de Móstoles dirigida a asociaciones y entidades sin ánimo de lucro para actividades medioambientales y ecosociales de utilidad pública, compatible con las líneas de restauración, conservación y educación ambiental; el ámbito es municipal de Madrid y no se exige sede en otra comunidad.",
-            "puntuacion": 38,
-            "destacada": false
+            "puntuacion": 38
           },
           {
             "numero": "628830",
@@ -429,8 +421,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "Convocatoria estatal para entidades del Tercer Sector y ONG que desarrollen actividades de interés general en investigación científica y técnica de carácter medioambiental, lo que puede relacionarse con las líneas de restauración, conservación y educación ambiental de Reforesta, aunque el extracto no detalla las actuaciones elegibles y remite a las bases reguladoras.",
-            "puntuacion": 38,
-            "destacada": false
+            "puntuacion": 38
           },
           {
             "numero": "637523",
@@ -453,8 +444,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "Convocatoria autonómica de Madrid para desarrollo socioeconómico en reservas de la biosfera de las cuencas altas, dirigida a entidades sin ánimo de lucro, que puede encajar con restauración de ecosistemas y conservación de hábitats en la Sierra de Guadarrama; falta leer las bases completas para confirmar actividades y requisitos.",
-            "puntuacion": 38,
-            "destacada": false
+            "puntuacion": 38
           },
           {
             "numero": "645500",
@@ -476,8 +466,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "El extracto limita la convocatoria a organizaciones no gubernamentales que formen parte del Consejo Asesor de Medio Ambiente, para cofinanciar actividades de biodiversidad y cambio climático; no consta que Reforesta sea miembro, lo que debe verificarse en las bases completas, pero no se descarta por ello en esta criba.",
-            "puntuacion": 38,
-            "destacada": false
+            "puntuacion": 38
           },
           {
             "numero": "653621",
@@ -500,8 +489,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "La convocatoria financia actuaciones de renaturalización urbana, infraestructura verde y biodiversidad en ciudades, y admite como beneficiarias en agrupación a entidades sin ánimo de lucro (art. 2.2.b), lo que encaja con la restauración de ecosistemas y la conservación de hábitats de Reforesta; no consta exigencia de sede en otra comunidad, aunque la entidad debe integrarse en agrupación con un ayuntamiento limítrofe.",
-            "puntuacion": 47,
-            "destacada": true
+            "puntuacion": 47
           },
           {
             "numero": "670489",
@@ -524,8 +512,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "La convocatoria financia proyectos de adaptación al cambio climático (PNACC 2021-2030) y está abierta a entidades sin ánimo de lucro, lo que puede cuadrar con las líneas de restauración de ecosistemas y conservación de hábitats, aunque el texto se centra en conocimiento científico y no exige sede en otra comunidad.",
-            "puntuacion": 47,
-            "destacada": true
+            "puntuacion": 47
           },
           {
             "numero": "687060",
@@ -548,8 +535,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "La convocatoria financia programas de voluntariado en parques nacionales y centros adscritos dirigidos a entidades de voluntariado, lo que encaja con la línea de educación ambiental y voluntariado de Reforesta; el texto no exige sede en otra comunidad y las bases completas deben revisarse.",
-            "puntuacion": 38,
-            "destacada": false
+            "puntuacion": 38
           },
           {
             "numero": "690409",
@@ -573,8 +559,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "El extracto BOE-B-2023-12404 admite como beneficiarias a entidades y organizaciones sin ánimo de lucro (art. 41.a) para proyectos transformadores de bioeconomía, transición ecológica y gestión de recursos forestales, aunque exige la participación de una entidad científica; no consta condición de sede en otra comunidad.",
-            "puntuacion": 38,
-            "destacada": false
+            "puntuacion": 38
           },
           {
             "numero": "704741",
@@ -596,8 +581,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "Convocatoria estatal de subvenciones para proyectos innovadores promovidos por entidades sin ánimo de lucro para la transformación territorial y la lucha contra la despoblación, con dimensión medioambiental y apertura a entidades sin ánimo de lucro, compatible con las líneas de restauración de ecosistemas y conservación de hábitats; no exige sede en otra comunidad.",
-            "puntuacion": 38,
-            "destacada": false
+            "puntuacion": 38
           },
           {
             "numero": "712977",
@@ -622,8 +606,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "La convocatoria financia a entidades del Tercer Sector y ONG de ámbito estatal para proyectos de protección del medio ambiente e investigación, lo que puede relacionarse con las líneas de restauración de ecosistemas y conservación de hábitats de Reforesta.",
-            "puntuacion": 38,
-            "destacada": false
+            "puntuacion": 38
           },
           {
             "numero": "723691",
@@ -645,8 +628,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "Convocatoria municipal de Móstoles para entidades sin ánimo de lucro destinada a actividades medioambientales y ecosociales, compatible con las líneas de educación ambiental y restauración de ecosistemas de Reforesta; no hay condición de ámbito ni de sede en otra comunidad.",
-            "puntuacion": 38,
-            "destacada": false
+            "puntuacion": 38
           },
           {
             "numero": "727799",
@@ -668,8 +650,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "La convocatoria admite entidades privadas sin ánimo de lucro y financia proyectos de investigación sobre pesca y acuicultura sostenibles y conocimiento del medio marino, que es ámbito cercano a la conservación de hábitats y ecosistemas, aunque no es un tema central de las líneas de Reforesta y requiere lectura de bases completas.",
-            "puntuacion": 38,
-            "destacada": false
+            "puntuacion": 38
           },
           {
             "numero": "738647",
@@ -691,8 +672,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "Convoca ayudas a ONG ambientales para cofinanciar actividades de biodiversidad y cambio climático en la definición y ejecución de políticas estatales; el beneficiario debe ser entidad sin ánimo de lucro que forme parte del Consejo Asesor de Medio Ambiente, lo que debe verificarse en las bases completas, y no se exige sede en otra comunidad.",
-            "puntuacion": 38,
-            "destacada": false
+            "puntuacion": 38
           },
           {
             "numero": "766455",
@@ -715,8 +695,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "La convocatoria financia programas de voluntariado en parques nacionales y centros adscritos a entidades de voluntariado, lo que encaja con la línea de educación ambiental y voluntariado de Reforesta; no exige sede en otra comunidad.",
-            "puntuacion": 38,
-            "destacada": false
+            "puntuacion": 38
           },
           {
             "numero": "782254",
@@ -741,8 +720,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "La convocatoria financia a entidades del Tercer Sector de ámbito estatal para actividades de interés general en investigación científica y protección del medio ambiente (Línea A), sin exigir sede en otra comunidad, por lo que puede encajar con la línea de restauración de ecosistemas y conservación de hábitats de Reforesta.",
-            "puntuacion": 38,
-            "destacada": false
+            "puntuacion": 38
           },
           {
             "numero": "803854",
@@ -764,8 +742,7 @@
             "pasoCriba": false,
             "etapa": "criba_llm",
             "motivo": "La convocatoria exige proyectos piloto en el área de influencia de Doñana (municipios de Cádiz, Huelva y Sevilla), territorio que no está en el ámbito de actuación de Reforesta, y su condición de ámbito es ninguna, por lo que no consta exigencia de sede en otra comunidad pero el ámbito geográfico no coincide con Madrid ni con las líneas de trabajo de la organización.",
-            "puntuacion": null,
-            "destacada": false
+            "puntuacion": null
           },
           {
             "numero": "804414",
@@ -787,8 +764,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "Las entidades sin ánimo de lucro solo pueden participar como integrantes de una agrupación coordinada por un ayuntamiento, diputación u otra entidad del apartado 1 del artículo 2.2 de la Orden TED/1060/2024, y el objeto (renaturalización urbana, biodiversidad e infraestructura verde) se relaciona con las líneas de restauración y hábitats de Reforesta.",
-            "puntuacion": 47,
-            "destacada": true
+            "puntuacion": 47
           },
           {
             "numero": "804429",
@@ -810,8 +786,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "La convocatoria estatal (FEDER) admite a entidades sin ánimo de lucro en la línea 2 para proyectos de restauración ecológica, conectividad e infraestructura verde, lo que cubre la línea de restauración de ecosistemas de Reforesta; no exige sede en otra comunidad y el plazo cierra el 20/02/2025.",
-            "puntuacion": 47,
-            "destacada": true
+            "puntuacion": 47
           },
           {
             "numero": "804448",
@@ -835,8 +810,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "La convocatoria financia proyectos de conservación del patrimonio natural y biodiversidad (línea LIFE y digitalización del conocimiento del patrimonio natural) y admite a entidades privadas sin ánimo de lucro que realicen actividades de I+D+i o generen conocimiento científico, lo que puede encajar con las líneas de restauración de ecosistemas y conservación de hábitats de Reforesta, aunque habrá que verificar en las bases completas si Reforesta cumple el requisito de I+D+i según sus estatutos.",
-            "puntuacion": 47,
-            "destacada": true
+            "puntuacion": 47
           },
           {
             "numero": "810915",
@@ -858,8 +832,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "La convocatoria estatal de la Fundación Biodiversidad financia actuaciones de capacitación para la transición ecológica (Empleaverde+), un tema cercano a la restauración de ecosistemas y la educación ambiental, y el extracto no excluye de entrada a entidades sin ánimo de lucro; la elegibilidad concreta debe confirmarse en las bases.",
-            "puntuacion": 47,
-            "destacada": true
+            "puntuacion": 47
           },
           {
             "numero": "831272",
@@ -881,8 +854,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "Convocatoria del Ayuntamiento de Móstoles para asociaciones y entidades sin ánimo de lucro en actividades medioambientales y ecosociales, dentro del ámbito municipal de Madrid y sin condición de sede en otra comunidad.",
-            "puntuacion": 47,
-            "destacada": true
+            "puntuacion": 47
           },
           {
             "numero": "833416",
@@ -904,8 +876,7 @@
             "pasoCriba": false,
             "etapa": "criba_llm",
             "motivo": "La convocatoria financia proyectos de sostenibilidad pesquera y acuícola, economía azul e investigación marina, sin relación con las líneas de Reforesta (restauración de ecosistemas terrestres, conservación de hábitats, educación ambiental), aunque admite entidades sin ánimo de lucro.",
-            "puntuacion": null,
-            "destacada": false
+            "puntuacion": null
           },
           {
             "numero": "835470",
@@ -927,8 +898,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "La convocatoria financia proyectos de infraestructura verde, restauración de ecosistemas degradados y biodiversidad, y admite como beneficiarias a entidades y organizaciones sin ánimo de lucro (letra a del apartado Primero del extracto), lo que encaja con las líneas de Reforesta; el plazo de solicitudes terminaba el 23 de julio de 2025 y conviene verificarlo.",
-            "puntuacion": 47,
-            "destacada": true
+            "puntuacion": 47
           },
           {
             "numero": "837090",
@@ -951,8 +921,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "La convocatoria financia programas de voluntariado en parques nacionales y centros adscritos a entidades de voluntariado, lo que se relaciona con la línea de educación ambiental y voluntariado de Reforesta; el texto no restringe por sede en otra comunidad.",
-            "puntuacion": 47,
-            "destacada": true
+            "puntuacion": 47
           },
           {
             "numero": "848938",
@@ -977,8 +946,7 @@
             "pasoCriba": true,
             "etapa": "puntuada",
             "motivo": "El extracto convoca la línea a para entidades del Tercer Sector u ONG de ámbito estatal en protección del medio ambiente e investigación, lo que puede cuadrar con las líneas de restauración de ecosistemas y conservación de hábitats de Reforesta, pendiente de revisar requisitos en las bases.",
-            "puntuacion": 47,
-            "destacada": true
+            "puntuacion": 47
           }
         ],
         "metrica": {
@@ -1040,9 +1008,7 @@
               "etiqueta": "60 o más",
               "n": 0
             }
-          ],
-          "destacadas": 10,
-          "encajabanSinReforesta": 25
+          ]
         },
         "excluidas": [
           {
@@ -1068,10 +1034,10 @@
         ],
         "examinadas": 308
       },
-      "titular": "De las 6 convocatorias conocidas (las de Reforesta y los ejemplos del reto), el radar habría pasado 3 por las reglas y la criba con puntuación destacada (40 o más).",
-      "titularB": "Además, de 25 convocatorias que encajaban por reglas objetivas, ganaron organizaciones parecidas y donde Reforesta no figura entre los ganadores, el radar habría dejado pasar la criba a 23 (92 %) y destacado 10.",
+      "titular": "De las 6 convocatorias conocidas (las cinco ediciones de la convocatoria anual de la Comunidad de Madrid a la que se presenta Reforesta, más el ejemplo del MITECO; la Orden 1689/2026 del reto es el extracto de la 904719), el radar habría detectado 6: pasan las reglas y la criba, así que aparecerían en «Esta semana».",
+      "titularB": "Además, de 25 convocatorias que encajaban por reglas objetivas, ganaron organizaciones parecidas y donde Reforesta no figura entre los ganadores, el radar habría dejado pasar la criba a 23 (92 %).",
       "coste": {
-        "ejecuciones": 1,
+        "ejecuciones": 3,
         "llamadas": 31,
         "costeUsd": 0.014
       }

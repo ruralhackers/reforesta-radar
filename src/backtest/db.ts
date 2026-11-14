@@ -32,9 +32,6 @@ export interface ResultadoGuardado {
   etapa: 'sin_datos' | 'reglas' | 'criba_llm' | 'analisis' | 'puntuacion' | 'puntuada' | 'pendiente';
   puntuacion: number | null;
   factores: unknown[];
-  /** Pasa las reglas y la criba y su puntuación (con el reloj en su fecha de publicación) llega al umbral de "destacada". */
-  destacada: boolean;
-  umbral: number;
   /** false = criba sin hacer por el tope de llamadas: provisional. */
   completa: boolean;
 }
@@ -71,13 +68,13 @@ export function leerConjunto(db: DatabaseSync, conjunto: Conjunto): FilaConjunto
 
 export function guardarResultado(db: DatabaseSync, r: ResultadoGuardado, ahora: Date): void {
   db.prepare(`
-    INSERT INTO backtest_resultados (conjunto, numero, modo, paso_reglas, motivo_reglas, paso_criba, motivo_criba, etapa, puntuacion, factores, destacada, umbral, completa, calculado_en)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO backtest_resultados (conjunto, numero, modo, paso_reglas, motivo_reglas, paso_criba, motivo_criba, etapa, puntuacion, factores, completa, calculado_en)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT (conjunto, numero, modo) DO UPDATE SET paso_reglas = excluded.paso_reglas, motivo_reglas = excluded.motivo_reglas,
       paso_criba = excluded.paso_criba, motivo_criba = excluded.motivo_criba, etapa = excluded.etapa, puntuacion = excluded.puntuacion,
-      factores = excluded.factores, destacada = excluded.destacada, umbral = excluded.umbral, completa = excluded.completa, calculado_en = excluded.calculado_en`)
+      factores = excluded.factores, completa = excluded.completa, calculado_en = excluded.calculado_en`)
     .run(r.conjunto, r.numero, r.modo, Number(r.pasoReglas), r.motivoReglas, Number(r.pasoCriba), r.motivoCriba, r.etapa, r.puntuacion,
-      JSON.stringify(r.factores), Number(r.destacada), r.umbral, Number(r.completa), ahora.toISOString());
+      JSON.stringify(r.factores), Number(r.completa), ahora.toISOString());
 }
 
 export function leerResultados(db: DatabaseSync, modo?: Modo): ResultadoGuardado[] {
@@ -88,7 +85,7 @@ export function leerResultados(db: DatabaseSync, modo?: Modo): ResultadoGuardado
     conjunto: f.conjunto as Conjunto, numero: String(f.numero), modo: f.modo as Modo, pasoReglas: f.paso_reglas === 1, motivoReglas: (f.motivo_reglas as string | null) ?? null,
     pasoCriba: f.paso_criba === 1, motivoCriba: (f.motivo_criba as string | null) ?? null, etapa: f.etapa as ResultadoGuardado['etapa'],
     puntuacion: f.puntuacion === null ? null : Number(f.puntuacion), factores: JSON.parse(String(f.factores)) as unknown[],
-    destacada: f.destacada === 1, umbral: Number(f.umbral), completa: f.completa === 1,
+    completa: f.completa === 1,
   }));
 }
 

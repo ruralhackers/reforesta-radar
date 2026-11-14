@@ -5,7 +5,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
-import { ejecutarBacktest, abrirBdTrabajo } from '../backtest/ejecutar.ts';
+import { abrirBdTrabajo, comprobarRutasBd, ejecutarBacktest } from '../backtest/ejecutar.ts';
 import { construirInforme } from '../backtest/informe.ts';
 import { leerPerfil } from '../db/repo.ts';
 import { config } from '../config.ts';
@@ -13,7 +13,6 @@ import { abrirBd } from '../db/schema.ts';
 import { crearLlmAnthropic } from '../llm/anthropic.ts';
 import { leerFestivos } from '../festivos.ts';
 import { leerConfigPuntuacion } from '../puntuacion.ts';
-import { sembrarSiVacia } from '../seed.ts';
 
 const { values: v } = parseArgs({
   options: {
@@ -25,10 +24,11 @@ const { values: v } = parseArgs({
 });
 if (v.solo && v.solo !== 'a' && v.solo !== 'b') throw new Error('--solo admite a o b');
 
+comprobarRutasBd(config.rutaBd, config.backtest.rutaBdTrabajo);
 const db = abrirBd(config.rutaBd);
 const ahora = new Date();
 try {
-  sembrarSiVacia(db, config.rutaSemilla, ahora);
+  if (!leerPerfil(db)) throw new Error('La BD del radar no tiene perfil: ejecuta antes npm run seed (el backtest no siembra la BD principal)');
   mkdirSync(dirname(config.backtest.rutaBdTrabajo), { recursive: true });
   const dbTrabajo = abrirBdTrabajo(config.backtest.rutaBdTrabajo, leerPerfil(db)!, ahora);
   const llm = config.anthropicApiKey ? crearLlmAnthropic({ apiKey: config.anthropicApiKey }) : null;

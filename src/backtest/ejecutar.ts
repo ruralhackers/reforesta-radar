@@ -3,6 +3,7 @@
 // aparte (criba, caché del LLM): no lee ni escribe convocatorias, decisiones ni ranking vivos. Reanudable: lo ya calculado no se repite.
 //   (a) conjunto conocido: las CAM "proyectos ambientales", MITECO 923290 y la Orden 1689/2026 del reto.
 //   (b) descubrimiento: ganadas por parecidas activas, filtradas con reglas objetivas, sin la fuente "parecidas" ni las concesiones.
+import { resolve } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { leerParecidas } from '../db/ganadores.ts';
 import { conDiasHastaCierre, guardarConvocatoria, guardarSemilla, leerFases, leerLlmCache, leerPerfil, pendientesDeFase } from '../db/repo.ts';
@@ -100,6 +101,13 @@ const modoDe = (o: Pick<OpcionesBacktest, 'conAnalisis'>): Modo => (o.conAnalisi
 const DESDE_SIEMPRE = '1900-01-01';
 
 /** BD de trabajo: el perfil de hoy y nada más (ni parecidas, ni fundaciones, ni decisiones: el backtest no aprende del equipo). */
+/** La BD de trabajo guarda criba y caché del LLM de convocatorias ajenas al radar: jamás puede ser la BD principal. */
+export function comprobarRutasBd(rutaPrincipal: string, rutaTrabajo: string): void {
+  if (rutaPrincipal !== ':memory:' && resolve(rutaPrincipal) === resolve(rutaTrabajo)) {
+    throw new Error(`BACKTEST_DB (${rutaTrabajo}) coincide con DB_PATH: el backtest no puede trabajar sobre la BD del radar. Usa otra ruta en BACKTEST_DB.`);
+  }
+}
+
 export function abrirBdTrabajo(ruta: string, perfil: Perfil, ahora: Date): DatabaseSync {
   const db = abrirBd(ruta);
   if (!leerPerfil(db)) guardarSemilla(db, { perfil, organizacionesParecidas: [], fundaciones: [] }, ahora);
@@ -168,8 +176,7 @@ export function puntuarEnSuFecha(c: Convocatoria, analisis: Analisis | null, per
 
 function resultadoDe(o: OpcionesBacktest, perfil: Perfil, conjunto: Conjunto, numero: string, previa: Awaited<ReturnType<typeof prepararConvocatoria>>): ResultadoGuardado {
   const modo = modoDe(o);
-  const umbral = o.puntuacion.destacadaDesde;
-  const base = { conjunto, numero, modo, pasoReglas: false, motivoReglas: null, pasoCriba: false, motivoCriba: null, puntuacion: null, factores: [] as unknown[], destacada: false, umbral, completa: true };
+  const base = { conjunto, numero, modo, pasoReglas: false, motivoReglas: null, pasoCriba: false, motivoCriba: null, puntuacion: null, factores: [] as unknown[], completa: true };
   if (!previa) return { ...base, etapa: 'sin_datos', motivoReglas: 'BDNS no devolvió esta convocatoria', completa: false };
   if (previa.descarte) return { ...base, etapa: 'reglas', motivoReglas: previa.descarte.motivo };
   const fases = leerFases(o.dbTrabajo, previa.c.id);
@@ -188,7 +195,7 @@ function resultadoDe(o: OpcionesBacktest, perfil: Perfil, conjunto: Conjunto, nu
   const p = puntuarEnSuFecha(previa.c, analisis, perfil, o.puntuacion, o.festivos);
   const factores = p.factores as Factor[];
   if (p.excluida) return { ...conCriba, etapa: 'puntuacion', motivoCriba: p.excluida, puntuacion: 0, factores };
-  return { ...conCriba, etapa: 'puntuada', puntuacion: p.total, factores, destacada: p.total >= umbral };
+  return { ...conCriba, etapa: 'puntuada', puntuacion: p.total, factores };
 }
 
 export async function ejecutarBacktest(o: OpcionesBacktest): Promise<ResumenBacktest> {

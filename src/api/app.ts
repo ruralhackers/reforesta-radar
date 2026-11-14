@@ -317,7 +317,13 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
     const informe = construirInforme(db, reloj.now());
     if (Object.keys(informe.modos).length) return c.json({ ...informe, origen: 'bd' });
     const ruta = opciones.rutaBacktest ?? config.rutaBacktest;
-    if (existsSync(ruta)) return c.json({ ...(JSON.parse(readFileSync(ruta, 'utf8')) as Informe), origen: 'fichero' });
+    if (existsSync(ruta)) {
+      try {
+        return c.json({ ...(JSON.parse(readFileSync(ruta, 'utf8')) as Informe), origen: 'fichero' });
+      } catch {
+        // Fichero ilegible: se sirve como vacío en vez de romper la página.
+      }
+    }
     return c.json({ ...informe, origen: 'vacio' });
   });
 

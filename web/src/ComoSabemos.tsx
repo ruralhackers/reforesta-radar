@@ -12,13 +12,13 @@ function Veredicto({ f }: { f: BacktestFilaA }) {
   if (!r) return <span className="rounded bg-stone-100 px-2 py-0.5 text-xs text-stone-600">Sin calcular</span>;
   if (!r.completa) return <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">Provisional</span>;
   return r.exito
-    ? <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900">Destacada</span>
-    : <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-900">No destacada</span>;
+    ? <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900">Detectada</span>
+    : <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-900">No detectada</span>;
 }
 
 const si = (b: boolean) => (b ? 'Sí' : 'No');
 
-function FilaA({ f, umbral }: { f: BacktestFilaA; umbral: number }) {
+function FilaA({ f }: { f: BacktestFilaA }) {
   const r = f.resultado;
   return (
     <li className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-stone-200">
@@ -35,7 +35,7 @@ function FilaA({ f, umbral }: { f: BacktestFilaA; umbral: number }) {
         <dl className="mt-3 grid grid-cols-3 gap-x-4 gap-y-1 text-sm">
           <div><dt className="text-xs text-stone-500">Pasa las reglas</dt><dd>{si(r.pasoReglas)}</dd></div>
           <div><dt className="text-xs text-stone-500">Pasa la criba</dt><dd>{si(r.pasoCriba)}</dd></div>
-          <div><dt className="text-xs text-stone-500">Puntuación (destacada desde {umbral})</dt><dd>{r.puntuacion !== null ? `${r.puntuacion} / 100` : '—'}</dd></div>
+          <div><dt className="text-xs text-stone-500">Puntuación (solo dato)</dt><dd>{r.puntuacion !== null ? `${r.puntuacion} / 100` : '—'}</dd></div>
         </dl>
       )}
       {r && (r.motivoCriba || r.motivoReglas) && <p className="mt-2 text-sm text-stone-700">{r.pasoCriba ? 'Criba: ' : `${ETAPA[r.etapa] ?? r.etapa}: `}{r.motivoReglas ?? r.motivoCriba}</p>}
@@ -81,10 +81,11 @@ function Modo({ m, bt }: { m: BacktestModo; bt: Backtest }) {
       <section className="mb-8">
         <h2 className="mb-1 text-xl font-semibold">(a) Convocatorias conocidas</h2>
         <p className="mb-3 text-sm text-stone-600">
-          Las cinco convocatorias de la Comunidad de Madrid de «proyectos ambientales» y los ejemplos del reto. Éxito = pasa las reglas y la criba y su puntuación llega a {m.umbral}
-          (el umbral de «destacada» del radar). {m.a.exitos} de {m.a.total} lo consiguen.
+          Las cinco ediciones de la convocatoria de la Comunidad de Madrid de «proyectos ambientales» y el ejemplo del MITECO (la Orden 1689/2026 del reto es el extracto de la 904719).
+          Éxito = detectada: pasa las reglas y la criba, así que aparece en «Esta semana», que lista todas las convocatorias abiertas. {m.a.exitos} de {m.a.total} lo consiguen.
+          La puntuación se muestra como dato, no como criterio.
         </p>
-        <ul className="space-y-3">{m.a.filas.map((f) => <FilaA key={f.numero} f={f} umbral={m.umbral} />)}</ul>
+        <ul className="space-y-3">{m.a.filas.map((f) => <FilaA key={f.numero} f={f} />)}</ul>
       </section>
 
       <section className="mb-8">
@@ -95,11 +96,10 @@ function Modo({ m, bt }: { m: BacktestModo; bt: Backtest }) {
         </p>
         {met.procesadas === 0 ? <p className="rounded bg-white p-3 text-sm shadow-sm">Todavía no hay resultados de este conjunto.</p> : (
           <div className="space-y-4">
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded bg-white p-3 shadow-sm ring-1 ring-stone-200"><dt className="text-xs text-stone-500">Pasan la criba</dt><dd className="text-2xl font-bold">{met.porcentajePasaCriba} %</dd><dd className="text-xs text-stone-500">{met.pasanCriba} de {met.procesadas}</dd></div>
-              <div className="rounded bg-white p-3 shadow-sm ring-1 ring-stone-200"><dt className="text-xs text-stone-500">Destacadas (≥ {m.umbral})</dt><dd className="text-2xl font-bold">{met.destacadas}</dd><dd className="text-xs text-stone-500">de {met.procesadas}</dd></div>
               <div className="rounded bg-white p-3 shadow-sm ring-1 ring-stone-200"><dt className="text-xs text-stone-500">Puntuación mediana</dt><dd className="text-2xl font-bold">{met.medianaPuntuacion ?? '—'}</dd><dd className="text-xs text-stone-500">entre las que pasan</dd></div>
-              <div className="rounded bg-white p-3 shadow-sm ring-1 ring-stone-200"><dt className="text-xs text-stone-500">Encajaban y Reforesta no figura</dt><dd className="text-2xl font-bold">{met.encajabanSinReforesta}</dd><dd className="text-xs text-stone-500">entre los ganadores</dd></div>
+              <div className="rounded bg-white p-3 shadow-sm ring-1 ring-stone-200"><dt className="text-xs text-stone-500">Cumplen las reglas objetivas</dt><dd className="text-2xl font-bold">{met.conjunto}</dd><dd className="text-xs text-stone-500">de {m.b.examinadas} examinadas</dd></div>
             </dl>
             <div className="rounded bg-white p-4 shadow-sm ring-1 ring-stone-200">
               <h3 className="mb-2 font-semibold">Puntuación de las {met.pasanCriba} que pasan la criba</h3>
@@ -138,7 +138,7 @@ function Modo({ m, bt }: { m: BacktestModo; bt: Backtest }) {
                 <p className="text-xs text-stone-600">Admitida por: {f.reglas.join(' · ')}</p>
                 <p className="text-xs">
                   {!f.procesada ? 'Sin procesar todavía.'
-                    : f.pasoCriba ? `Pasa la criba · puntuación ${f.puntuacion ?? '—'}${f.destacada ? ' · destacada' : ''}`
+                    : f.pasoCriba ? `Pasa la criba · puntuación ${f.puntuacion ?? '—'}`
                     : `No pasa: ${ETAPA[f.etapa ?? ''] ?? f.etapa}${f.motivo ? `: ${f.motivo}` : ''}`}
                 </p>
               </li>
@@ -162,11 +162,13 @@ export function ComoSabemos() {
         <h1 className="text-2xl font-bold sm:text-3xl">Cómo sabemos que funciona</h1>
         <p className="mt-1 text-sm text-stone-600">
           Es una <strong>reclasificación</strong>, no una reproducción de lo que pasó: tomamos convocatorias del pasado, les pasamos las reglas, la criba y la puntuación <em>de hoy</em>
-          con el reloj en el día en que se publicaron, y miramos si el radar las habría dejado pasar y destacado. Repetible con <code>npm run backtest</code>.
+          con el reloj en el día en que se publicaron, y miramos si el radar las habría detectado. Repetible con <code>npm run backtest</code>.
         </p>
         <p className="mt-2 text-sm text-stone-600">
           Límites: el conjunto conocido es pequeño (unas pocas convocatorias, no una estadística), y el segundo depende de reglas objetivas que hemos escrito nosotros
           (una lista de palabras ambientales, ámbito y tipo de concesión), de modo que mide lo que esas reglas dejan ver y no todo lo que existe.
+          Además, el porcentaje que pasa la criba en (b) no es una precisión: el conjunto está prefiltrado por palabras clave, no tiene control negativo (convocatorias que no deberían encajar)
+          y se juzga con los documentos y el perfil de hoy.
         </p>
       </header>
       {error && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-red-800">{error}</p>}
