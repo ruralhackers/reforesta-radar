@@ -31,7 +31,8 @@
     "record:huella": "node scripts/record-huella.ts",
     "backtest": "node src/cli/backtest.ts",
     "capturas": "node scripts/capturas.ts",
-    "video": "node scripts/video/grabar.ts"
+    "video": "node scripts/video/grabar.ts",
+    "backup": "node src/cli/backup.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
