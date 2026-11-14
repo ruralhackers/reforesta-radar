@@ -20,6 +20,8 @@ export interface ConfigPuntuacion {
   pesos: Record<IdFactor, number>;
   nuevasDias: number;
   cierranProntoDias: number;
+  /** Ventana (días) de "Se espera que abran pronto"; por defecto 60. */
+  proximasDias?: number;
   encaje: { porLineas: number[]; esflDesconocido: number; valorDesconocido: number };
   importe: { techo: number; minimoSiPerfilNoTiene: number; pesoSoloTotal: number; valorDesconocido: number };
   cierre: { tramos: { hastaDias: number | null; valor: number }[]; valorDesconocido: number };

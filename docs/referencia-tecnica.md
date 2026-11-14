@@ -86,7 +86,7 @@ antiguas o ya estén cerradas) y las pasa por el camino normal: reglas → criba
 `RADAR_MAX_ANALISIS` y `RADAR_PRESUPUESTO_USD`) → plazo → puntuación. Así tienen ficha en `/convocatoria/bdns:<número>`, con quién ganó cada
 edición y si la ganó Reforesta. Solo procesa esas (lo pendiente de otras fuentes queda para la pasada diaria). Útil para revisar una convocatoria
 que alguien ha visto fuera del radar, o para preparar una demo: `RADAR_MAX_ANALISIS=0 npm run cargar -- 904719` cuesta unos céntimos (solo la criba)
-y deja la ficha con las ediciones 2022–2025 y sus ganadores. En Docker: `docker compose run --rm radar npm run cargar -- 904719`.
+y deja la ficha con las ediciones 2022–2025, sus ganadores y las fechas de apertura de cada edición (para la predicción de la siguiente). En Docker: `docker compose run --rm radar npm run cargar -- 904719`.
 
 Con Docker:
 
@@ -310,6 +310,24 @@ publica ganadores: la ficha dice «no figura entre los ganadores», nunca «perd
 entidades que ganaron lo mismo que Reforesta; las `manual` y las desactivadas (`activa = 0`) no se tocan al recalcular. El factor de
 probabilidad sube con las ediciones ganadas por Reforesta y con las parecidas entre los ganadores. `npm run record:concesiones` regraba los
 datos de prueba (`test/fixtures/bdns-concesiones`).
+
+### Serie y predicción de apertura
+
+Cada edición de una serie (misma clave `claveSerie`, un solo número por año) se muestra en la ficha como línea de tiempo: año, apertura, cierre,
+presupuesto, nº de ganadores, importe medio y si Reforesta ganó (`src/series.ts`, campo `serie` de `/api/convocatorias/:id`). Cada fila enlaza a su
+ficha si la edición está guardada como convocatoria; si solo se conoce su historial, a BDNS.
+
+- **Datos**: la fase `series` (`src/fases/series.ts`, tras `ganadores`) trae de BDNS el detalle (`/convocatorias?numConv=`) de las ediciones pasadas de
+  las series relevantes que aún no están guardadas: fecha de publicación, inicio y fin de solicitudes (o el fin calculado del texto del plazo),
+  presupuesto. Una petición por edición, una sola vez (tabla `ediciones_detalle`); comparte con los ganadores el tope `RADAR_MAX_PETICIONES_GANADORES` y la
+  pausa `RADAR_PAUSA_BDNS_MS`. «Relevantes» = convocatorias guardadas que pasaron la criba, siguen en juego y no descartó el equipo, más las pedidas con
+  `npm run cargar -- <num>`: esa orden carga también las ediciones pasadas de su serie (detalle y concesiones).
+- **Cálculo** (`predecirApertura`, pura): apertura = inicio de solicitudes si BDNS lo da, si no la publicación. Con ≥ 2 años distintos, la ventana es el arco circular más
+  corto del año que contiene todas las aperturas (una serie que abre en diciembre y enero da «de diciembre a enero», no «todo el año»); el 29 de febrero cuenta como el 28.
+  Duración típica del plazo = mediana de las ediciones con cierre conocido. Con < 2 ediciones: nada. La ficha enseña siempre en qué ediciones se basa.
+- **Se espera que abran pronto** (`/api/semana` → `proximas`, `seriesProximas`): series relevantes sin edición de este año (ni posterior) cuya ventana de este año
+  empieza en `proximasDias` (60, en `seed/puntuacion.json`) días o menos, o ya terminó (`retrasada`). Con el año del título como único criterio de «edición de este año»,
+  una ventana que cruza el fin de año solo se anuncia desde su inicio.
 
 ### Descubrimiento por organizaciones parecidas
 

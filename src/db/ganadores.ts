@@ -275,3 +275,28 @@ export function origenesDe(db: DatabaseSync, convocatoriaId: string): OrigenDesc
 export const marcarDescubierta = (db: DatabaseSync, id: string): void => { db.prepare('INSERT OR IGNORE INTO descubiertas_parecidas (convocatoria_id) VALUES (?)').run(id); };
 export const quitarMarcaDescubierta = (db: DatabaseSync, id: string): void => { db.prepare('DELETE FROM descubiertas_parecidas WHERE convocatoria_id = ?').run(id); };
 export const existeConvocatoria = (db: DatabaseSync, id: string): boolean => db.prepare('SELECT 1 FROM convocatorias WHERE id = ?').get(id) !== undefined;
+
+// --- Historial de series: datos fiables de cada edición (detalle de BDNS) ---
+
+export interface DetalleEdicion {
+  fechaPublicacion: string | null;
+  inicioSolicitud: string | null;
+  finSolicitud: string | null;
+  presupuesto: number | null;
+}
+
+export function guardarDetalleEdicion(db: DatabaseSync, numero: string, d: DetalleEdicion, ahora: Date): void {
+  db.prepare(`INSERT INTO ediciones_detalle (numero_convocatoria, fecha_publicacion, inicio_solicitud, fin_solicitud, presupuesto, detalle_en) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT (numero_convocatoria) DO UPDATE SET fecha_publicacion = excluded.fecha_publicacion, inicio_solicitud = excluded.inicio_solicitud,
+      fin_solicitud = excluded.fin_solicitud, presupuesto = excluded.presupuesto, detalle_en = excluded.detalle_en`)
+    .run(numero, d.fechaPublicacion, d.inicioSolicitud, d.finSolicitud, d.presupuesto, ahora.toISOString());
+}
+
+/** Ediciones (de las series dadas) de las que aún no se ha traído el detalle y que no están guardadas como convocatoria. Más recientes primero. */
+export function edicionesSinDetalle(db: DatabaseSync, series: string[]): { numero: string; serie: string; anio: number | null }[] {
+  if (series.length === 0) return [];
+  const marcas = series.map(() => '?').join(',');
+  return (db.prepare(`SELECT numero_convocatoria AS numero, serie, anio FROM ediciones_serie es
+    WHERE serie IN (${marcas}) AND NOT EXISTS (SELECT 1 FROM ediciones_detalle d WHERE d.numero_convocatoria = es.numero_convocatoria) AND NOT EXISTS (SELECT 1 FROM convocatorias c WHERE c.id = 'bdns:' || es.numero_convocatoria)
+    ORDER BY anio DESC, numero_convocatoria DESC`).all(...series) as { numero: string; serie: string; anio: number | null }[]);
+}

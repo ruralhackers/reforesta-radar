@@ -77,12 +77,30 @@ try {
       };
       await foto('/', 'esta-semana');
       for (const [nombre, id] of fichas) await foto(`/convocatoria/${encodeURIComponent(id)}`, nombre);
+      // Línea de tiempo de la serie de la ficha 904719 (CAM «proyectos ambientales») con la predicción de la siguiente edición.
+      await foto('/convocatoria/bdns%3A904719', 'ficha-serie', async () => {
+        await pagina.locator('section[aria-label="Serie de ediciones"]').scrollIntoViewIfNeeded();
+      }, false);
       await foto('/empresas', 'empresas', async () => {
         await pagina.locator('tbody button[aria-expanded]').first().click();
         await pagina.waitForSelector('tbody blockquote');
       });
       await foto('/perfil', 'perfil');
       await foto('/como-sabemos', 'como-sabemos');
+      await pagina.context().close();
+    }
+    // "Se espera que abran pronto": con los datos de hoy suele estar vacía (las series relevantes ya tienen la edición de este año), así que
+    // la captura es de DEMOSTRACIÓN: en la COPIA de la BD se oculta la edición actual de la serie de la CAM (sin año no cuenta como edición) para que parezca que aún no ha aparecido.
+    const copia = new DatabaseSync(bd);
+    try { copia.exec("UPDATE ediciones_serie SET anio = NULL WHERE numero_convocatoria = '904719'"); } finally { copia.close(); }
+    for (const v of VISTAS) {
+      const pagina = await (await navegador.newContext({ viewport: { width: v.ancho, height: v.alto }, locale: 'es-ES', timezoneId: 'Europe/Madrid' })).newPage();
+      await pagina.goto(`${BASE}/#proximas`, { waitUntil: 'networkidle' });
+      await pagina.waitForSelector('details#proximas');
+      await pagina.locator('details#proximas').evaluate((d) => { (d as HTMLDetailsElement).open = true; });
+      const fichero = join(SALIDA, `se-espera-que-abran-pronto-demo-${v.nombre}.png`);
+      await pagina.locator('details#proximas').screenshot({ path: fichero });
+      console.log(fichero);
       await pagina.context().close();
     }
   } finally {

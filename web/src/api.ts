@@ -71,7 +71,66 @@ export interface Ejecucion {
   fuentes: { fuente: string; recibidas: number; candidatas: number; descartadas: number; errores: string[] }[];
 }
 
+/** Una edición de una serie (la misma convocatoria, año tras año). */
+export interface EdicionSerie {
+  numeroConvocatoria: string;
+  anio: number;
+  titulo: string;
+  /** Ficha en BDNS. */
+  url: string;
+  /** Ficha en el radar; null si la edición solo se conoce por su historial. */
+  convocatoriaId: string | null;
+  propia: boolean;
+  apertura: string | null;
+  cierre: string | null;
+  presupuesto: number | null;
+  ganadores: number | null;
+  importeTotal: number | null;
+  importeMedio: number | null;
+  /** BDNS solo publica ganadores: no_figura no significa que la perdiera. */
+  reforesta: 'gano' | 'no_figura' | 'sin_datos';
+  importeReforesta: number | null;
+}
+
+export interface PrediccionApertura {
+  basadaEn: { numero: string; anio: number; apertura: string }[];
+  desdeDia: number;
+  hastaDia: number;
+  duracionDias: number | null;
+  /** «suele abrir entre mediados de mayo y principios de junio» */
+  texto: string;
+}
+
+export interface ResumenSerie {
+  ultimoPresupuesto: number | null;
+  ganadoresTipicos: number | null;
+  premioMedioTipico: number | null;
+  reforestaGano: number[];
+}
+
+export interface SerieProxima {
+  serie: string;
+  titulo: string;
+  /** retrasada = la ventana de este año ya pasó y no ha aparecido la edición. */
+  estado: 'pronto' | 'retrasada';
+  ventana: { desde: string; hasta: string };
+  prediccion: PrediccionApertura;
+  ultimaEdicion: EdicionSerie;
+  resumen: ResumenSerie;
+}
+
+export interface SerieFicha {
+  esSerie: boolean;
+  ediciones: EdicionSerie[];
+  anioSiguiente: number | null;
+  /** null con menos de 2 aperturas pasadas conocidas. */
+  prediccion: PrediccionApertura | null;
+  resumen: ResumenSerie;
+}
+
 export interface Semana {
+  /** Series que se espera que abran pronto (próximos `dias` días) o que ya deberían haberlo hecho este año. */
+  proximas: { dias: number; series: SerieProxima[] };
   desde: string;
   hasta: string;
   nuevasDias: number;
@@ -176,6 +235,7 @@ export interface Ficha {
     documentosConError: string[];
   } | null;
   ganadoresPrevios: GanadoresPrevios;
+  serie: SerieFicha;
   parecidas: InfoParecidas | null;
   enlaces: { tipo: 'ficha' | 'bases' | 'extracto' | 'sede' | 'documento'; titulo: string; url: string }[];
 }

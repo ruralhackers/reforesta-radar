@@ -574,3 +574,15 @@ export function filasRanking(
 export function borrarPuntuacionesFueraDeJuego(db: DatabaseSync): number {
   return Number(db.prepare(`DELETE FROM puntuaciones WHERE convocatoria_id NOT IN (SELECT c.id FROM convocatorias c WHERE ${EN_JUEGO})`).run().changes);
 }
+
+/**
+ * Para la predicción de apertura de series: números BDNS de las convocatorias guardadas que pasaron la criba LLM y siguen en juego y no las
+ * descartó el equipo (`relevantes`), y los de las que sí descartó el equipo (`descartadasPorEquipo`).
+ */
+export function relevantesBdns(db: DatabaseSync): { relevantes: Set<string>; descartadasPorEquipo: Set<string> } {
+  const numeros = (cond: string) => new Set((db.prepare(`SELECT c.fuente_id AS n FROM convocatorias c WHERE c.fuente = 'bdns' AND ${cond}`).all() as { n: string }[]).map((r) => r.n));
+  return {
+    relevantes: numeros(`${EN_JUEGO} AND ${CRIBADA} AND ${NO_DESCARTADA_POR_EQUIPO}`),
+    descartadasPorEquipo: numeros(`NOT (${NO_DESCARTADA_POR_EQUIPO})`),
+  };
+}

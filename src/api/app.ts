@@ -13,6 +13,7 @@ import { puntuarConvocatoria } from '../fases/puntuacion.ts';
 import { type ConfigPuntuacion, leerConfigPuntuacion, type ProveedorProbabilidad } from '../puntuacion.ts';
 import { seccionParecidas } from '../ranking.ts';
 import { calcularSemana, resumenTarjeta } from '../semana.ts';
+import { PROXIMAS_DIAS_POR_DEFECTO, serieDeConvocatoria, seriesProximas } from '../series.ts';
 import { tituloParaMostrar } from '../titulo.ts';
 import { infoParecidas } from '../parecidas.ts';
 import { activarParecida, altaParecidaManual, leerParecidasConAportes, NIF_ENTIDAD_VALIDO, quitarParecidaManual } from '../db/ganadores.ts';
@@ -77,6 +78,10 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
       // La frase de arriba: N para preparar, M de ellas cierran en `cierranProntoDias` días o menos, K empresas nuevas en la ventana de "nuevas".
       resumen: { paraPreparar: s.paraPreparar.length, cierranPronto: s.cierranPronto, empresasNuevas: s.empresasNuevas },
       ultimaEjecucion: ultimasEjecuciones(db, 1)[0] ?? null,
+      // "Se espera que abran pronto": series (relevantes para el perfil) cuya próxima edición suele abrir en los próximos `dias` días, o que ya
+      // deberían haber abierto este año (estado 'retrasada'). Cada una: { serie, titulo, estado, ventana: {desde, hasta}, prediccion: { basadaEn, texto, duracionDias, … },
+      // ultimaEdicion (EdicionSerie), resumen: { ultimoPresupuesto, ganadoresTipicos, premioMedioTipico, reforestaGano } }. Nunca hay series con menos de 2 aperturas pasadas.
+      proximas: { dias: cfg.proximasDias ?? PROXIMAS_DIAS_POR_DEFECTO, series: seriesProximas(db, reloj.now(), leerPerfil(db), cfg.proximasDias ?? PROXIMAS_DIAS_POR_DEFECTO) },
     });
   });
 
@@ -331,6 +336,9 @@ export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: F
         reforestaGano: historial.ganadasPorReforesta.map((e) => ({ numeroConvocatoria: e.numeroConvocatoria, anio: e.anio, importe: e.importeReforesta })),
         parecidas: historial.parecidas,
       },
+      // La serie: una fila por edición (año, apertura, cierre, presupuesto, nº de ganadores, importe medio, Reforesta ganó / no figura / sin datos)
+      // y, con 2 o más aperturas pasadas, la predicción de la siguiente ({ basadaEn, texto, duracionDias, desdeDia, hastaDia }); null si no.
+      serie: serieDeConvocatoria(db, conv, perfil, diaLocal(reloj.now())),
       // Las parecidas activas relacionadas (origen del descubrimiento y/o entre los ganadores previos); null si ninguna.
       parecidas: infoParecidas(db, conv, perfil),
       enlaces: fuentePorNombre(conv.fuente, fuentes)?.enlaces?.(conv) ?? [{ tipo: 'ficha', titulo: 'Ficha en la fuente', url: conv.url }],

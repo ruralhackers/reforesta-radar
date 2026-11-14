@@ -7,7 +7,7 @@ import { abrirBd } from '../src/db/schema.ts';
 import { guardarConvocatoria, guardarSemilla } from '../src/db/repo.ts';
 import { recogerGanadores } from '../src/fases/ganadores.ts';
 import { leerSemilla } from '../src/seed.ts';
-import { claveGrabacion, DIR_CONCESIONES } from '../test/support/grabaciones.ts';
+import { claveGrabacion, DIR_CONCESIONES, DIR_GRABACIONES } from '../test/support/grabaciones.ts';
 
 const todo = process.argv.includes('--todo');
 mkdirSync(DIR_CONCESIONES, { recursive: true });
@@ -40,3 +40,15 @@ const fetchQueGraba: typeof fetch = async (entrada, init) => {
 
 const r = await recogerGanadores({ db, fetch: fetchQueGraba, reloj: { now: () => ahora } }, semilla.perfil);
 console.log(JSON.stringify(r), `${pedidas} respuestas nuevas`);
+
+// Detalle de las ediciones pasadas de la serie (fechas de solicitud, presupuesto): lo que pide la fase `series` para predecir la apertura.
+// Van a test/fixtures/bdns (como el detalle de cualquier convocatoria).
+for (const numero of ['626301', '703977', '782630', '825309']) {
+  const fichero = join(DIR_GRABACIONES, claveGrabacion(`https://www.infosubvenciones.es/bdnstrans/api/convocatorias?numConv=${numero}`));
+  if (!todo && existsSync(fichero)) continue;
+  const res = await fetch(`https://www.infosubvenciones.es/bdnstrans/api/convocatorias?numConv=${numero}`, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; radar-convocatorias/0.1)' } });
+  if (!res.ok) throw new Error(`Detalle ${numero}: HTTP ${res.status}`);
+  writeFileSync(fichero, await res.text());
+  console.log(`detalle ${numero} grabado`);
+  await new Promise((r) => setTimeout(r, 500));
+}

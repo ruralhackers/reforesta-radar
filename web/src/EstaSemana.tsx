@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { type ConvocatoriaSemana, type DecisionEquipo, type Semana, leerDecisiones, leerSemana, rutaFicha } from './api.ts';
+import { type ConvocatoriaSemana, type SerieProxima, type DecisionEquipo, type Semana, leerDecisiones, leerSemana, rutaFicha } from './api.ts';
 import { BotonesDecision } from './Decision.tsx';
 import { Cierre } from './Plazo.tsx';
 import { Nota } from './Puntuacion.tsx';
 import { useSesion } from './Sesion.tsx';
+import { dia, euros } from './Serie.tsx';
 
 const instante = (iso: string) =>
   new Date(iso).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Madrid' });
@@ -102,6 +103,33 @@ function Plegable({ id, titulo, ayuda, abiertaInicial = false, children }: { id?
   );
 }
 
+/** Una serie que suele abrir pronto: ventana, última edición (con enlace a su ficha), presupuesto, ganadores típicos y si Reforesta la ganó. */
+function FilaProxima({ s }: { s: SerieProxima }) {
+  const u = s.ultimaEdicion;
+  const r = s.resumen;
+  return (
+    <li className="border-b border-linea py-3 last:border-b-0">
+      <p className="font-medium [overflow-wrap:anywhere]">{s.titulo}</p>
+      <p className="text-sm text-tinta">
+        {s.prediccion.texto.replace(/^suele/, 'Suele')}
+        <span className="text-tinta-suave"> ({dia(s.ventana.desde)} – {dia(s.ventana.hasta)} de este año)</span>
+      </p>
+      {s.estado === 'retrasada' && (
+        <p className="mt-1 inline-block rounded bg-aviso-suave px-2 py-0.5 text-xs font-medium text-aviso ring-1 ring-aviso-borde">Debería haber abierto ya; puede retrasarse o haberse suprimido</p>
+      )}
+      <p className="mt-1 text-xs text-tinta-suave">
+        Última edición: {u.convocatoriaId
+          ? <a href={rutaFicha(u.convocatoriaId)} className="text-marca-fuerte hover:underline">{u.anio}</a>
+          : <a href={u.url} target="_blank" rel="noreferrer" className="text-marca-fuerte hover:underline">{u.anio} (BDNS)</a>}
+        {' · '}presupuesto {r.ultimoPresupuesto !== null ? euros(r.ultimoPresupuesto) : 'desconocido'}
+        {r.ganadoresTipicos !== null && <> · suele haber unos {r.ganadoresTipicos} ganadores{r.premioMedioTipico !== null && <> con unos {euros(r.premioMedioTipico)} de media</>}</>}
+        {' · '}basado en {s.prediccion.basadaEn.map((b) => b.anio).join(', ')}
+      </p>
+      {r.reforestaGano.length > 0 && <p className="mt-1 text-xs font-medium text-marca-fuerte">Reforesta la ganó en {r.reforestaGano.join(', ')}</p>}
+    </li>
+  );
+}
+
 export function EstaSemana() {
   const [semana, setSemana] = useState<Semana | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -160,6 +188,13 @@ export function EstaSemana() {
         <Plegable id="consorcio" abiertaInicial={window.location.hash === '#consorcio'} titulo={`UE · como socio de consorcio (${consorcio.length}) · ver`}
           ayuda="Grandes consorcios de investigación (Horizon Europe): para una entidad pequeña solo es realista ir como socia. Su esfuerzo está penalizado en la puntuación.">
           <ul>{consorcio.map((c) => <Fila key={c.id} c={c} />)}</ul>
+        </Plegable>
+      )}
+
+      {semana.proximas.series.length > 0 && (
+        <Plegable id="proximas" abiertaInicial={window.location.hash === '#proximas'} titulo={`Se espera que abran pronto (${semana.proximas.series.length}) · ver`}
+          ayuda={`Convocatorias que se repiten cada año y que suelen abrir en los próximos ${semana.proximas.dias} días, según cuándo abrieron las ediciones anteriores. Es un hábito pasado, no una fecha anunciada.`}>
+          <ul>{semana.proximas.series.map((s) => <FilaProxima key={s.serie} s={s} />)}</ul>
         </Plegable>
       )}
 

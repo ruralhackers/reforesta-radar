@@ -431,6 +431,18 @@ const MIGRACIONES: string[] = [
     PRIMARY KEY (convocatoria_id, fase)
   );
   `,
+  `
+  -- Historial de series (predicción de apertura): fechas fiables de cada edición, traídas de su detalle en BDNS. La columna "fecha" de
+  -- ediciones_serie mezcla fechas de concesión y de registro: no sirve para saber cuándo abrió una edición; estas sí.
+  CREATE TABLE IF NOT EXISTS ediciones_detalle (
+    numero_convocatoria TEXT PRIMARY KEY,
+    fecha_publicacion TEXT,   -- fechaRecepcion (registro/publicación en BDNS)
+    inicio_solicitud TEXT,    -- fechaInicioSolicitud, si BDNS la da
+    fin_solicitud TEXT,       -- fechaFinSolicitud o la calculada del texto del plazo
+    presupuesto REAL,         -- presupuestoTotal
+    detalle_en TEXT NOT NULL  -- cuándo se trajo el detalle
+  );
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

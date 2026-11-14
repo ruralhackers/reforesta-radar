@@ -13,6 +13,7 @@ import { CONFIG_HUELLA_POR_DEFECTO, type ConfigHuella, recogerEmpresasHuella, ty
 import { CONFIG_EMPRESAS_POR_DEFECTO, type ConfigEmpresas, recogerEmpresasDia, type ResumenEmpresas } from './fases/empresas.ts';
 import { ocultarSinFormaJuridica } from './db/empresas.ts';
 import { CONFIG_GANADORES_POR_DEFECTO, type ConfigGanadores, recogerGanadores, type ResumenGanadores } from './fases/ganadores.ts';
+import { recogerHistorialSeries, type ResumenSeries } from './fases/series.ts';
 import { CONFIG_PARECIDAS_POR_DEFECTO, type ConfigParecidas, descubrirParecidas, type ResumenParecidas } from './fases/parecidas.ts';
 import { ejemplosDecisiones } from './db/decisiones.ts';
 import { quitarMarcaDescubierta } from './db/ganadores.ts';
@@ -91,6 +92,8 @@ export interface ResumenEjecucion {
   puntuacion: ResumenPuntuacion | null;
   /** Concesiones de BDNS y organizaciones parecidas; null si se saltó la fase. */
   ganadores: ResumenGanadores | null;
+  /** Historial de las series relevantes (detalle de sus ediciones pasadas, para predecir la apertura); null si se saltó la fase. */
+  series: ResumenSeries | null;
   /** Descubrimiento por organizaciones parecidas; null si se saltó la fase. */
   parecidas: ResumenParecidas | null;
   /** Empresas de las DIA del BOE; null si no se pidió la fase. */
@@ -140,6 +143,7 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
   let plazos: ResumenPlazos | null = null;
   let puntuacion: ResumenPuntuacion | null = null;
   let ganadores = null as ResumenGanadores | null;
+  let series = null as ResumenSeries | null;
   let parecidas = null as ResumenParecidas | null;
   let duplicadas: ResumenDuplicadas = { marcadas: 0 };
   let empresas: ResumenEmpresas | null = null;
@@ -172,6 +176,13 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
       ganadores = await recogerGanadores({ db, fetch: deps.fetch, reloj, dormir: deps.dormir }, perfil, cfgG, opciones.incluirIds ?? []);
       log(`ganadores: ${ganadores.consultas} consultas, ${ganadores.peticiones} peticiones a BDNS (${ganadores.desdeCache} consultas en caché, ${ganadores.omitidasPorTope} sin hacer por el tope), ${ganadores.concesiones} concesiones, ${ganadores.parecidas} organizaciones parecidas, ${ganadores.errores.length} errores`);
       for (const e of ganadores.errores) log(`  ! ${e}`);
+      // Historial de las series relevantes (ediciones pasadas): comparte con lo anterior el tope de peticiones a BDNS de la ejecución.
+      series = await recogerHistorialSeries(
+        { db, fetch: deps.fetch, reloj, dormir: deps.dormir }, perfil, deps.festivos ?? leerFestivos(config.rutaFestivos),
+        { maxPeticiones: Math.max(0, cfgG.maxPeticiones - ganadores.peticiones), pausaMs: cfgG.pausaMs }, opciones.incluirIds ?? [],
+      );
+      log(`series: ${series.series} series relevantes, ${series.detalles} ediciones pasadas traídas, ${series.peticiones} peticiones a BDNS, ${series.omitidasPorTope} sin hacer por el tope, ${series.errores.length} errores`);
+      for (const e of series.errores) log(`  ! ${e}`);
     };
     fases = [...fasesDeFuentes, ...(await fasesLlm(deps, ejecucionId, perfil, inicio, pedirGanadores, opciones.incluirIds, opciones.soloIncluidas))];
     if (deps.empresas || deps.huella) {
@@ -214,7 +225,7 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
     errorGeneral = (e as Error).message;
     throw e;
   } finally {
-    const listas = [...resumen.map((f) => f.errores), ...fases.map((f) => f.errores), plazos?.errores, puntuacion?.errores, ganadores?.errores,
+    const listas = [...resumen.map((f) => f.errores), ...fases.map((f) => f.errores), plazos?.errores, puntuacion?.errores, ganadores?.errores, series?.errores,
       parecidas?.errores, empresas?.errores, huella?.errores];
     conErrores = errorGeneral !== null || listas.some((e) => (e?.length ?? 0) > 0);
     try {
@@ -226,7 +237,7 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
   }
   if (deps.llm && presupuesto.gastadoUsd >= presupuesto.limiteUsd) log(`Presupuesto de LLM agotado: ${presupuesto.gastadoUsd.toFixed(4)} de ${presupuesto.limiteUsd.toFixed(2)} USD`);
 
-  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, parecidas, empresas, huella, duplicadas, presupuesto };
+  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, series, parecidas, empresas, huella, duplicadas, presupuesto };
 }
 
 /**
