@@ -5,6 +5,11 @@ CRON_TZ=Europe/Madrid
 # radar cada dia 07:00; digest los lunes 08:00. Un flock comun evita que dos pasadas solapen (la segunda se salta).
 0 7 * * * cd /opt/apps/reforesta-radar && flock -n logs/.radar.lock sh -c 'echo "== $(date -Is) radar"; docker compose run --rm -T radar npm run radar' >> logs/radar.log 2>&1
 0 8 * * 1 cd /opt/apps/reforesta-radar && flock -n logs/.radar.lock sh -c 'echo "== $(date -Is) digest"; docker compose run --rm -T radar npm run digest' >> logs/radar.log 2>&1
+# reintento del digest los martes 08:00: si el lunes fallo (Resend, lock ocupado) se envia; si ya salio, no hace nada (uno por semana ISO).
+0 8 * * 2 cd /opt/apps/reforesta-radar && flock -n logs/.radar.lock sh -c 'echo "== $(date -Is) digest (reintento)"; docker compose run --rm -T radar npm run digest' >> logs/radar.log 2>&1
+# copia coherente de la BD (VACUUM INTO; la BD esta en WAL y copiar el fichero en caliente puede perder lo que aun esta en -wal).
+# Una por dia de la semana en data/backup/ (7 copias), que restic se lleva con el resto de /opt/apps. Restaurar: deploy/PASOS.md.
+45 6 * * * cd /opt/apps/reforesta-radar && mkdir -p data/backup && rm -f data/backup/radar-$(date +\%u).sqlite && docker compose run --rm -T radar node -e "new (require('node:sqlite').DatabaseSync)('data/radar.sqlite').exec(\"VACUUM INTO 'data/backup/radar-$(date +\%u).sqlite'\")" >> logs/radar.log 2>&1
 # rotacion semanal del log (logrotate de usuario, sin sudo)
 30 6 * * 1 /usr/sbin/logrotate -s /opt/apps/reforesta-radar/logs/.logrotate.estado /opt/apps/reforesta-radar/deploy/logrotate.conf
 # END reforesta-radar

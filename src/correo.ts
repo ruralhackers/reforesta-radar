@@ -52,17 +52,29 @@ export function acortar(t: string, max: number): string {
   return `${(i > max / 2 ? corte.slice(0, i) : corte).replace(/[\s,;:.]+$/, '')}...`;
 }
 
-/** Solo el importe inicial: se corta en el primer "(" o ";" (aclaraciones), y como último recurso en límite de palabra. */
+const CIFRA_EUROS = /\d[\d.,]*\s*(?:mil\s+|millones?\s+(?:de\s+)?)?(?:€|euros?\b|eur\b)/i;
+
+/**
+ * Solo el importe inicial: se corta en el primer "(" o ";" (aclaraciones), y como último recurso en límite de palabra. Si lo que queda no tiene
+ * ninguna cifra en euros ("Hasta el 80 %") y la aclaración sí ("máx. 5.000 €"), se conserva esa primera cifra entre paréntesis.
+ */
 export function importeLimpio(v: string): string {
-  return acortar(v.split(/[(;]/)[0].replace(/[\s,.:]+$/, '') || v, 60);
+  const [cabeza, ...resto] = v.split(/[(;]/);
+  let base = cabeza.replace(/[\s,.:]+$/, '') || v;
+  if (!CIFRA_EUROS.test(base)) {
+    const cifra = CIFRA_EUROS.exec(resto.join(' '))?.[0].trim();
+    if (cifra) base = `${base} (${cifra})`;
+  }
+  return acortar(base, 60);
 }
 
-const EMPIEZA_CON_LIMITE = /^(hasta|máximo|maximo|como máximo|un máximo|de hasta|desde)\b/i;
+const EMPIEZA_CON_LIMITE = /^(hasta|máximo|maximo|como máximo|un máximo|de hasta|desde|entre|sin)\b/i;
 
 export function textoImporte(a: Analisis | null): string {
   if (a?.importeMaximoProyecto.valor) {
     const v = importeLimpio(a.importeMaximoProyecto.valor);
-    return EMPIEZA_CON_LIMITE.test(v) ? `${v} por proyecto` : `Hasta ${v} por proyecto`;
+    // "Hasta" solo delante de una cifra en euros que no lleve ya su propio límite ("Entre…", "Sin límite", "el 80 %" no).
+    return EMPIEZA_CON_LIMITE.test(v) || !CIFRA_EUROS.test(v) || !/^\d/.test(v) ? `${v} por proyecto` : `Hasta ${v} por proyecto`;
   }
   if (a?.importeTotal.valor) return `${importeLimpio(a.importeTotal.valor)} en total`;
   return 'Importe por confirmar';

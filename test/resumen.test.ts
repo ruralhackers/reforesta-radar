@@ -208,6 +208,11 @@ describe('piezas', () => {
     assert.equal(textoImporte(a('60.000 euros; cofinanciación del 10 %')), 'Hasta 60.000 euros por proyecto');
     assert.equal(textoImporte(a('Hasta 5.000 euros')), 'Hasta 5.000 euros por proyecto');
     assert.equal(textoImporte(a('Máximo 3.000 euros')), 'Máximo 3.000 euros por proyecto');
+    // M17: sin cifra en euros no se antepone "Hasta" y la cifra de la aclaración no se pierde; "Entre…" y "Sin límite" no llevan "Hasta".
+    assert.equal(textoImporte(a('Hasta el 80 % (máx. 5.000 €)')), 'Hasta el 80 % (5.000 €) por proyecto');
+    assert.equal(textoImporte(a('El 80 % del presupuesto')), 'El 80 % del presupuesto por proyecto');
+    assert.equal(textoImporte(a('Entre 10.000 y 50.000 euros')), 'Entre 10.000 y 50.000 euros por proyecto');
+    assert.equal(textoImporte(a('Sin límite')), 'Sin límite por proyecto');
     const t = acortar('palabra '.repeat(40), 140);
     assert.ok(t.length <= 140 && t.endsWith('palabra...'));
   });

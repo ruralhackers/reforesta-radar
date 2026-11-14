@@ -2,6 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { diaLocal, sumarDias } from '../dates.ts';
 import { descartesEntre, leerConvocatoria, leerPerfil, leerPlazo, ultimasEjecuciones, type VeredictoFase } from '../db/repo.ts';
 import { crearProbabilidad, ganadoresPrevios, resumirHistorial } from '../ganadores.ts';
@@ -26,10 +27,13 @@ import { ErrorPerfil, guardarPerfilEditable, validarPerfilEditable } from '../pe
 import type { Reloj } from '../types.ts';
 
 const DIA = /^\d{4}-\d{2}-\d{2}$/;
+export const MAX_CUERPO = 64 * 1024;
 
 export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: Fuente[]; puntuacion?: ConfigPuntuacion; probabilidad?: ProveedorProbabilidad; equipo?: OpcionesEquipo; rutaBacktest?: string }): Hono {
   const { db, reloj, fuentes, puntuacion, probabilidad: probabilidadInyectada, equipo: opcionesEquipo } = opciones;
   const api = new Hono();
+  // Ningún cuerpo legítimo (perfil, nota, decisión, alta de fuente) pasa de unos KB: tope de 64 KB para todo /api.
+  api.use('*', bodyLimit({ maxSize: MAX_CUERPO, onError: (c) => c.json({ error: `El cuerpo de la petición es demasiado grande (máximo ${MAX_CUERPO / 1024} KB)` }, 413) }));
   // Modo privado (TEAM_PASSWORD): ver src/api/equipo.ts. `acceso.requiereEquipo` es el marcador de lo privado.
   const acceso = crearAcceso(opcionesEquipo ?? config.equipo);
   api.route('/sesion', acceso.sesion);

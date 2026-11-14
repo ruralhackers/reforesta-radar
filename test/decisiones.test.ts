@@ -119,6 +119,22 @@ describe('API de decisiones y notas', () => {
     assert.equal(r.convocatorias[0].titulo, 'Convocatoria 2');
     db.close();
   });
+
+  test('"nos interesa": abiertas por días que faltan, luego plazo desconocido y al final las cerradas (la más reciente primero)', async () => {
+    const db = bdSembrada();
+    for (const n of ['1', '2', '3', '4', '5']) guardarConvocatoria(db, { convocatoria: conv(n), descarte: null }, AHORA);
+    plazo(db, 'bdns:1', '2026-10-01'); // cerrada hace 42 días
+    plazo(db, 'bdns:2', '2026-11-10'); // cerrada hace 3 días
+    plazo(db, 'bdns:3', null);
+    plazo(db, 'bdns:4', '2026-11-30');
+    plazo(db, 'bdns:5', '2026-11-13'); // cierra hoy
+    const api = crearApi({ db, reloj });
+    for (const n of ['1', '2', '3', '4', '5']) await decidir(api, `bdns:${n}`, { decision: 'nos_interesa' });
+    const r = await (await api.request('/equipo/nos-interesa')).json() as { convocatorias: { id: string; diasHastaCierre: number | null }[] };
+    assert.deepEqual(r.convocatorias.map((c) => c.id), ['bdns:5', 'bdns:4', 'bdns:3', 'bdns:2', 'bdns:1']);
+    assert.deepEqual(r.convocatorias.map((c) => c.diasHastaCierre), [0, 17, null, -3, -43]);
+    db.close();
+  });
 });
 
 describe('lo descartado por el equipo no sale en "Esta semana"', () => {

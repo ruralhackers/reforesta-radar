@@ -62,4 +62,4 @@ Añadir la fila de `deploy/apps-md-fila.md` a `anceu-vps/apps.md`.
 
 ## Redespliegue / operación
 `deploy/desplegar.sh` · logs: `docker compose logs -f radar`, `logs/radar.log` · rotación semanal por cron (logrotate de usuario, 8 copias).
-Restaurar datos: parar (`docker compose down`), copiar `radar.sqlite` a `data/`, `chown 1000:1000`, `up -d`.
+Restaurar datos: parar (`docker compose down`), borrar `data/radar.sqlite-wal` y `data/radar.sqlite-shm` si existen, copiar la copia coherente del día que se quiera (`data/backup/radar-N.sqlite`, N = 1 lunes … 7 domingo; la hace el cron a las 06:45 con `VACUUM INTO`) como `data/radar.sqlite`, `chown 1000:1000`, `up -d`. No restaurar `radar.sqlite` suelto de la copia de restic: la BD está en WAL y lo último puede estar en `-wal`.

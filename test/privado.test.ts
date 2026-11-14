@@ -209,3 +209,11 @@ describe('estado de las empresas (trabajo del equipo)', () => {
     assert.equal(((await (await api.request('/empresas?estado=pendiente')).json()) as Lista).empresas.length, 0);
   });
 });
+
+test('un cuerpo de más de 64 KB se rechaza con 413 (también en la demo abierta)', async () => {
+  const { api } = nueva(null);
+  const r = await api.request('/decisiones/bdns%3A1/notas', { method: 'POST', headers: J, body: JSON.stringify({ texto: 'x'.repeat(70 * 1024) }) });
+  assert.equal(r.status, 413);
+  assert.match(((await r.json()) as { error: string }).error, /demasiado grande/);
+  assert.equal((await api.request('/decisiones/bdns%3A1/notas', { method: 'POST', headers: J, body: JSON.stringify({ texto: 'hola' }) })).status, 201);
+});

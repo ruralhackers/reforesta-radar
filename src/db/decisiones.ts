@@ -109,7 +109,13 @@ export interface NosInteresa {
   diasHastaCierre: number | null;
 }
 
-/** "Nos interesa" por plazo: la que cierra antes primero y las de plazo desconocido al final (las ya cerradas conservan su lugar por fecha). */
+/** Abiertas (0), plazo desconocido (1), ya cerradas (2). */
+const grupo = (n: NosInteresa) => (n.diasHastaCierre === null ? 1 : n.diasHastaCierre >= 0 ? 0 : 2);
+
+/**
+ * "Nos interesa" por plazo: primero las abiertas (la que cierra antes, primero), luego las de plazo desconocido y al final las ya cerradas
+ * (la que cerró más recientemente, primero).
+ */
 export function nosInteresa(db: DatabaseSync, hoy: string): NosInteresa[] {
   const filas = db.prepare(`
     SELECT c.id, c.titulo, c.organo_nivel1, c.organo_nivel2, c.organo_nivel3, c.url, d.decidida_en
@@ -122,7 +128,9 @@ export function nosInteresa(db: DatabaseSync, hoy: string): NosInteresa[] {
       organo: [f.organo_nivel2, f.organo_nivel3].filter(Boolean).join(' · ') || String(f.organo_nivel1),
       fechaCierre: plazo?.fechaCierre ?? null, diasHastaCierre: plazo?.diasHastaCierre ?? null,
     };
-  }).sort((a, b) => (a.fechaCierre ?? '9999').localeCompare(b.fechaCierre ?? '9999') || a.id.localeCompare(b.id));
+  }).sort((a, b) => grupo(a) - grupo(b)
+    || (grupo(a) === 0 ? a.diasHastaCierre! - b.diasHastaCierre! : grupo(a) === 2 ? b.diasHastaCierre! - a.diasHastaCierre! : 0)
+    || a.id.localeCompare(b.id));
 }
 
 // --- Aprendizaje ligero: las últimas decisiones como ejemplos para los prompts de las convocatorias NUEVAS ---

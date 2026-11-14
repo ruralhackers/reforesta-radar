@@ -43,15 +43,28 @@ export function normalizarParaCita(s: string): string {
 export function citaEnTexto(cita: string, textoNormalizado: string): boolean {
   const c = normalizarParaCita(cita).replace(/^["'.…\s]+|["'.…\s]+$/g, '');
   if (c.length < 8) return false; // una cita de dos palabras no prueba nada
-  // Se admiten citas con elipsis: cada trozo debe aparecer, en orden.
-  let desde = 0;
-  for (const trozo of c.split(/\s*(?:\.\.\.|…|\[\.\.\.\])\s*/).filter(Boolean)) {
-    const i = textoNormalizado.indexOf(trozo, desde);
-    if (i < 0) return false;
-    desde = i + trozo.length;
-  }
-  return true;
+  // Se admiten citas con elipsis: cada trozo (de al menos MIN_TROZO caracteres) debe aparecer, en orden y a no más de MAX_SALTO caracteres
+  // del anterior: una cita no puede juntar dos pasajes de páginas distintas ("Cuantía máxima … 50.000 €").
+  const trozos = c.split(/\s*(?:\.\.\.|…|\[\.\.\.\])\s*/).filter(Boolean);
+  if (trozos.length > 1 && trozos.some((t) => t.length < MIN_TROZO)) return false;
+  const fallidos = new Set<string>(); // (trozo, posición) que ya se probó sin éxito: evita repetir caminos
+  const encadena = (k: number, desde: number, hasta: number): boolean => {
+    if (k === trozos.length) return true;
+    for (let i = textoNormalizado.indexOf(trozos[k], desde); i >= 0 && i <= hasta; i = textoNormalizado.indexOf(trozos[k], i + 1)) {
+      const clave = `${k}:${i}`;
+      if (fallidos.has(clave)) continue;
+      const fin = i + trozos[k].length;
+      if (encadena(k + 1, fin, fin + MAX_SALTO)) return true;
+      fallidos.add(clave);
+    }
+    return false;
+  };
+  return encadena(0, 0, Infinity);
 }
+
+/** Distancia máxima (caracteres normalizados) entre dos trozos de una cita con elipsis, y longitud mínima de cada trozo. */
+export const MAX_SALTO = 400;
+const MIN_TROZO = 4;
 
 // --- Cifras: el valor de un campo numérico (importe, porcentaje, plazo, fecha) debe estar en su cita ---
 

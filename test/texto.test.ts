@@ -70,3 +70,12 @@ test('un importe del valor no se cuela por leerlo en el formato equivocado (50.0
   assert.ok(valorEnCita('3.5 million', 'EUR 3,500,000'));
   assert.ok(valorEnCita('50.000 €', 'EUR 50,000 per project'), 'la cita sí admite las dos lecturas');
 });
+
+test('citas con elipsis: los trozos tienen que estar cerca (≤ 400 caracteres) y no ser triviales', () => {
+  const relleno = 'texto de relleno sin importancia. '.repeat(30); // ~1000 caracteres
+  const doc = normalizarParaCita(`La cuantía máxima por proyecto será de ${relleno} 50.000 euros para la línea B. La cuantía máxima por proyecto, en la línea A, será de 20.000 euros.`);
+  assert.equal(citaEnTexto('La cuantía máxima por proyecto … 50.000 euros', doc), false, 'dos pasajes lejanos no forman una cita');
+  assert.equal(citaEnTexto('La cuantía máxima por proyecto … será de 20.000 euros', doc), true, 'la segunda aparición sí está cerca');
+  assert.equal(citaEnTexto('La cuantía máxima por proyecto … de … 20.000 euros', doc), false, 'cada trozo con al menos 4 caracteres');
+  assert.equal(citaEnTexto('cuantía máxima por proyecto, en la línea A', doc), true);
+});

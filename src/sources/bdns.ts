@@ -7,6 +7,7 @@ import { aFechaBdns, diaLocal, sumarDias } from '../dates.ts';
 import type { DatosPlazo } from '../plazos.ts';
 import type { Convocatoria, Cribada } from '../types.ts';
 import { htmlATexto } from '../texto.ts';
+import { enParalelo } from '../fases/comun.ts';
 import type { ContextoFuente, DocumentoFuente, Enlace, Fuente, ResultadoFuente } from './source.ts';
 
 export const BDNS_API = 'https://www.infosubvenciones.es/bdnstrans/api';
@@ -153,13 +154,6 @@ export async function convocatoriaDeNumero(f: typeof fetch, numero: string): Pro
   return conDetalle(base, d);
 }
 
-async function enParalelo<T>(items: T[], n: number, tarea: (item: T) => Promise<void>): Promise<void> {
-  let i = 0;
-  const trabajador = async () => {
-    while (i < items.length) await tarea(items[i++]);
-  };
-  await Promise.all(Array.from({ length: Math.min(n, items.length) }, trabajador));
-}
 
 async function recoger(ctx: ContextoFuente): Promise<ResultadoFuente> {
   const hasta = diaLocal(ctx.ahora);

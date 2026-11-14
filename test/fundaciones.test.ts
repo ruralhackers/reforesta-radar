@@ -476,6 +476,16 @@ describe('texto principal de una página', () => {
     assert.notEqual(huellaDeTexto(a), huellaDeTexto(a + '\nNueva convocatoria de reforestación'));
   });
 
+  test('la huella conserva los números de plazos e importes con palabras ("30 días", "1 año", "50 mil euros")', () => {
+    const p = 'Plazo de presentación: 30 días hábiles desde la publicación. Duración del proyecto: 1 año. Dotación de 50 mil euros. 1.234 visitas';
+    assert.notEqual(huellaDeTexto(p), huellaDeTexto(p.replace('30 días', '45 días')));
+    assert.notEqual(huellaDeTexto(p), huellaDeTexto(p.replace('1 año', '2 años')));
+    assert.notEqual(huellaDeTexto(p), huellaDeTexto(p.replace('50 mil euros', '80 mil euros')));
+    assert.notEqual(huellaDeTexto('Deadline: within 30 days'), huellaDeTexto('Deadline: within 60 days'));
+    assert.equal(huellaDeTexto(p), huellaDeTexto(p.replace('1.234 visitas', '1.301 visitas')), 'los contadores siguen sin contar');
+    assert.equal(normalizarParaHuella('Plazo: 30 días hábiles; 12 comentarios'), 'plazo: 30 días hábiles; comentarios');
+  });
+
   test('una página que solo cambia en un contador y una fecha relativa no vuelve a llamar al LLM', async () => {
     const db = bdFundaciones([MONTEMADRID]);
     const base = paginaGrabada(MONTEMADRID);

@@ -51,7 +51,7 @@ export function textoPrincipal(html: string, base: string): string {
 }
 
 const MESES = 'enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|january|february|march|april|may|june|july|august|september|october|november|december';
-// Lo que se conserva tal cual al calcular la huella (cambia el significado de la convocatoria): fechas y plazos, años, importes y porcentajes.
+// Lo que se conserva tal cual al calcular la huella (cambia el significado de la convocatoria): fechas, plazos ("30 días"), años, importes y porcentajes.
 const CONSERVAR = new RegExp([
   `\\d{1,2}(?:º|°)?\\s+(?:de\\s+)?(?:${MESES})(?:\\s+(?:de\\s+)?\\d{4})?`, // 15 de febrero de 2027
   `(?:${MESES})\\s+\\d{1,2}(?:st|nd|rd|th)?,?(?:\\s+\\d{4})?`, // February 15, 2027
@@ -59,6 +59,8 @@ const CONSERVAR = new RegExp([
   '\\d{1,2}[/.-]\\d{1,2}[/.-]\\d{2,4}', '\\d{4}-\\d{2}-\\d{2}', // 15/02/2027, 2027-02-15
   '\\b(?:19|20)\\d{2}\\b', // años
   '\\d[\\d.,\\s]*\\s?(?:€|eur\\b|euros?\\b|%|k€|m€)', '(?:€|eur)\\s?\\d[\\d.,]*', // importes y porcentajes
+  '\\d[\\d.,]*\\s+(?:mil\\s+|millones?\\s+(?:de\\s+)?)?(?:euros?|eur)\\b', // "50 mil euros", "1,5 millones de euros"
+  '\\d+\\s+(?:d[ií]as?|semanas?|meses|mes|a[ñn]os?|days?|weeks?|months?|years?)(?:\\s+(?:h[aá]biles|naturales|laborables|working|calendar))?(?![a-záéíóúüñ])', // plazos: "30 días hábiles"
 ].join('|'), 'gi');
 const HORA = /\b\d{1,2}:\d{2}(?::\d{2})?(?:\s?[ap]\.?m\.?)?\b/gi;
 const RELATIVO = /\bhace\s+(?:un|una|unos|unas|\d+)\s+(?:segundos?|minutos?|horas?|d[ií]as?|semanas?|meses|mes|a[ñn]os?)\b|\b\d+\s+(?:seconds?|minutes?|hours?|days?|weeks?|months?|years?)\s+ago\b|\b(?:hoy|ayer|anteayer|today|yesterday)\b/gi;
