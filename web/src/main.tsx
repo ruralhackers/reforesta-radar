@@ -5,18 +5,30 @@ import { Empresas } from './Empresas.tsx';
 import { EstaSemana } from './EstaSemana.tsx';
 import { Ficha } from './Ficha.tsx';
 import { Fundaciones } from './Fundaciones.tsx';
+import { Layout } from './Layout.tsx';
 import { NosInteresa } from './NosInteresa.tsx';
 import { Parecidas } from './Parecidas.tsx';
 import { Perfil } from './Perfil.tsx';
-import { AccesoEquipo } from './Sesion.tsx';
 import './index.css';
 
-// Pantallas: "Esta semana" (/), la ficha (/convocatoria/<id>) las organizaciones parecidas (/parecidas), el perfil (/perfil) "nos interesa" (/nos-interesa) las fundaciones vigiladas (/fundaciones) y las empresas (/empresas). El servidor sirve index.html para ambas.
-const ficha = /^\/convocatoria\/([^/]+)\/?$/.exec(window.location.pathname);
+// Pantallas: "Esta semana" (/), la ficha (/convocatoria/<id>), las organizaciones parecidas (/parecidas), el perfil (/perfil), "nos interesa" (/nos-interesa),
+// las fundaciones vigiladas (/fundaciones), las empresas (/empresas) y /como-sabemos. El servidor sirve index.html para todas; Layout pone el menú lateral.
+const ruta = window.location.pathname;
+const ficha = /^\/convocatoria\/([^/]+)\/?$/.exec(ruta);
+
+function Pantalla() {
+  if (ficha) return <Ficha id={decodeURIComponent(ficha[1])} />;
+  if (/^\/parecidas\/?$/.test(ruta)) return <Parecidas />;
+  if (/^\/perfil\/?$/.test(ruta)) return <Perfil />;
+  if (/^\/nos-interesa\/?$/.test(ruta)) return <NosInteresa />;
+  if (/^\/fundaciones\/?$/.test(ruta)) return <Fundaciones />;
+  if (/^\/empresas\/?$/.test(ruta)) return <Empresas />;
+  if (/^\/como-sabemos\/?$/.test(ruta)) return <ComoSabemos />;
+  return <EstaSemana />;
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AccesoEquipo />
-    {ficha ? <Ficha id={decodeURIComponent(ficha[1])} /> : /^\/parecidas\/?$/.test(window.location.pathname) ? <Parecidas /> : /^\/perfil\/?$/.test(window.location.pathname) ? <Perfil /> : /^\/nos-interesa\/?$/.test(window.location.pathname) ? <NosInteresa /> : /^\/fundaciones\/?$/.test(window.location.pathname) ? <Fundaciones /> : /^\/empresas\/?$/.test(window.location.pathname) ? <Empresas /> : /^\/como-sabemos\/?$/.test(window.location.pathname) ? <ComoSabemos /> : <EstaSemana />}
+    <Layout><Pantalla /></Layout>
   </StrictMode>,
 );

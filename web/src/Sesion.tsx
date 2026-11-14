@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState, useSyncExternalStore } from 'react';
+import { type FormEvent, useEffect, useId, useState, useSyncExternalStore } from 'react';
 import { type EstadoSesion, entrarEquipo, leerSesion, salirEquipo } from './api.ts';
 
 // Estado de sesión compartido por toda la página. Sin TEAM_PASSWORD en el servidor (modoPrivado false) se puede editar todo.
@@ -22,13 +22,14 @@ export function useSesion() {
   return { ...e, puedeEditar: e.cargada && (!e.modoPrivado || e.autenticado) };
 }
 
-/** Control "Acceso equipo": solo aparece si el servidor está en modo privado. Fijo arriba a la derecha. */
+/** Control "Acceso equipo": solo aparece si el servidor está en modo privado. Va al pie del menú lateral (fondo oscuro). */
 export function AccesoEquipo() {
   const s = useSesion();
   const [abierto, setAbierto] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const idCampo = useId();
   if (!s.cargada || !s.modoPrivado) return null;
 
   const entrar = async (ev: FormEvent) => {
@@ -37,20 +38,24 @@ export function AccesoEquipo() {
     try { poner({ ...(await entrarEquipo(password)), cargada: true }); setPassword(''); setAbierto(false); } catch (e) { setError((e as Error).message); } finally { setOcupado(false); }
   };
   const salir = async () => { try { poner({ ...(await salirEquipo()), cargada: true }); } catch { /* sin red: se queda como está */ } };
+  const enlace = 'rounded text-white underline hover:text-white/80';
 
   return (
-    <div className="mx-auto flex max-w-3xl justify-end px-4 pt-3 text-sm">
+    <div className="text-sm text-white">
       {s.autenticado ? (
-        <span className="text-stone-600">Equipo · <button type="button" onClick={() => void salir()} className="text-emerald-800 underline">Salir</button></span>
+        <span>Sesión de equipo · <button type="button" onClick={() => void salir()} className={enlace}>Salir</button></span>
       ) : abierto ? (
-        <form onSubmit={(ev) => void entrar(ev)} className="flex flex-wrap items-center justify-end gap-2">
-          <input type="password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} aria-label="Contraseña del equipo" placeholder="Contraseña del equipo" className="rounded border border-stone-300 px-2 py-1" />
-          <button type="submit" disabled={ocupado || !password} className="rounded bg-emerald-700 px-3 py-1 text-white disabled:opacity-50">Entrar</button>
-          <button type="button" onClick={() => { setAbierto(false); setError(null); }} className="text-stone-500 underline">Cancelar</button>
-          {error && <span role="alert" className="w-full text-right text-red-700">{error}</span>}
+        <form onSubmit={(ev) => void entrar(ev)} className="space-y-2">
+          <label className="block text-xs text-white/80" htmlFor={idCampo}>Contraseña del equipo</label>
+          <input id={idCampo} type="password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" className="w-full rounded border border-white/40 bg-white px-2 py-1 text-tinta" />
+          <div className="flex items-center gap-3">
+            <button type="submit" disabled={ocupado || !password} className="rounded bg-white px-3 py-1 font-medium text-marca-lateral disabled:opacity-50">Entrar</button>
+            <button type="button" onClick={() => { setAbierto(false); setError(null); }} className={enlace}>Cancelar</button>
+          </div>
+          {error && <p role="alert" className="rounded bg-peligro-suave px-2 py-1 text-xs text-peligro">{error}</p>}
         </form>
       ) : (
-        <button type="button" onClick={() => setAbierto(true)} className="text-emerald-800 underline">Acceso equipo</button>
+        <button type="button" onClick={() => setAbierto(true)} className={enlace}>Acceso equipo</button>
       )}
     </div>
   );

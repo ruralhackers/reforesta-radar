@@ -1,66 +1,104 @@
 import { useEffect, useState } from 'react';
 import { type ConvocatoriaSemana, type DecisionEquipo, type Semana, leerDecisiones, leerSemana, rutaFicha } from './api.ts';
 import { BotonesDecision } from './Decision.tsx';
-import { useSesion } from './Sesion.tsx';
-import { Nota } from './Puntuacion.tsx';
 import { Cierre } from './Plazo.tsx';
-import { OrigenFuente } from './Origen.tsx';
-
-const fecha = (dia: string) =>
-  new Date(`${dia}T12:00:00Z`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+import { Nota } from './Puntuacion.tsx';
+import { useSesion } from './Sesion.tsx';
 
 const instante = (iso: string) =>
   new Date(iso).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Madrid' });
 
-const SECCIONES: { id: 'cierran_pronto' | 'nuevas' | 'abiertas'; titulo: string; ayuda: (s: Semana) => string }[] = [
-  { id: 'cierran_pronto', titulo: 'Cierran pronto', ayuda: (s) => `Cierre en ${s.cierranProntoDias} días o menos, por puntuación.` },
-  { id: 'nuevas', titulo: 'Nuevas', ayuda: (s) => `Vistas por primera vez en los últimos ${s.nuevasDias} días y que no cierran pronto, por puntuación.` },
-  { id: 'abiertas', titulo: 'Abiertas', ayuda: () => 'El resto de convocatorias abiertas que encajan, con cierre lejano o desconocido, por puntuación.' },
-];
+const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 
-const nombresParecidas = (c: ConvocatoriaSemana) => c.parecidas?.organizaciones.map((o) => o.nombre).join(', ') ?? '';
-
-/** Etiqueta de las convocatorias que ganan organizaciones parecidas (en cualquier sección). */
-function Parecidas({ c }: { c: ConvocatoriaSemana }) {
-  if (!c.parecidas) return null;
+/** La frase de arriba: qué toca esta semana. */
+function Resumen({ s }: { s: Semana }) {
+  const { paraPreparar, cierranPronto, empresasNuevas } = s.resumen;
+  const semanas = Math.round(s.cierranProntoDias / 7);
+  const partes = [
+    paraPreparar > 0 && (cierranPronto === 0 ? 'ninguna cierra pronto' : `${cierranPronto} ${cierranPronto === 1 ? 'cierra' : 'cierran'} en menos de ${semanas} semanas`),
+    empresasNuevas > 0 && `${plural(empresasNuevas, 'empresa nueva', 'empresas nuevas')}`,
+  ].filter(Boolean);
   return (
-    <p className="mt-2 text-xs text-amber-900">
-      <span className="rounded bg-amber-100 px-2 py-0.5 font-medium">La ganan organizaciones como vosotros</span>{' '}
-      {c.parecidas.descubierta ? 'La hemos encontrado por ' : 'Entre los ganadores previos: '}{nombresParecidas(c)}
+    <header className="mb-6">
+      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        {paraPreparar === 0 ? 'Nada que preparar esta semana' : `${plural(paraPreparar, 'convocatoria', 'convocatorias')} para preparar`}
+      </h1>
+      {partes.length > 0 && <p className="mt-1 text-tinta-suave">{partes.join(' · ')}</p>}
+      {paraPreparar === 0 && <p className="mt-1 text-tinta-suave">Ninguna analizada llega al encaje mínimo ({s.umbral} puntos). Puedes bajarlo en el <a href="/perfil" className="text-marca-fuerte underline">perfil</a>.</p>}
+    </header>
+  );
+}
+
+function Parecida({ c }: { c: ConvocatoriaSemana }) {
+  if (!c.parecidas) return null;
+  const nombres = c.parecidas.organizaciones.map((o) => o.nombre).join(', ');
+  return (
+    <p className="mt-2 text-xs text-aviso">
+      <span className="rounded bg-aviso-suave px-2 py-0.5 font-medium">La ganan organizaciones como vosotros</span>{' '}
+      {c.parecidas.descubierta ? 'La hemos encontrado por ' : 'Entre los ganadores previos: '}{nombres}
     </p>
   );
 }
 
-/** Programas de la UE (Horizon Europe) a los que solo se puede ir como socia de un consorcio: aparte y plegados, para que no tapen el resto. */
-function Consorcio({ lista }: { lista: ConvocatoriaSemana[] }) {
-  const [abierta, setAbierta] = useState(() => window.location.hash === '#consorcio');
-  if (lista.length === 0) return null;
+const CHIP = 'rounded-full bg-fondo-suave px-2.5 py-0.5 text-xs text-tinta';
+
+/** Tarjeta corta: título corto, qué decide (cierre, importe, línea), una frase de por qué y las acciones. */
+function Tarjeta({ c, semana, decision, alCambiar, puedeEditar }: { c: ConvocatoriaSemana; semana: Semana; decision: DecisionEquipo | null; alCambiar: (d: DecisionEquipo | null) => void; puedeEditar: boolean }) {
+  const dias = c.plazo?.diasHastaCierre ?? null;
+  const urgente = dias !== null && dias >= 0 && dias <= semana.cierranProntoDias;
+  const verFicha = <a href={rutaFicha(c.id)} className="ml-auto rounded-md px-2 py-1.5 text-sm font-medium text-marca-fuerte hover:underline">Ver ficha →</a>;
   return (
-    <section id="consorcio" className="mb-8">
-      <button type="button" onClick={() => setAbierta(!abierta)} aria-expanded={abierta} className="w-full text-left">
-        <h2 className="text-lg font-semibold">{abierta ? '▾' : '▸'} UE · como socio de consorcio <span className="text-sm font-normal text-stone-500">({lista.length})</span></h2>
-      </button>
-      <p className="mb-3 text-sm text-stone-600">Grandes consorcios de investigación (Horizon Europe): para una entidad pequeña solo es realista ir como socia. Su esfuerzo está penalizado en la puntuación. Por puntuación.</p>
-      {abierta && (
-        <ul className="space-y-3">
-          {lista.map((c) => (
-            <li key={c.id} className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-stone-200">
-              <div className="flex items-start justify-between gap-3">
-                <a href={rutaFicha(c.id)} className="font-semibold leading-snug text-emerald-800 hover:underline [overflow-wrap:anywhere]">{c.titulo}</a>
-                <Nota puntuacion={c.puntuacion} />
-              </div>
-              <p className="mt-1 text-sm text-stone-600">{c.organo}</p>
-              <p className="mt-2 flex flex-wrap gap-x-3 text-xs text-stone-500">
-                <span>{fecha(c.fechaPublicacion)}</span>
-                <OrigenFuente fuente={c.fuente} url={c.url} />
-                <Cierre plazo={c.plazo} />
-              </p>
-              <p className="mt-2 text-xs text-stone-600">Esfuerzo: {c.puntuacion?.factores.find((f) => f.id === 'esfuerzo')?.explicacion}</p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+    <li className="rounded-[var(--radio)] bg-superficie p-4 ring-1 ring-linea sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="min-w-0 text-base font-semibold leading-snug [overflow-wrap:anywhere]">
+          <a href={rutaFicha(c.id)} className="text-tinta hover:text-marca-fuerte hover:underline">{c.tarjeta.tituloCorto}</a>
+        </h3>
+        <Nota puntuacion={c.puntuacion} />
+      </div>
+      <p className="mt-0.5 text-sm text-tinta-suave [overflow-wrap:anywhere]">{c.organo}</p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {c.plazo?.fechaCierre && c.plazo.diasHastaCierre !== null && (
+          <span className={`rounded-full px-2.5 py-0.5 text-xs ${urgente ? 'bg-aviso-suave font-semibold text-aviso ring-1 ring-aviso-borde' : CHIP}`}><Cierre plazo={c.plazo} /></span>
+        )}
+        <span className={CHIP}>{c.tarjeta.importe ?? 'Importe por confirmar'}</span>
+        {c.tarjeta.lineas.map((l) => <span key={l} className="rounded-full bg-marca-suave px-2.5 py-0.5 text-xs text-marca-fuerte">{l}</span>)}
+      </div>
+      {c.tarjeta.porQue && <p className="mt-3 text-sm text-tinta">{c.tarjeta.porQue}</p>}
+      <Parecida c={c} />
+      {puedeEditar
+        ? <BotonesDecision id={c.id} decision={decision} alCambiar={alCambiar} extra={verFicha} />
+        : <div className="mt-3 flex">{verFicha}</div>}
+    </li>
+  );
+}
+
+/** Fila compacta para lo plegado: sin botones, con el motivo de que no esté arriba. */
+function Fila({ c }: { c: ConvocatoriaSemana }) {
+  const sinAnalizar = !c.puntuacion?.analizada;
+  return (
+    <li className="flex items-start justify-between gap-3 border-b border-linea py-2.5 last:border-b-0">
+      <div className="min-w-0">
+        <a href={rutaFicha(c.id)} className="font-medium text-tinta hover:text-marca-fuerte hover:underline [overflow-wrap:anywhere]">{c.tarjeta.tituloCorto}</a>
+        <p className="text-xs text-tinta-suave">
+          {c.organo}{c.plazo?.fechaCierre && <> · <Cierre plazo={c.plazo} /></>}{sinAnalizar && ' · sin analizar todavía'}
+        </p>
+      </div>
+      {!sinAnalizar && <Nota puntuacion={c.puntuacion} />}
+    </li>
+  );
+}
+
+function Plegable({ id, titulo, ayuda, abiertaInicial = false, children }: { id?: string; titulo: string; ayuda?: string; abiertaInicial?: boolean; children: React.ReactNode }) {
+  return (
+    <details id={id} open={abiertaInicial} className="group mb-6 rounded-[var(--radio)] bg-superficie ring-1 ring-linea">
+      <summary className="cursor-pointer list-none rounded-[var(--radio)] px-4 py-3 text-sm font-medium text-marca-fuerte hover:bg-fondo-suave [&::-webkit-details-marker]:hidden">
+        <span aria-hidden="true" className="mr-1 inline-block transition-transform group-open:rotate-90">▸</span>{titulo}
+      </summary>
+      <div className="px-4 pb-3">
+        {ayuda && <p className="mb-2 text-sm text-tinta-suave">{ayuda}</p>}
+        {children}
+      </div>
+    </details>
   );
 }
 
@@ -81,86 +119,60 @@ export function EstaSemana() {
   // Descartar la quita de la lista (el servidor ya no la devuelve); "nos interesa" solo marca la fila.
   const alCambiar = (id: string, d: DecisionEquipo | null) => {
     setDecisiones((m) => { const n = new Map(m); if (d) n.set(id, d); else n.delete(id); return n; });
-    if (d?.decision === 'descartada') setSemana((s) => s && { ...s, convocatorias: s.convocatorias.filter((c) => c.id !== id), lasGananParecidas: s.lasGananParecidas.filter((x) => x !== id) });
+    if (d?.decision === 'descartada') {
+      setSemana((s) => s && {
+        ...s,
+        convocatorias: s.convocatorias.filter((c) => c.id !== id),
+        paraPreparar: s.paraPreparar.filter((x) => x !== id),
+        conMenosEncaje: s.conMenosEncaje.filter((x) => x !== id),
+        lasGananParecidas: s.lasGananParecidas.filter((x) => x !== id),
+        resumen: { ...s.resumen, paraPreparar: s.paraPreparar.filter((x) => x !== id).length },
+      });
+    }
   };
 
+  if (error) return <p role="alert" className="rounded-md bg-peligro-suave p-4 text-peligro">No se pudo cargar la lista: {error}</p>;
+  if (!semana) return <p className="text-tinta-suave">Cargando…</p>;
+
+  const por = new Map(semana.convocatorias.map((c) => [c.id, c]));
+  const lista = (ids: string[]) => ids.map((id) => por.get(id)).filter((c): c is ConvocatoriaSemana => !!c);
+  const arriba = lista(semana.paraPreparar);
+  const menos = lista(semana.conMenosEncaje);
+  const consorcio = semana.convocatorias.filter((c) => c.seccion === 'consorcio');
+
   return (
-    <main className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
-      <header className="mb-6">
-        <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">Radar de convocatorias</p>
-        <h1 className="text-2xl font-bold sm:text-3xl">Esta semana</h1>
-        <p className="mt-1 text-sm"><a href="/parecidas" className="text-emerald-800 hover:underline">Ajustar las organizaciones parecidas</a> · <a href="/fundaciones" className="text-emerald-800 hover:underline">Fundaciones</a> · <a href="/empresas" className="text-emerald-800 hover:underline">Empresas</a> · <a href="/perfil" className="text-emerald-800 hover:underline">Perfil</a> · <a href="/como-sabemos" className="text-emerald-800 hover:underline">Cómo sabemos</a>{puedeEditar && <> · <a href="/nos-interesa" className="text-emerald-800 hover:underline">Nos interesa</a></>}</p>
-        {semana && (
-          <p className="mt-1 text-sm text-stone-600">
-            Del {fecha(semana.desde)} al {fecha(semana.hasta)} · {semana.convocatorias.filter((c) => c.seccion !== 'consorcio').length} candidatas, abiertas, ordenadas por puntuación
-          </p>
-        )}
-      </header>
+    <div className="max-w-3xl">
+      <Resumen s={semana} />
 
-      {error && <p className="rounded-md bg-red-50 p-4 text-red-800">No se pudo cargar la lista: {error}</p>}
-      {!semana && !error && <p className="text-stone-500">Cargando…</p>}
-
-      {semana && semana.convocatorias.length === 0 && (
-        <p className="rounded-md bg-white p-4 text-stone-600 shadow-sm">No hay convocatorias candidatas esta semana.</p>
+      {arriba.length > 0 && (
+        <ul className="mb-6 space-y-3" aria-label="Convocatorias para preparar">
+          {arriba.map((c) => <Tarjeta key={c.id} c={c} semana={semana} decision={decisiones.get(c.id) ?? null} alCambiar={(d) => alCambiar(c.id, d)} puedeEditar={puedeEditar} />)}
+        </ul>
       )}
 
-      {semana && semana.lasGananParecidas.length > 0 && (
-        <section className="mb-8 rounded-lg bg-amber-50 p-4 ring-1 ring-amber-200">
-          <h2 className="text-lg font-semibold">Las ganan organizaciones como vosotros <span className="text-sm font-normal text-stone-500">({semana.lasGananParecidas.length})</span></h2>
-          <p className="mb-3 text-sm text-stone-600">Convocatorias abiertas que han ganado organizaciones parecidas (o que hemos encontrado por ellas). Aparecen también en su sección de abajo.</p>
-          <ul className="space-y-2">
-            {semana.lasGananParecidas.map((id) => semana.convocatorias.find((c) => c.id === id)).filter((c): c is ConvocatoriaSemana => !!c).map((c) => (
-              <li key={c.id} className="rounded-md bg-white p-3 ring-1 ring-stone-200">
-                <div className="flex items-start justify-between gap-3">
-                  <a href={rutaFicha(c.id)} className="font-semibold leading-snug text-emerald-800 hover:underline [overflow-wrap:anywhere]">{c.titulo}</a>
-                  <Nota puntuacion={c.puntuacion} />
-                </div>
-                <p className="mt-1 text-xs text-stone-600">{c.parecidas?.descubierta ? 'Encontrada por' : 'Ganadores previos:'} {nombresParecidas(c)} · <Cierre plazo={c.plazo} /></p>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {menos.length > 0 && (
+        <Plegable titulo={`El radar vio otras ${menos.length} con menos encaje · ver`} ayuda={`Sin analizar todavía, por debajo de ${semana.umbral} puntos o fuera de las 7 de arriba. Por puntuación.`}>
+          <ul>{menos.map((c) => <Fila key={c.id} c={c} />)}</ul>
+        </Plegable>
       )}
 
-      {semana && SECCIONES.map(({ id, titulo, ayuda }) => {
-        const lista = semana.convocatorias.filter((c) => c.seccion === id);
-        if (lista.length === 0) return null;
-        return (
-          <section key={id} className="mb-8">
-            <h2 className="text-lg font-semibold">{titulo} <span className="text-sm font-normal text-stone-500">({lista.length})</span></h2>
-            <p className="mb-3 text-sm text-stone-600">{ayuda(semana)}</p>
-            <ul className="space-y-3">
-              {lista.map((c) => (
-                <li key={c.id} className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-stone-200">
-                  <div className="flex items-start justify-between gap-3">
-                    <a href={rutaFicha(c.id)} className="font-semibold leading-snug text-emerald-800 hover:underline [overflow-wrap:anywhere]">
-                      {c.titulo}
-                    </a>
-                    <Nota puntuacion={c.puntuacion} />
-                  </div>
-                  <p className="mt-1 text-sm text-stone-600">{c.organo}</p>
-                  <p className="mt-2 flex flex-wrap gap-x-3 text-xs text-stone-500">
-                    <span>{fecha(c.fechaPublicacion)}</span>
-                    <OrigenFuente fuente={c.fuente} url={c.url} />
-                    <Cierre plazo={c.plazo} />
-                  </p>
-                  <Parecidas c={c} />
-                  {puedeEditar && <BotonesDecision id={c.id} decision={decisiones.get(c.id) ?? null} alCambiar={(d) => alCambiar(c.id, d)} />}
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
+      {consorcio.length > 0 && (
+        <Plegable id="consorcio" abiertaInicial={window.location.hash === '#consorcio'} titulo={`UE · como socio de consorcio (${consorcio.length}) · ver`}
+          ayuda="Grandes consorcios de investigación (Horizon Europe): para una entidad pequeña solo es realista ir como socia. Su esfuerzo está penalizado en la puntuación.">
+          <ul>{consorcio.map((c) => <Fila key={c.id} c={c} />)}</ul>
+        </Plegable>
+      )}
 
-      {semana && <Consorcio lista={semana.convocatorias.filter((c) => c.seccion === 'consorcio')} />}
+      {arriba.length === 0 && menos.length === 0 && consorcio.length === 0 && (
+        <p className="rounded-md bg-superficie p-4 text-tinta-suave ring-1 ring-linea">No hay convocatorias candidatas esta semana.</p>
+      )}
 
-      {semana?.ultimaEjecucion && (
-        <footer className="mt-8 border-t border-stone-200 pt-4 text-xs text-stone-500">
+      {semana.ultimaEjecucion && (
+        <p className="mt-8 border-t border-linea pt-4 text-xs text-tinta-suave">
           Última revisión: {instante(semana.ultimaEjecucion.inicio)}
           {semana.ultimaEjecucion.estado === 'con_errores' && ' · con errores en alguna fuente'}
-        </footer>
+        </p>
       )}
-    </main>
+    </div>
   );
 }

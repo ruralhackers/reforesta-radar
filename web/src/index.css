@@ -1,1 +1,61 @@
 @import "tailwindcss";
+
+/*
+ * Tokens de diseño: ÚNICO sitio con colores y medidas de la web.
+ * El verde es PROVISIONAL: Reforesta pidió sus colores pero reforesta.es no responde. Para ponerlos, cambia solo --marca* (y --marca-borde);
+ * contraste: texto sobre --papel y --superficie >= 4.5:1 (AA), texto blanco sobre --marca >= 4.5:1.
+ */
+:root {
+  --papel: #f6f7f3;          /* fondo de página */
+  --superficie: #ffffff;     /* tarjetas, tablas, paneles */
+  --fondo-suave: #eef1ec;    /* chips, filas alternas, campos desactivados */
+  --tinta: #1c2620;          /* texto */
+  --tinta-suave: #4f5b53;    /* texto secundario (7,4:1 sobre blanco) */
+  --linea: #dfe4dc;          /* bordes finos */
+  --linea-fuerte: #b8c1b6;   /* bordes de campos */
+
+  --marca: #2c6648;          /* verde provisional (botones, enlaces, énfasis) */
+  --marca-fuerte: #1f4d36;   /* enlaces sobre fondo claro y hover */
+  --marca-suave: #e3f0e7;    /* fondo de resaltes en verde */
+  --marca-borde: #8fc3a3;    /* bordes de resaltes en verde, citas */
+  --marca-lateral: #1d3b2b;  /* barra lateral */
+
+  --aviso: #8a4b12;          /* urgente (7:1 sobre --aviso-suave) */
+  --aviso-suave: #fdecd8;
+  --aviso-borde: #efc79a;
+  --peligro: #a12626;
+  --peligro-suave: #fbe9e9;
+
+  --radio: 0.625rem;
+}
+
+@theme inline {
+  --color-papel: var(--papel);
+  --color-superficie: var(--superficie);
+  --color-fondo-suave: var(--fondo-suave);
+  --color-tinta: var(--tinta);
+  --color-tinta-suave: var(--tinta-suave);
+  --color-linea: var(--linea);
+  --color-linea-fuerte: var(--linea-fuerte);
+  --color-marca: var(--marca);
+  --color-marca-fuerte: var(--marca-fuerte);
+  --color-marca-suave: var(--marca-suave);
+  --color-marca-borde: var(--marca-borde);
+  --color-marca-lateral: var(--marca-lateral);
+  --color-aviso: var(--aviso);
+  --color-aviso-suave: var(--aviso-suave);
+  --color-aviso-borde: var(--aviso-borde);
+  --color-peligro: var(--peligro);
+  --color-peligro-suave: var(--peligro-suave);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html { background: var(--papel); color: var(--tinta); }
+body { margin: 0; min-height: 100vh; background: var(--papel); color: var(--tinta); font-family: var(--font-sans); }
+
+/* Foco visible y consistente en todo lo interactivo. */
+:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; border-radius: 4px; }
+.sobre-oscuro :focus-visible { outline-color: #ffffff; }
+
+/* Movimiento mínimo y respetuoso. */
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }

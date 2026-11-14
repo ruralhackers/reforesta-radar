@@ -1,52 +1,90 @@
-import { OrigenFuente } from './Origen.tsx';
 import { useEffect, useState } from 'react';
 import { type CampoCitado, type DecisionEquipo, type Ficha as TFicha, type NotaEquipo, leerEquipoFicha, leerFicha } from './api.ts';
 import { BotonesDecision, Notas } from './Decision.tsx';
-import { useSesion } from './Sesion.tsx';
 import { SeccionGanadores } from './Ganadores.tsx';
-import { SeccionPlazo } from './Plazo.tsx';
+import { OrigenFuente, etiquetaFuente } from './Origen.tsx';
+import { SeccionPlazo, textoCierre } from './Plazo.tsx';
 import { SeccionPuntuacion } from './Puntuacion.tsx';
+import { useSesion } from './Sesion.tsx';
 
 const fecha = (dia: string) =>
   new Date(`${dia}T12:00:00Z`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
 
-const ETIQUETA_ENLACE: Record<TFicha['enlaces'][number]['tipo'], string> = {
-  ficha: 'Ficha', bases: 'Bases', extracto: 'Extracto', sede: 'Sede electrónica', documento: 'Documento',
-};
+const euros = (n: number | null) => (n === null ? null : `${n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
 
 function Desconocido({ motivo }: { motivo?: string }) {
-  return (
-    <span title={motivo} className="inline-block rounded bg-stone-200 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-stone-600">
-      desconocido
-    </span>
-  );
+  return <span title={motivo} className="inline-block rounded bg-fondo-suave px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-tinta-suave">desconocido</span>;
 }
 
 function Cita({ cita, documento }: { cita: string; documento: string | null }) {
   return (
-    <blockquote className="mt-1 border-l-2 border-emerald-300 pl-3 text-sm italic text-stone-600 [overflow-wrap:anywhere]">
-      «{cita}»{documento && <span className="not-italic text-stone-400"> — {documento}</span>}
+    <blockquote className="mt-1 border-l-2 border-marca-borde pl-3 text-sm italic text-tinta-suave [overflow-wrap:anywhere]">
+      «{cita}»{documento && <span className="not-italic"> — {documento}</span>}
     </blockquote>
   );
 }
 
-function Campo({ nombre, campo, formato }: { nombre: string; campo: CampoCitado; formato?: (v: string) => string }) {
+/** Un dato del panel fijo: nombre, valor y, debajo, su cita (o "desconocido"). */
+function Dato({ nombre, valor, cita, documento, resaltar }: { nombre: string; valor: string | null; cita?: string | null; documento?: string | null; resaltar?: 'bien' | 'mal' | 'aviso' }) {
+  const color = resaltar === 'bien' ? 'text-marca-fuerte' : resaltar === 'mal' ? 'text-peligro' : resaltar === 'aviso' ? 'text-aviso' : 'text-tinta';
   return (
     <div className="py-3">
-      <dt className="text-sm font-medium text-stone-500">{nombre}</dt>
+      <dt className="text-xs font-medium uppercase tracking-wide text-tinta-suave">{nombre}</dt>
       <dd className="mt-0.5">
-        {campo.valor === null ? (
-          <Desconocido motivo={campo.motivo} />
-        ) : (
-          <>
-            <span className="font-semibold">{formato ? formato(campo.valor) : campo.valor}</span>
-            {campo.cita && <Cita cita={campo.cita} documento={campo.documento} />}
-          </>
-        )}
+        {valor === null ? <Desconocido /> : <span className={`text-base font-semibold [overflow-wrap:anywhere] ${color}`}>{valor}</span>}
+        {cita && <Cita cita={cita} documento={documento ?? null} />}
       </dd>
     </div>
   );
 }
+
+const citado = (c: CampoCitado | undefined) => ({ valor: c?.valor ?? null, cita: c?.cita ?? null, documento: c?.documento ?? null });
+
+/** Historial de Reforesta con esta convocatoria, lo primero que se quiere saber. */
+function Historial({ ficha }: { ficha: TFicha }) {
+  const { reforestaGano, ediciones } = ficha.ganadoresPrevios;
+  if (reforestaGano.length > 0) {
+    return (
+      <p className="mb-5 rounded-[var(--radio)] bg-marca-suave p-4 text-base font-semibold text-marca-fuerte ring-1 ring-marca-borde">
+        Reforesta ganó {reforestaGano.length === 1 ? 'la edición' : 'las ediciones'}{' '}
+        {reforestaGano.map((g) => `${g.anio ?? g.numeroConvocatoria}${g.importe !== null ? ` con ${euros(g.importe)}` : ''}`).join(', ')}.
+      </p>
+    );
+  }
+  if (ediciones.some((e) => e.reforesta === 'no_figura')) {
+    return <p className="mb-5 rounded-[var(--radio)] bg-fondo-suave p-4 text-sm text-tinta">Reforesta no figura entre los ganadores de ediciones anteriores (BDNS solo publica a los ganadores).</p>;
+  }
+  return null;
+}
+
+/** Enlaces con nombre: Bases, Extracto, Sede y cada documento con su nombre real de BDNS. */
+function Enlaces({ ficha }: { ficha: TFicha }) {
+  const sueltos = ficha.enlaces.filter((e) => e.tipo !== 'documento');
+  const docs = ficha.enlaces.filter((e) => e.tipo === 'documento');
+  const texto = (e: TFicha['enlaces'][number]) => (e.tipo === 'ficha' ? `Ficha en ${etiquetaFuente(ficha.fuente)}` : e.tipo === 'bases' ? 'Bases' : e.tipo === 'extracto' ? 'Extracto' : e.tipo === 'sede' ? 'Sede electrónica' : e.titulo);
+  const enlace = (e: TFicha['enlaces'][number]) => (
+    <li key={e.url}>
+      <a href={e.url} target="_blank" rel="noreferrer" className="inline-flex items-baseline gap-1 text-sm text-marca-fuerte underline-offset-2 hover:underline">
+        <span className="[overflow-wrap:anywhere]">{texto(e)}</span><span aria-hidden="true">↗</span><span className="sr-only">(se abre en otra pestaña)</span>
+      </a>
+      {e.tipo !== 'documento' && e.titulo !== texto(e) && <span className="block text-xs text-tinta-suave [overflow-wrap:anywhere]">{e.titulo}</span>}
+    </li>
+  );
+  return (
+    <div className="mt-4 border-t border-linea pt-3">
+      <h3 className="text-xs font-medium uppercase tracking-wide text-tinta-suave">Enlaces</h3>
+      <ul className="mt-1.5 space-y-1.5">{sueltos.map(enlace)}</ul>
+      {docs.length > 0 && (
+        <>
+          <h3 className="mt-3 text-xs font-medium uppercase tracking-wide text-tinta-suave">Documentos de BDNS</h3>
+          <ul className="mt-1.5 space-y-1.5">{docs.map(enlace)}</ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+const TARJETA = 'mb-5 rounded-[var(--radio)] bg-superficie p-4 ring-1 ring-linea sm:p-5';
 
 export function Ficha({ id }: { id: string }) {
   const [ficha, setFicha] = useState<TFicha | null>(null);
@@ -63,112 +101,106 @@ export function Ficha({ id }: { id: string }) {
     leerEquipoFicha(id).then((e) => { setDecision(e.decision); setNotas(e.notas); }, () => { /* sin acceso al equipo: se ve la ficha sin decisión ni notas */ });
   }, [id, puedeEditar]);
 
-  const a = ficha?.analisis?.campos;
-  return (
-    <main className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
-      <a href="/" className="text-sm text-emerald-700 hover:underline">← Esta semana</a>
-      {error && <p className="mt-4 rounded-md bg-red-50 p-4 text-red-800">No se pudo cargar la ficha: {error}</p>}
-      {!ficha && !error && <p className="mt-4 text-stone-500">Cargando…</p>}
-      {ficha && (
-        <>
-          <header className="mt-3 mb-6">
-            <h1 className="text-xl font-bold leading-snug sm:text-2xl [overflow-wrap:anywhere]">{ficha.titulo}</h1>
-            <p className="mt-1 text-sm text-stone-600">{ficha.organo}</p>
-            <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-stone-500">
-              <span>{fecha(ficha.fechaPublicacion)}</span>
-              <OrigenFuente fuente={ficha.fuente} url={ficha.enlaces.find((e) => e.tipo === "ficha")?.url} />
-              {ficha.tipo && <span>{ficha.tipo}</span>}
-            </p>
-            <nav className="mt-3 flex flex-wrap gap-2">
-              {ficha.enlaces.map((e) => (
-                <a key={e.url} href={e.url} target="_blank" rel="noreferrer" title={e.titulo}
-                  className="rounded-full bg-white px-3 py-1 text-sm text-emerald-800 shadow-sm ring-1 ring-stone-200 hover:bg-emerald-50">
-                  {ETIQUETA_ENLACE[e.tipo]}
-                </a>
-              ))}
-            </nav>
-            {puedeEditar && <BotonesDecision id={ficha.id} decision={decision} alCambiar={setDecision} />}
-          </header>
+  if (error) return <p role="alert" className="rounded-md bg-peligro-suave p-4 text-peligro">No se pudo cargar la ficha: {error}</p>;
+  if (!ficha) return <p className="text-tinta-suave">Cargando…</p>;
 
+  const a = ficha.analisis?.campos;
+  const importe = a && (a.importeMaximoProyecto.valor ? { ...citado(a.importeMaximoProyecto), nombre: 'Importe máximo por proyecto' } : a.importeTotal.valor ? { ...citado(a.importeTotal), nombre: 'Importe total' } : null);
+  const esfl = a?.elegibilidadEsfl;
+  const plazo = ficha.plazo;
+  const cierre = plazo && textoCierre(plazo);
+  const cerrada = plazo?.diasHastaCierre != null && plazo.diasHastaCierre < 0;
+  const citaCierre = plazo?.textoOriginal ?? a?.plazo.cita ?? null;
+
+  return (
+    <div>
+      <header className="mb-6 max-w-3xl">
+        <h1 className="text-2xl font-bold leading-snug tracking-tight sm:text-3xl [overflow-wrap:anywhere]">{ficha.tituloCorto}</h1>
+        {ficha.tituloCorto !== ficha.titulo && <p className="mt-1 text-sm text-tinta-suave [overflow-wrap:anywhere]">Título oficial: {ficha.titulo}</p>}
+        <p className="mt-1 text-tinta-suave">{ficha.organo}</p>
+        <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-tinta-suave">
+          <span>Publicada el {fecha(ficha.fechaPublicacion)}</span>
+          <OrigenFuente fuente={ficha.fuente} url={ficha.enlaces.find((e) => e.tipo === 'ficha')?.url} />
+          {ficha.tipo && <span>{ficha.tipo}</span>}
+        </p>
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        {/* Panel de datos: fijo a la derecha en escritorio; en móvil, arriba. */}
+        <aside aria-label="Datos clave" className="order-first lg:sticky lg:top-6 lg:order-last">
+          <div className="rounded-[var(--radio)] bg-superficie p-4 ring-1 ring-linea">
+            <dl className="divide-y divide-linea">
+              <Dato nombre={importe?.nombre ?? 'Importe'} valor={importe?.valor ?? null} cita={importe?.cita} documento={importe?.documento} />
+              <Dato nombre="Cierre" valor={cierre ?? (plazo?.fechaCierre ? fecha(plazo.fechaCierre) : null)} cita={citaCierre} documento={citaCierre && !plazo?.textoOriginal ? a?.plazo.documento : 'texto original'} resaltar={cerrada ? 'mal' : plazo?.diasHastaCierre != null && plazo.diasHastaCierre <= 7 ? 'aviso' : undefined} />
+              <Dato nombre="¿Podemos pedirla?" valor={esfl?.valor ? (esfl.valor === 'si' ? 'Sí, admite entidades sin ánimo de lucro' : 'No admite entidades sin ánimo de lucro') : null} cita={esfl?.cita} documento={esfl?.documento} resaltar={esfl?.valor === 'si' ? 'bien' : esfl?.valor === 'no' ? 'mal' : undefined} />
+              <Dato nombre="Cofinanciación" valor={a?.cofinanciacion.valor ?? null} cita={a?.cofinanciacion.cita} documento={a?.cofinanciacion.documento} />
+            </dl>
+            {puedeEditar && <div className="border-t border-linea"><BotonesDecision id={ficha.id} decision={decision} alCambiar={setDecision} /></div>}
+            <Enlaces ficha={ficha} />
+          </div>
+        </aside>
+
+        <div className="min-w-0 max-w-3xl">
           {!ficha.enJuego && (
-            <p className="mb-4 rounded-md bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="mb-4 rounded-md bg-aviso-suave p-4 text-sm text-aviso">
               {ficha.descarte ? `Descartada por reglas: ${ficha.descarte.motivo}`
                 : ficha.analisis?.descarta ? `Descartada en el análisis: ${ficha.analisis.motivo}`
                 : ficha.criba?.descarta ? `Descartada en la criba: ${ficha.criba.motivo}`
                 : `Pendiente de criba: ${ficha.condicion}`}
             </p>
           )}
-          {ficha.criba && !ficha.criba.descarta && (
-            <p className="mb-4 text-sm text-stone-600"><span className="font-medium">Criba:</span> {ficha.criba.motivo}</p>
-          )}
-
-          <SeccionPuntuacion puntuacion={ficha.puntuacion} />
-          <SeccionPlazo plazo={ficha.plazo} />
+          <Historial ficha={ficha} />
           {ficha.parecidas && (
-            <p className="mb-4 rounded-md bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200">
+            <p className="mb-5 rounded-md bg-aviso-suave p-3 text-sm text-aviso ring-1 ring-aviso-borde">
               <strong>La ganan organizaciones como vosotros.</strong>{' '}
               {ficha.parecidas.descubierta ? 'La hemos encontrado porque ' : 'Entre los ganadores previos figuran '}
-              {ficha.parecidas.organizaciones.map((o) => `${o.nombre}${o.anios.length ? ` (${o.anios.join(', ')})` : ''}`).join(', ')}
+              {ficha.parecidas.organizaciones.slice(0, 4).map((o) => `${o.nombre}${o.anios.length ? ` (${o.anios.join(', ')})` : ''}`).join(', ')}{ficha.parecidas.organizaciones.length > 4 && ` y ${ficha.parecidas.organizaciones.length - 4} más`}
               {ficha.parecidas.descubierta ? ' ganaron una edición anterior.' : '.'}
             </p>
           )}
-          <SeccionGanadores ganadores={ficha.ganadoresPrevios} />
 
-          {!a && <p className="rounded-md bg-white p-4 text-stone-600 shadow-sm">Aún sin analizar.</p>}
+          {!a && <p className={`${TARJETA} text-tinta-suave`}>Aún sin analizar: no hay idea de proyecto ni datos con cita.</p>}
           {a && (
-            <section className="rounded-lg bg-white px-4 shadow-sm ring-1 ring-stone-200">
-              <dl className="divide-y divide-stone-100">
-                <Campo nombre="¿Pueden pedirla entidades sin ánimo de lucro?" campo={a.elegibilidadEsfl} formato={(v) => (v === 'si' ? 'Sí' : 'No')} />
-                <Campo nombre="Importe máximo por proyecto" campo={a.importeMaximoProyecto} />
-                <Campo nombre="Importe total" campo={a.importeTotal} />
-                <Campo nombre="Plazo" campo={a.plazo} />
-                <Campo nombre="Cofinanciación" campo={a.cofinanciacion} />
-                <div className="py-3">
-                  <dt className="text-sm font-medium text-stone-500">Requisitos principales</dt>
-                  <dd className="mt-0.5">
-                    {a.requisitos.length === 0 ? <Desconocido /> : (
-                      <ul className="space-y-2">
-                        {a.requisitos.map((q, i) => (
-                          <li key={i}>{q.valor}{q.cita && <Cita cita={q.cita} documento={q.documento} />}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </dd>
-                </div>
-                <div className="py-3">
-                  <dt className="text-sm font-medium text-stone-500">Líneas con las que encaja</dt>
-                  <dd className="mt-0.5">
-                    {a.lineas.length === 0 ? <span className="text-stone-500">Ninguna clara</span> : (
-                      <ul className="space-y-2">
-                        {a.lineas.map((l) => (
-                          <li key={l.linea}>
-                            <span className="font-semibold">{l.linea}</span>
-                            {l.motivo && <span className="text-stone-600">: {l.motivo}</span>}
-                            {l.cita && <Cita cita={l.cita} documento={l.documento} />}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </dd>
-                </div>
-                <div className="py-3">
-                  <dt className="text-sm font-medium text-stone-500">Idea de proyecto</dt>
-                  <dd className="mt-0.5 whitespace-pre-line">{a.ideaProyecto ?? <Desconocido />}</dd>
-                </div>
-              </dl>
+            <section className={TARJETA}>
+              <h2 className="text-lg font-semibold">Idea de proyecto</h2>
+              <p className="mt-1.5 whitespace-pre-line">{a.ideaProyecto ?? <Desconocido />}</p>
+              <h3 className="mt-5 text-sm font-semibold text-tinta-suave">Líneas de Reforesta con las que encaja</h3>
+              {a.lineas.length === 0 ? <p className="mt-1 text-tinta-suave">Ninguna clara</p> : (
+                <ul className="mt-1 space-y-2">
+                  {a.lineas.map((l) => (
+                    <li key={l.linea}>
+                      <span className="font-semibold">{l.linea}</span>
+                      {l.motivo && <span className="text-tinta-suave">: {l.motivo}</span>}
+                      {l.cita && <Cita cita={l.cita} documento={l.documento} />}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <h3 className="mt-5 text-sm font-semibold text-tinta-suave">Requisitos principales</h3>
+              {a.requisitos.length === 0 ? <p className="mt-1"><Desconocido /></p> : (
+                <ul className="mt-1 space-y-2">
+                  {a.requisitos.map((q, i) => <li key={i}>{q.valor}{q.cita && <Cita cita={q.cita} documento={q.documento} />}</li>)}
+                </ul>
+              )}
             </section>
           )}
-          <div className="mt-6" />
+
+          <SeccionGanadores ganadores={ficha.ganadoresPrevios} />
+          <SeccionPlazo plazo={ficha.plazo} />
+          {ficha.criba && !ficha.criba.descarta && (
+            <p className="mb-5 text-sm text-tinta-suave"><span className="font-medium">Criba:</span> {ficha.criba.motivo}</p>
+          )}
+          <SeccionPuntuacion puntuacion={ficha.puntuacion} />
           {puedeEditar && <Notas id={ficha.id} notas={notas} alCambiar={setNotas} />}
           {ficha.analisis && (
-            <footer className="mt-4 space-y-1 text-xs text-stone-500">
+            <footer className="mt-4 space-y-1 text-xs text-tinta-suave">
               <p>Leído: {ficha.analisis.documentos.map((d) => d.titulo).join(' · ') || '—'}</p>
               {ficha.analisis.documentosConError.length > 0 && <p>No se pudieron leer: {ficha.analisis.documentosConError.join(' · ')}</p>}
               {a && a.correcciones.length > 0 && <p>Quitado por no tener cita comprobable: {a.correcciones.length} dato(s).</p>}
             </footer>
           )}
-        </>
-      )}
-    </main>
+        </div>
+      </div>
+    </div>
   );
 }

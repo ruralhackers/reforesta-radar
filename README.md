@@ -108,7 +108,7 @@ docker compose run --rm radar npm run radar   # una pasada del radar
 ```
 
 Sin `ANTHROPIC_API_KEY` el radar se salta la criba y el análisis y lo apunta en el registro de la ejecución (`/api/ejecuciones`), donde
-también queda el coste de LLM de cada fase. El perfil de Reforesta se carga de `seed/perfil.json` la primera vez y después se edita en
+también queda el coste de LLM de cada fase. Sin criba, «Esta semana» y el correo quedan vacíos: solo entra en el ranking lo que ya pasó la criba LLM (sin veredicto, una convocatoria puntuaba 47 solo con el cierre conocido). El perfil de Reforesta se carga de `seed/perfil.json` la primera vez y después se edita en
 la web. `npm run record:*` regraba los datos de prueba (BDNS, concesiones, parecidas, UE, fundaciones, BOE, huella).
 
 ## Despliegue

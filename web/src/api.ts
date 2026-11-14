@@ -52,6 +52,15 @@ export interface ConvocatoriaSemana {
   puntuacion: Puntuacion | null;
   /** null = ninguna parecida activa tiene que ver con ella. */
   parecidas: InfoParecidas | null;
+  tarjeta: {
+    /** Título corto del análisis o, sin él, el oficial hecho legible. */
+    tituloCorto: string;
+    /** null = sin analizar o sin importe en los textos. */
+    importe: string | null;
+    lineas: string[];
+    /** Una frase de por qué encaja (null = sin analizar). */
+    porQue: string | null;
+  };
 }
 
 export interface Ejecucion {
@@ -71,6 +80,13 @@ export interface Semana {
   convocatorias: ConvocatoriaSemana[];
   /** Ids de "las ganan organizaciones como vosotros", por puntuación. Lista paralela: repite convocatorias de las secciones de arriba. */
   lasGananParecidas: string[];
+  /** Umbral del corte (el del perfil). */
+  umbral: number;
+  /** Las de arriba: analizadas con puntuación >= umbral, como mucho 7, por puntuación. */
+  paraPreparar: string[];
+  /** El resto (sin consorcio), plegado: sin analizar, con menos encaje o fuera del máximo. */
+  conMenosEncaje: string[];
+  resumen: { paraPreparar: number; cierranPronto: number; empresasNuevas: number };
   ultimaEjecucion: Ejecucion | null;
 }
 
@@ -136,6 +152,7 @@ export interface Ficha {
   id: string;
   fuente: string;
   titulo: string;
+  tituloCorto: string;
   organo: string;
   fechaPublicacion: string;
   url: string;
@@ -210,6 +227,8 @@ export interface PerfilWeb {
   lineas: { nombre: string; descripcion: string }[];
   ambito: { descripcion: string; nivelesSiempre: string[]; territorios: { comunidad: string; provincias: string[] }[]; comunidades: string[]; regiones: string[] };
   importeMinimo: number | null;
+  /** Puntuación mínima (0-100) para entrar arriba en "Esta semana". */
+  umbralEncaje: number;
 }
 
 export async function leerPerfil(): Promise<PerfilWeb> {
@@ -219,7 +238,7 @@ export async function leerPerfil(): Promise<PerfilWeb> {
   return datos;
 }
 
-export async function guardarPerfil(p: Pick<PerfilWeb, 'lineas' | 'ambito' | 'importeMinimo'>): Promise<PerfilWeb> {
+export async function guardarPerfil(p: Pick<PerfilWeb, 'lineas' | 'ambito' | 'importeMinimo' | 'umbralEncaje'>): Promise<PerfilWeb> {
   const res = await fetch('/api/perfil', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
   const datos = await res.json().catch(() => ({})) as PerfilWeb & { error?: string };
   if (!res.ok) throw new Error(datos.error ?? `Error ${res.status}`);
@@ -358,3 +377,6 @@ export async function leerBacktest(): Promise<Backtest> {
   if (!res.ok) throw new Error(`Error ${res.status} al leer el backtest`);
   return (await res.json()) as Backtest;
 }
+
+// --- Contadores del menú lateral (GET /api/contadores, público) ---
+export const leerContadores = () => pedir<{ estaSemana: number; empresas: number }>('/api/contadores');
