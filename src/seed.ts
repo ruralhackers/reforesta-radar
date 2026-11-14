@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 import { guardarSemilla, leerPerfil } from './db/repo.ts';
+import { migrarAmbito } from './perfil.ts';
 import type { Semilla } from './types.ts';
 
 export function leerSemilla(ruta: string): Semilla {
@@ -12,9 +13,15 @@ export function leerSemilla(ruta: string): Semilla {
   return s;
 }
 
-/** Si la BD no tiene perfil, carga la semilla. Devuelve true si la cargó. Nunca pisa un perfil existente. */
+/**
+ * Si la BD no tiene perfil, carga la semilla. Devuelve true si la cargó. Nunca pisa un perfil existente, salvo para añadirle campos nuevos
+ * que le falten con los valores de la semilla (hoy, el ámbito de actuación: ver `migrarAmbito`).
+ */
 export function sembrarSiVacia(db: DatabaseSync, rutaSemilla: string, ahora: Date): boolean {
-  if (leerPerfil(db)) return false;
+  if (leerPerfil(db)) {
+    migrarAmbito(db, leerSemilla(rutaSemilla).perfil, ahora);
+    return false;
+  }
   guardarSemilla(db, leerSemilla(rutaSemilla), ahora);
   return true;
 }

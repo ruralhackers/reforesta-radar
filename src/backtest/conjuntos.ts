@@ -87,7 +87,7 @@ export interface EvaluacionB {
  * Reglas objetivas, en este orden (la primera que falla excluye):
  *  1. Registrada en BDNS desde 2022 (las concesiones solo existen desde 2022).
  *  2. Concurrencia: ni nominativa ni concesión directa (por `tipoConvocatoria` o por el título).
- *  3. Ámbito del perfil (nivel estatal, Comunidad de Madrid o región del perfil), sin la excepción de otras comunidades.
+ *  3. Ámbito del perfil (nivel estatal, comunidad entera del ámbito o región del perfil).
  *  4. Finalidad ambiental: una palabra de PALABRAS_AMBIENTALES en título, órgano o finalidad.
  *  5. Admite ESFL: la ganó una parecida (una entidad sin ánimo de lucro) y el título no la limita a empresas, autónomos o administraciones.
  * No usa el LLM ni el radar: lo que el radar vea después es lo que se mide.
@@ -100,7 +100,7 @@ export function evaluarCandidataB(d: DetalleBdns, perfil: Perfil, ganadoras: str
   const n1 = normalizar(d.organo.nivel1);
   const codigos = (d.regiones ?? []).map((r) => r.descripcion.split(' - ')[0].trim());
   const nivel = perfil.ambito.nivelesSiempre.find((n) => normalizar(n) === n1);
-  const comunidad = n1 === 'AUTONOMICA' && d.organo.nivel2 ? perfil.ambito.comunidades.find((x) => normalizar(x) === normalizar(d.organo.nivel2!)) : undefined;
+  const comunidad = n1 === 'AUTONOMICA' && d.organo.nivel2 ? perfil.ambito.territorios.find((t) => t.provincias.length === 0 && normalizar(t.comunidad) === normalizar(d.organo.nivel2!))?.comunidad : undefined; // solo comunidades enteras; las parciales, por región
   const region = codigos.find((r) => perfil.ambito.regiones.includes(r));
   const ambito = nivel ? `nivel ${nivel}` : comunidad ? `Comunidad: ${comunidad}` : region ? `región ${region}` : null;
   if (!ambito) return excluida(`Fuera del ámbito del perfil: ${organoTexto(d.organo)}`);

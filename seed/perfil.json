@@ -18,11 +18,15 @@
       }
     ],
     "ambito": {
-      "descripcion": "Estatal + UE + Comunidad de Madrid + ayuntamientos de Madrid; de otras comunidades solo las que no exigen sede allí.",
+      "descripcion": "Proyectos ejecutados en la Comunidad de Madrid y sus provincias limítrofes (Segovia, Ávila, Guadalajara, Toledo y Cuenca). Estatales y de la UE valen siempre: el proyecto puede hacerse en Madrid.",
       "nivelesSiempre": ["ESTADO"],
-      "comunidades": ["COMUNIDAD DE MADRID"],
-      "regiones": ["ES3", "ES30", "ES300"],
-      "otrasComunidadesSiNoExigenSede": true
+      "territorios": [
+        { "comunidad": "Comunidad de Madrid", "provincias": [] },
+        { "comunidad": "Castilla y León", "provincias": ["Segovia", "Ávila"] },
+        { "comunidad": "Castilla-La Mancha", "provincias": ["Guadalajara", "Toledo", "Cuenca"] }
+      ],
+      "comunidades": ["Comunidad de Madrid"],
+      "regiones": ["ES3", "ES30", "ES300", "ES411", "ES416", "ES423", "ES424", "ES425"]
     },
     "importeMinimo": 3000,
     "finalidadesExcluidas": [

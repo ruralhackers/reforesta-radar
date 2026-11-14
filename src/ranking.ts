@@ -7,12 +7,13 @@
 //   · "nuevas": vistas por primera vez en los últimos `nuevasDias` días (hoy incluido) y que no cierran pronto.
 //   · Una convocatoria sale en UNA sección: cierran pronto > nuevas > abiertas (lo urgente manda; sin duplicados).
 //   · Dentro de cada sección, por puntuación descendente; empate: cierre más próximo, publicación más reciente, id.
+//   · Las de programas de consorcio (Horizon Europe; `puntuacion.consorcio`) van a su propia sección `consorcio`, al final, por puntuación: no compiten con el resto.
 //   · Aparte, `seccionParecidas` saca una lista paralela con las que ganan organizaciones parecidas (puede repetir convocatorias de las anteriores).
 //   · Una candidata sin puntuación guardada (aún no hubo pasada) va al final de su sección.
 import { diaLocal, sumarDias } from './dates.ts';
 import type { FilaRanking } from './db/repo.ts';
 
-export type Seccion = 'cierran_pronto' | 'nuevas' | 'abiertas';
+export type Seccion = 'cierran_pronto' | 'nuevas' | 'abiertas' | 'consorcio';
 
 export interface ParametrosRanking {
   nuevasDias: number;
@@ -26,11 +27,12 @@ export function construirRanking<F extends FilaRanking>(filas: F[], hoy: string,
     const dias = f.plazo?.diasHastaCierre ?? null;
     if (dias !== null && dias < 0) continue;
     if (f.puntuacion?.excluida) continue;
-    if (dias !== null && dias <= p.cierranProntoDias) resultado.push({ ...f, seccion: 'cierran_pronto' });
+    if (f.puntuacion?.consorcio) resultado.push({ ...f, seccion: 'consorcio' });
+    else if (dias !== null && dias <= p.cierranProntoDias) resultado.push({ ...f, seccion: 'cierran_pronto' });
     else if (diaLocal(new Date(f.primeraVez)) >= desdeNuevas) resultado.push({ ...f, seccion: 'nuevas' });
     else resultado.push({ ...f, seccion: 'abiertas' });
   }
-  const orden: Record<Seccion, number> = { cierran_pronto: 0, nuevas: 1, abiertas: 2 };
+  const orden: Record<Seccion, number> = { cierran_pronto: 0, nuevas: 1, abiertas: 2, consorcio: 3 };
   return resultado.sort((a, b) => orden[a.seccion] - orden[b.seccion] || porPuntuacion(a, b));
 }
 
@@ -46,6 +48,6 @@ const porPuntuacion = (a: FilaRanking, b: FilaRanking) =>
  * entre sus ganadores previos) y las ordena por puntuación. Una convocatoria puede salir aquí y además en su sección principal:
  * "cierran pronto" no debe perder una urgente por ser también de parecidas, y el equipo ve de un vistazo qué ganan las suyas.
  */
-export function seccionParecidas<F extends FilaRanking & { parecidas: unknown | null }>(ranking: F[]): F[] {
-  return ranking.filter((f) => f.parecidas !== null).sort(porPuntuacion);
+export function seccionParecidas<F extends FilaRanking & { parecidas: unknown | null; seccion?: Seccion }>(ranking: F[]): F[] {
+  return ranking.filter((f) => f.parecidas !== null && f.seccion !== 'consorcio').sort(porPuntuacion);
 }

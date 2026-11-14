@@ -46,8 +46,8 @@ export interface ConvocatoriaSemana {
   fechaPublicacion: string;
   url: string;
   plazo: Plazo | null;
-  /** Sale en una sola: cierran_pronto > nuevas > abiertas. */
-  seccion: 'cierran_pronto' | 'nuevas' | 'abiertas';
+  /** Sale en una sola: cierran_pronto > nuevas > abiertas; 'consorcio' = programa UE de consorcio (Horizon), sección aparte. */
+  seccion: 'cierran_pronto' | 'nuevas' | 'abiertas' | 'consorcio';
   /** null = todavía no hubo ninguna pasada tras guardarla. */
   puntuacion: Puntuacion | null;
   /** null = ninguna parecida activa tiene que ver con ella. */
@@ -208,7 +208,7 @@ export interface PerfilWeb {
   nif: string;
   bdnsIdPersona: number | null;
   lineas: { nombre: string; descripcion: string }[];
-  ambito: { descripcion: string; nivelesSiempre: string[]; comunidades: string[]; regiones: string[]; otrasComunidadesSiNoExigenSede?: boolean };
+  ambito: { descripcion: string; nivelesSiempre: string[]; territorios: { comunidad: string; provincias: string[] }[]; comunidades: string[]; regiones: string[] };
   importeMinimo: number | null;
 }
 

@@ -37,6 +37,11 @@
     "suelo": 0.2,
     "valorDesconocido": 0.5
   },
+  "consorcio": {
+    "_": "Convocatorias de la UE cuyo identificador empieza por uno de estos prefijos (Horizon Europe: HORIZON-...) son grandes consorcios de investigación: una ONG de 6-7 personas solo puede ir de socia. Salen del ranking principal a la sección 'UE · como socio de consorcio' (y del correo), y su factor de esfuerzo se multiplica por esfuerzoMultiplicador (0-1). LIFE y el resto de programas siguen en el ranking principal.",
+    "prefijosPrograma": ["HORIZON"],
+    "esfuerzoMultiplicador": 0.4
+  },
   "probabilidad": {
     "_": "Sin datos de ganadoras parecidas ni historial propio vale esto. Otro proveedor (Task 5) puede dar un valor con su explicación.",
     "valorDesconocido": 0.5

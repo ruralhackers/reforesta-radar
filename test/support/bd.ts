@@ -23,3 +23,15 @@ export function relojFijo(inicio: Date) {
   let t = inicio.getTime();
   return { now: () => new Date(t), adelantar: (ms: number) => { t += ms; } };
 }
+
+/**
+ * BD sembrada con Extremadura como territorio PARCIAL (solo Cáceres): su convocatoria 923229 no se descarta por regla y queda condicionada
+ * a la criba LLM ("¿admite proyectos en Cáceres?"), como una Castilla y León sin provincias declaradas con el perfil real.
+ */
+export function bdSembradaConExtremaduraParcial(): DatabaseSync {
+  const db = bdSembrada();
+  const p = JSON.parse((db.prepare('SELECT datos FROM perfil WHERE id = 1').get() as { datos: string }).datos);
+  p.ambito.territorios.push({ comunidad: 'Extremadura', provincias: ['Cáceres'] });
+  db.prepare('UPDATE perfil SET datos = ? WHERE id = 1').run(JSON.stringify(p));
+  return db;
+}

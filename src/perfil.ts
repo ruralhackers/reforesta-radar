@@ -3,8 +3,7 @@
 // Reglas del motor (`rules.ts`) y puntuación (importe mínimo) leen el perfil guardado en cada ejecución, así que un cambio
 // les llega solo. Los veredictos del LLM se guardan en `convocatoria_fases` y la fase no repite lo que ya tiene veredicto;
 // para que un cambio de perfil cuente se estampa en cada veredicto la versión del perfil con la que se hizo:
-//  - criba (Haiku): versión = hash de lo que ve el prompt (nombre, líneas, descripción del ámbito) + las regiones, niveles,
-//    comunidades y la bandera de otras comunidades.
+//  - criba (Haiku): versión = hash de lo que ve el prompt (nombre, líneas, descripción del ámbito, territorios) + las regiones y niveles.
 //  - análisis (Sonnet): versión = hash de las líneas de trabajo. Si no cambian, los análisis se conservan (son caros).
 //  Las líneas entran como conjunto ordenado: reordenarlas no cambia ninguna versión (no repite análisis).
 //  Un veredicto con otra versión NO se borra: se marca obsoleto (`datos.obsoleta = true`) y conserva su efecto (si descartaba, sigue
@@ -15,7 +14,7 @@
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { transaccion } from './db/repo.ts';
-import type { Perfil } from './types.ts';
+import type { Perfil, TerritorioAmbito } from './types.ts';
 
 export const NIVELES_ADMINISTRACION = ['ESTADO', 'AUTONOMICA', 'LOCAL', 'OTROS'] as const;
 const NUTS = /^ES\d{0,3}$/;
@@ -36,6 +35,19 @@ function lista(v: unknown, campo: string, valida?: (s: string) => boolean, mensa
     const s = x.trim();
     if (valida && !valida(s)) throw new ErrorPerfil(mensaje ?? `"${campo}": valor no válido: ${s}`);
     if (!salida.includes(s)) salida.push(s);
+  }
+  return salida;
+}
+
+function validarTerritorios(v: unknown): TerritorioAmbito[] {
+  if (!Array.isArray(v) || v.length === 0) throw new ErrorPerfil('Indica al menos un territorio donde se pueden ejecutar los proyectos');
+  const salida: TerritorioAmbito[] = [];
+  for (const t of v) {
+    const x = (t ?? {}) as Record<string, unknown>;
+    const comunidad = typeof x.comunidad === 'string' ? x.comunidad.trim() : '';
+    if (!comunidad) throw new ErrorPerfil('Cada territorio necesita una comunidad autónoma');
+    if (salida.some((y) => y.comunidad.toLowerCase() === comunidad.toLowerCase())) throw new ErrorPerfil(`El territorio "${comunidad}" está repetido`);
+    salida.push({ comunidad, provincias: lista(x.provincias ?? [], `provincias de ${comunidad}`) });
   }
   return salida;
 }
@@ -63,9 +75,8 @@ export function validarPerfilEditable(cuerpo: unknown): PerfilEditable {
   if (!descripcion) throw new ErrorPerfil('Describe el ámbito geográfico con una frase');
   const nivelesSiempre = lista(a.nivelesSiempre, 'niveles siempre admitidos', (s) => (NIVELES_ADMINISTRACION as readonly string[]).includes(s.toUpperCase()),
     `Los niveles admitidos son: ${NIVELES_ADMINISTRACION.join(', ')}`).map((s) => s.toUpperCase());
-  const comunidades = lista(a.comunidades, 'comunidades');
+  const territorios = validarTerritorios(a.territorios);
   const regiones = lista(a.regiones, 'regiones', (s) => NUTS.test(s.toUpperCase()), 'Las regiones son códigos NUTS como ES30 (Comunidad de Madrid)').map((s) => s.toUpperCase());
-  if (typeof a.otrasComunidadesSiNoExigenSede !== 'boolean') throw new ErrorPerfil('Indica si se aceptan otras comunidades que no exijan sede (sí/no)');
 
   let importeMinimo: number | null = null;
   if (o.importeMinimo !== null && o.importeMinimo !== undefined && o.importeMinimo !== '') {
@@ -73,7 +84,7 @@ export function validarPerfilEditable(cuerpo: unknown): PerfilEditable {
     if (o.importeMinimo < 0) throw new ErrorPerfil('El importe mínimo no puede ser negativo');
     importeMinimo = Math.round(o.importeMinimo);
   }
-  return { lineas, ambito: { descripcion, nivelesSiempre, comunidades, regiones, otrasComunidadesSiNoExigenSede: a.otrasComunidadesSiNoExigenSede }, importeMinimo };
+  return { lineas, ambito: { descripcion, nivelesSiempre, territorios, comunidades: territorios.filter((t) => t.provincias.length === 0).map((t) => t.comunidad), regiones }, importeMinimo };
 }
 
 const hash = (x: unknown) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
@@ -81,10 +92,13 @@ const hash = (x: unknown) => createHash('sha256').update(JSON.stringify(x)).dige
 /** Líneas como conjunto: ordenadas por nombre, para que el orden en el que se escriben no cuente. */
 const lineasOrdenadas = (p: Perfil) => p.lineas.map((l) => [l.nombre, l.descripcion]).sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]));
 
+/** Territorios como conjunto: el orden de comunidades y provincias no cuenta. */
+const territoriosOrdenados = (p: Perfil) => (p.ambito.territorios ?? []).map((t) => [t.comunidad, [...t.provincias].sort()] as const).sort((x, y) => x[0].localeCompare(y[0]));
+
 /** Versión del perfil para la criba: todo lo que cambia el prompt o las condiciones de ámbito. */
 export function versionCriba(p: Perfil): string {
   const a = p.ambito;
-  return hash([p.nombre, lineasOrdenadas(p), a.descripcion, [...a.nivelesSiempre].sort(), [...a.comunidades].sort(), [...a.regiones].sort(), a.otrasComunidadesSiNoExigenSede === true]);
+  return hash([p.nombre, lineasOrdenadas(p), a.descripcion, [...a.nivelesSiempre].sort(), territoriosOrdenados(p), [...a.regiones].sort()]);
 }
 
 /** Versión del perfil para el análisis: solo las líneas de trabajo (prompt y enumerado del esquema). */
@@ -97,7 +111,7 @@ function versionesAnteriores(p: Perfil): { criba: string; lineas: string } {
   const a = p.ambito;
   const lineas = p.lineas.map((l) => [l.nombre, l.descripcion]);
   return {
-    criba: hash([p.nombre, lineas, a.descripcion, [...a.nivelesSiempre].sort(), [...a.comunidades].sort(), [...a.regiones].sort(), a.otrasComunidadesSiNoExigenSede === true]),
+    criba: hash([p.nombre, lineas, a.descripcion, [...a.nivelesSiempre].sort(), territoriosOrdenados(p), [...a.regiones].sort()]),
     lineas: hash([p.nombre, lineas]),
   };
 }
@@ -145,4 +159,26 @@ export function reconsiderarVeredictos(db: DatabaseSync, perfil: Perfil): Recons
     }
   });
   return r;
+}
+
+/**
+ * Migra un perfil guardado antes del ámbito de actuación: si no tiene `territorios`, los toma de la semilla (con sus regiones, sumadas a las que había,
+ * y su descripción), deriva las comunidades y quita la bandera antigua "otras comunidades si no exigen sede". Un perfil que ya los tiene no se toca.
+ * Devuelve true si migró. El cambio de versión de la criba marca como obsoletos los veredictos anteriores (ver `reconsiderarVeredictos`).
+ */
+export function migrarAmbito(db: DatabaseSync, semilla: Perfil, ahora: Date): boolean {
+  const fila = db.prepare('SELECT datos FROM perfil WHERE id = 1').get() as { datos: string } | undefined;
+  if (!fila) return false;
+  const p = JSON.parse(fila.datos) as Perfil;
+  if (Array.isArray(p.ambito?.territorios)) return false;
+  const { otrasComunidadesSiNoExigenSede: _o, ...resto } = p.ambito as Perfil['ambito'] & { otrasComunidadesSiNoExigenSede?: boolean };
+  const nuevo: Perfil = {
+    ...p,
+    ambito: {
+      ...resto, descripcion: semilla.ambito.descripcion, territorios: semilla.ambito.territorios,
+      comunidades: semilla.ambito.comunidades, regiones: [...new Set([...(p.ambito?.regiones ?? []), ...semilla.ambito.regiones])],
+    },
+  };
+  db.prepare('UPDATE perfil SET datos = ?, actualizado_en = ? WHERE id = 1').run(JSON.stringify(nuevo), ahora.toISOString());
+  return true;
 }

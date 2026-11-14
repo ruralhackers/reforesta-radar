@@ -10,7 +10,7 @@ import type { Llm, PeticionLlm } from '../src/llm/llm.ts';
 import { leerSemilla } from '../src/seed.ts';
 import { bdns } from '../src/sources/bdns.ts';
 import type { Fuente } from '../src/sources/source.ts';
-import { bdSembrada, RUTA_SEMILLA, relojFijo } from './support/bd.ts';
+import { bdSembradaConExtremaduraParcial as bdSembrada, RUTA_SEMILLA, relojFijo } from './support/bd.ts';
 import { ESCENARIOS, fetchGrabado } from './support/grabaciones.ts';
 
 const perfil = leerSemilla(RUTA_SEMILLA).perfil;
@@ -21,7 +21,7 @@ const COSTE_ANALISIS = (1000 * 2 + 100 * 10) / 1e6;
 
 const idDe = (p: PeticionLlm) => /Convocatoria (bdns:\d+)/.exec(p.mensaje)?.[1] ?? '';
 
-/** Criba falsa: pasan las de `pasan`; 923229 (Extremadura) "puede encajar" pero exige sede allí; el resto se descarta. */
+/** Criba falsa: pasan las de `pasan`; 923229 (Extremadura, parcial en el perfil de prueba) "puede encajar" pero limita los proyectos a otras provincias; el resto se descarta. */
 function cribaFalsa(p: PeticionLlm, pasan: string[]) {
   const id = idDe(p);
   if (id === 'bdns:923229') return { decision: 'puede_encajar', motivo: 'Proyectos ambientales', exigeSedeEnOtraComunidad: 'si' };
@@ -169,8 +169,8 @@ describe('criba LLM y análisis con citas (LLM falso)', () => {
     assert.equal(criba923289?.descarta, true);
     assert.equal(criba923289?.motivo, 'No encaja (bdns:923289)');
     const sede = fase(db, 'bdns:923229', 'criba_llm');
-    assert.equal(sede?.descarta, true, 'exige sede en Extremadura');
-    assert.match(sede!.motivo!, /^Exige sede o actividad en otra comunidad/);
+    assert.equal(sede?.descarta, true, 'limita el proyecto a otras provincias de Extremadura');
+    assert.match(sede!.motivo!, /^Limita el proyecto a territorios fuera del ámbito/);
 
     const descartesCriba = descartesEntre(db, '2026-08-03', '2026-08-04', 'criba_llm');
     assert.ok(descartesCriba.length > 0);

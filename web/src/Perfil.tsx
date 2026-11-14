@@ -4,6 +4,12 @@ import { guardarPerfil, leerPerfil, type PerfilWeb } from './api.ts';
 
 const NIVELES = ['ESTADO', 'AUTONOMICA', 'LOCAL', 'OTROS'];
 const aLista = (t: string) => t.split(/[\n,]/).map((x) => x.trim()).filter(Boolean);
+/** Un territorio por línea: "Comunidad: provincia, provincia" (sin provincias = toda la comunidad). */
+const aTerritorios = (t: string) => t.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+  const [comunidad, resto = ''] = l.split(':');
+  return { comunidad: comunidad.trim(), provincias: aLista(resto) };
+});
+const deTerritorios = (ts: { comunidad: string; provincias: string[] }[]) => ts.map((t) => (t.provincias.length ? `${t.comunidad}: ${t.provincias.join(', ')}` : t.comunidad)).join('\n');
 const entrada = 'w-full rounded border border-stone-300 px-3 py-2 text-sm';
 
 /** Perfil de la organización: lo que leen las reglas, la criba, el análisis y la puntuación en la siguiente ejecución. */
@@ -13,9 +19,8 @@ export function Perfil() {
   const [lineas, setLineas] = useState<{ nombre: string; descripcion: string }[]>([]);
   const [descripcion, setDescripcion] = useState('');
   const [niveles, setNiveles] = useState<string[]>([]);
-  const [comunidades, setComunidades] = useState('');
+  const [territorios, setTerritorios] = useState('');
   const [regiones, setRegiones] = useState('');
-  const [otras, setOtras] = useState(false);
   const [importe, setImporte] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
@@ -23,8 +28,8 @@ export function Perfil() {
 
   const cargar = (p: PerfilWeb) => {
     setPerfil(p); setLineas(p.lineas); setDescripcion(p.ambito.descripcion); setNiveles(p.ambito.nivelesSiempre);
-    setComunidades(p.ambito.comunidades.join('\n')); setRegiones(p.ambito.regiones.join(', '));
-    setOtras(p.ambito.otrasComunidadesSiNoExigenSede === true); setImporte(p.importeMinimo === null ? '' : String(p.importeMinimo));
+    setTerritorios(deTerritorios(p.ambito.territorios)); setRegiones(p.ambito.regiones.join(', '));
+    setImporte(p.importeMinimo === null ? '' : String(p.importeMinimo));
   };
   useEffect(() => { leerPerfil().then(cargar, (e: Error) => setError(e.message)); }, []);
 
@@ -38,7 +43,7 @@ export function Perfil() {
       if (n !== null && Number.isNaN(n)) throw new Error('El importe mínimo debe ser un número');
       cargar(await guardarPerfil({
         lineas,
-        ambito: { descripcion, nivelesSiempre: niveles, comunidades: aLista(comunidades), regiones: aLista(regiones), otrasComunidadesSiNoExigenSede: otras },
+        ambito: { descripcion, nivelesSiempre: niveles, territorios: aTerritorios(territorios), comunidades: [], regiones: aLista(regiones) },
         importeMinimo: n,
       }));
       setOk(true);
@@ -99,15 +104,12 @@ export function Perfil() {
                 ))}
               </div>
             </fieldset>
-            <label className="block text-sm">Comunidades autónomas admitidas (una por línea)
-              <textarea value={comunidades} onChange={(e) => setComunidades(e.target.value)} rows={2} className={`mt-1 ${entrada}`} />
+            <label className="block text-sm">Ámbito de actuación: territorios donde se pueden ejecutar los proyectos (uno por línea; «Comunidad: provincia, provincia», o solo la comunidad si vale entera)
+              <textarea value={territorios} onChange={(e) => setTerritorios(e.target.value)} rows={4} className={`mt-1 ${entrada}`} />
             </label>
-            <label className="block text-sm">Regiones NUTS admitidas, para ayuntamientos y otros órganos locales (p. ej. ES30, ES300)
+            <p className="text-xs text-stone-500">Lo que importa es dónde se hace el proyecto, no la sede. Estatales y europeas valen siempre; las autonómicas, solo de estas comunidades (si solo valen algunas provincias, la criba comprueba que la convocatoria las admita); las locales, solo de diputaciones de estas provincias o de las regiones NUTS de abajo.</p>
+            <label className="block text-sm">Regiones NUTS admitidas, para ayuntamientos y otros órganos locales (p. ej. ES30 Madrid, ES416 Segovia, ES411 Ávila, ES424 Guadalajara, ES425 Toledo, ES423 Cuenca)
               <input value={regiones} onChange={(e) => setRegiones(e.target.value)} className={`mt-1 ${entrada}`} />
-            </label>
-            <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" checked={otras} onChange={(e) => setOtras(e.target.checked)} className="mt-1" />
-              <span>Aceptar convocatorias de otras comunidades si no exigen sede ni actividad allí (las revisa la criba)</span>
             </label>
           </section>
 

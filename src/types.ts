@@ -1,5 +1,12 @@
 // Tipos de dominio compartidos por motor, fuentes, reglas, BD y API.
 
+export interface TerritorioAmbito {
+  /** Comunidad autónoma (nivel2 de BDNS, sin importar mayúsculas ni tildes). */
+  comunidad: string;
+  /** Provincias admitidas; vacía = toda la comunidad. */
+  provincias: string[];
+}
+
 /** Perfil de la organización a la que sirve el radar. Viene de la semilla y vive en la BD. */
 export interface Perfil {
   nombre: string;
@@ -11,15 +18,17 @@ export interface Perfil {
     descripcion: string;
     /** Niveles de administración (nivel1 de BDNS) que siempre se admiten, p. ej. "ESTADO". */
     nivelesSiempre: string[];
-    /** Comunidades autónomas cuyos órganos se admiten (nivel2 de BDNS). */
-    comunidades: string[];
-    /** Códigos NUTS de las regiones admitidas (p. ej. "ES30"): admiten órganos locales de esa región. */
-    regiones: string[];
     /**
-     * Convocatorias autonómicas de otras comunidades: true = no se descartan por regla, pasan a la criba LLM
-     * con la condición de que no exijan sede o actividad en esa comunidad; false/ausente = se descartan.
+     * Territorios donde el proyecto puede ejecutarse (lo que importa es DÓNDE SE HACE, no dónde está la sede): por comunidad autónoma, con la
+     * lista de sus provincias admitidas (vacía = toda la comunidad). Estatales y de la UE siempre valen; autonómicas solo de estas comunidades
+     * (y, si la comunidad solo está en parte, la criba LLM comprueba que admitan las provincias); locales solo de diputaciones de estas provincias
+     * o de órganos con alguna de las `regiones`.
      */
-    otrasComunidadesSiNoExigenSede?: boolean;
+    territorios: TerritorioAmbito[];
+    /** Comunidades enteras de `territorios`, sin provincias (derivado; la huella de empresas toma de aquí su zona). */
+    comunidades: string[];
+    /** Códigos NUTS admitidos (p. ej. "ES30", "ES416"): admiten órganos locales de esas zonas y sirven a la fuente BDNS para pedirlas. */
+    regiones: string[];
   };
   /** Importe mínimo que merece el esfuerzo, en euros (null = sin mínimo). */
   importeMinimo: number | null;

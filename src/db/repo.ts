@@ -157,6 +157,31 @@ function filaAConvocatoria(f: Record<string, unknown>): Convocatoria {
   };
 }
 
+/**
+ * Vuelve a aplicar las reglas deterministas a todo lo guardado con el perfil actual (descarte por regla y condición de ámbito): un cambio de
+ * ámbito debe alcanzar también a lo que la fuente ya no devuelve. Devuelve cuántas cambian de descarte o de condición.
+ */
+export function reaplicarReglas(
+  db: DatabaseSync, perfil: Perfil, regla: (c: Convocatoria, p: Perfil) => { regla: string; motivo: string } | null, condicion: (c: Convocatoria, p: Perfil) => string | null,
+): number {
+  let cambian = 0;
+  transaccion(db, () => {
+    const filas = db.prepare('SELECT * FROM convocatorias').all() as Record<string, unknown>[];
+    const actualizar = db.prepare('UPDATE convocatorias SET descarte_regla = ?, descarte_motivo = ?, condicion = ? WHERE id = ?');
+    for (const f of filas) {
+      if (f.descarte_regla === 'tema') continue; // lo descarta la fuente (eu_ft), no estas reglas
+      const c = filaAConvocatoria(f);
+      const d = regla(c, perfil);
+      const cond = d ? null : condicion(c, perfil);
+      if ((d?.regla ?? null) !== (f.descarte_regla ?? null) || (cond ?? null) !== (f.condicion ?? null)) {
+        actualizar.run(d?.regla ?? null, d?.motivo ?? null, cond, c.id);
+        cambian++;
+      }
+    }
+  });
+  return cambian;
+}
+
 export function leerConvocatoria(db: DatabaseSync, id: string): ConvocatoriaGuardada | null {
   const f = db.prepare('SELECT * FROM convocatorias WHERE id = ?').get(id) as Record<string, unknown> | undefined;
   if (!f) return null;

@@ -222,7 +222,15 @@ Todo lo específico de Reforesta está en `seed/`, no en el código:
   Al cambiar líneas o ámbito, los veredictos de criba y análisis hechos con el perfil anterior se marcan como obsoletos (no se borran): la
   siguiente pasada rehace solo los de los últimos `RADAR_DIAS_PENDIENTES` días; los más antiguos conservan el veredicto que tenían. El orden
   de las líneas no cuenta.
-- `seed/puntuacion.json`: pesos y umbrales de la puntuación (el campo `_` lo documenta).
+  **Ámbito de actuación** (`ambito.territorios`): dónde se pueden *ejecutar* los proyectos (lo que importa no es la sede). Por comunidad
+  autónoma y con sus provincias admitidas (vacía = toda la comunidad); por defecto Madrid y las provincias limítrofes (Segovia, Ávila, Guadalajara,
+  Toledo, Cuenca). Reglas (`src/rules.ts`): estatales (`nivelesSiempre`) y de la UE valen siempre; autonómicas, solo de comunidades con algún
+  territorio (si la comunidad solo vale en parte, p. ej. Castilla y León, se descarta si declara solo otras provincias —códigos NUTS3— y si no
+  declara ninguna pasa **condicionada**: la criba Haiku comprueba que admita las provincias del ámbito); locales, solo de diputaciones de esas
+  provincias o con alguna de las `regiones` NUTS (las provincias y Madrid, que BDNS filtra por código). El prompt dice «El proyecto debe ejecutarse
+  en: …» con esa lista, que se edita en la página Perfil. Los perfiles guardados antes (sin `territorios`) los reciben de la semilla al arrancar,
+  y las reglas se reaplican a todo lo guardado en cada pasada, así que un cambio de ámbito alcanza también a lo que las fuentes ya no devuelven.
+- `seed/puntuacion.json`: pesos y umbrales de la puntuación (el campo `_` lo documenta), y `consorcio` (ver «Puntuación y ranking»).
 - `seed/festivos.json`: festivos nacionales y autonómicos para contar días hábiles (añade el año o la región que falte).
 - `seed/backtest.json`: se regenera con `npm run backtest`. Las convocatorias conocidas del conjunto (a) están en `src/backtest/conjuntos.ts`:
   sustitúyelas por las vuestras.
@@ -324,6 +332,14 @@ lo más probable es que ya esté cerrada. Las convocatorias de fundación que de
 nunca se pierde una que encaja. Las cerradas y las excluidas no salen. La API calcula la puntuación en el momento de la petición con el
 reloj de ese momento (función pura y barata): total, explicación del cierre y secciones son siempre coherentes; lo guardado en
 `puntuaciones` por cada pasada es solo registro (y se borra para las que dejan de estar en juego).
+
+**Sección «UE · como socio de consorcio».** Los topics de Horizon Europe (identificador `HORIZON-…`) son grandes consorcios de investigación: sus
+presupuestos los subirían a lo más alto, pero para una ONG de 6–7 personas solo es realista ir como socia. Las convocatorias de la UE cuyo
+identificador empieza por uno de `consorcio.prefijosPrograma` (`["HORIZON"]` en `seed/puntuacion.json`: es dato, no código) salen del ranking
+principal a una sección aparte (`seccion: "consorcio"` en `/api/semana`; en la web, plegada por defecto, ordenada por puntuación), y su factor de
+esfuerzo se multiplica por `consorcio.esfuerzoMultiplicador` (0,4), con una línea que lo explica. LIFE y los demás programas siguen en el ranking
+principal. El correo del lunes no las destaca: solo añade, como mucho, una línea «N convocatorias europeas para ir como socio de un consorcio» con
+enlace a la sección.
 
 ### Ganadores previos y organizaciones parecidas
 

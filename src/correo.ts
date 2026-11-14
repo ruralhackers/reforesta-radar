@@ -98,13 +98,17 @@ export interface ResumenCorreo {
 }
 
 export function componerCorreo(
-  p: { hoy: string; lunes: string; total: number; cierranPronto: number; secciones: SeccionCorreo[]; urlPublica: string },
+  p: { hoy: string; lunes: string; total: number; cierranPronto: number; secciones: SeccionCorreo[]; urlPublica: string; consorcio?: number },
 ): ResumenCorreo {
   const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
   const asunto = `Radar Reforesta · semana del ${fechaCorta(p.lunes)}: ${plural(p.total, 'convocatoria', 'convocatorias')}`
     + (p.cierranPronto ? `, ${p.cierranPronto} ${p.cierranPronto === 1 ? 'cierra pronto' : 'cierran pronto'}` : '');
   const web = p.urlPublica.replace(/\/+$/, '');
   const secciones = p.secciones.filter((s) => s.items.length);
+  // Una sola línea (no una sección): convocatorias europeas de consorcio (Horizon), solo como socia; el detalle está en la web.
+  const nConsorcio = p.consorcio ?? 0;
+  const lineaConsorcio = nConsorcio > 0 ? `${nConsorcio} ${nConsorcio === 1 ? 'convocatoria europea' : 'convocatorias europeas'} para ir como socio de un consorcio` : null;
+  const enlaceConsorcio = `${web}/#consorcio`;
 
   const texto = [
     `Radar Reforesta · semana del ${fechaCorta(p.lunes)}`,
@@ -113,6 +117,7 @@ export function componerCorreo(
       s.titulo.toUpperCase(), ...(s.intro ? [s.intro] : []), '',
       ...s.items.flatMap((i) => [`* ${i.titulo}`, ...(i.porQue ? [`  ${i.porQue}`] : []), ...i.detalles.map((d) => `  ${d}`), `  ${i.url}`, '']),
     ]),
+    ...(lineaConsorcio ? [`${lineaConsorcio}: ${enlaceConsorcio}`, ''] : []),
     `Todo en la web: ${web}`,
     'No respondas a este correo: nadie lo lee.',
   ].join('\n');
@@ -131,7 +136,8 @@ export function componerCorreo(
 <body style="margin:0;padding:0;background:#f5f5f4;">
 <div style="max-width:560px;margin:0 auto;padding:16px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.45;color:#111;background:#ffffff;">
 <h1 style="font-size:20px;margin:0;">Radar Reforesta</h1>
-<p style="margin:4px 0 0;font-size:14px;color:#555;">Semana del ${e(fechaCorta(p.lunes))}</p>${secciones.map(bloque).join('')}
+<p style="margin:4px 0 0;font-size:14px;color:#555;">Semana del ${e(fechaCorta(p.lunes))}</p>${secciones.map(bloque).join('')}${lineaConsorcio ? `
+<p style="margin:20px 0 0;font-size:14px;color:#555;"><a href="${e(enlaceConsorcio)}" style="color:#166534;">${e(lineaConsorcio)}</a></p>` : ''}
 <hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0 12px;">
 <p style="margin:0;font-size:13px;color:#555;">Todo está en la web: <a href="${e(web)}" style="color:#166534;">${e(web)}</a></p>
 <p style="margin:4px 0 0;font-size:13px;color:#777;">No respondas a este correo: nadie lo lee.</p>

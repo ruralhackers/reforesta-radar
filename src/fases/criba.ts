@@ -56,7 +56,7 @@ export async function cribarConLlm(
       aCache(ctx, clave, r);
       const porSede = condicion !== null && v.exigeSedeEnOtraComunidad === 'si';
       const descarta = v.decision === 'descartar' || porSede;
-      const motivo = porSede && v.decision !== 'descartar' ? `Exige sede o actividad en otra comunidad: ${v.motivo}` : v.motivo;
+      const motivo = porSede && v.decision !== 'descartar' ? `Limita el proyecto a territorios fuera del ámbito: ${v.motivo}` : v.motivo;
       guardarFase(ctx.db, {
         convocatoriaId: c.id, fase: FASE_CRIBA, descarta, motivo,
         datos: { modelo: r.modelo, ...v, condicion, desdeCache: r.desdeCache, versionPerfil: versionCriba(perfil) },

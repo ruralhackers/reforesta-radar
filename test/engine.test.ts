@@ -23,7 +23,7 @@ async function ejecutar(db: DatabaseSync, escenario: keyof typeof ESCENARIOS, fe
 }
 
 describe('motor con respuestas grabadas de BDNS', () => {
-  test('agosto 2026: entra la 923290 (MITECO), se descartan nominativas, concesiones directas y ayuntamientos ajenos; otras comunidades quedan condicionadas', async () => {
+  test('agosto 2026: entra la 923290 (MITECO), se descartan nominativas, concesiones directas y ayuntamientos ajenos; otras comunidades quedan fuera', async () => {
     const db = bdSembrada();
     const r = await ejecutar(db, 'agosto2026');
 
@@ -42,10 +42,9 @@ describe('motor con respuestas grabadas de BDNS', () => {
     // Concesión directa del Estado: solo se sabe por el detalle (tipoConvocatoria)
     assert.equal(fila(db, '923424')?.descarte_regla, 'nominativa');
     assert.match(fila(db, '923424')!.descarte_motivo!, /Concesión directa/);
-    // Otra comunidad autónoma: no se descarta por regla, queda condicionada a la criba LLM (¿exige sede allí?)
-    // y, sin criba, no sale en la lista.
-    assert.equal(fila(db, '923229')?.descarte_regla, null);
-    assert.match((db.prepare("SELECT condicion FROM convocatorias WHERE id = 'bdns:923229'").get() as { condicion: string }).condicion, /EXTREMADURA.*sede/);
+    // Autonómica de otra comunidad (Extremadura, fuera del ámbito de actuación): descartada por regla.
+    assert.equal(fila(db, '923229')?.descarte_regla, 'ambito');
+    assert.match(fila(db, '923229')!.descarte_motivo!, /Extremadura/i);
     assert.ok(!candidatasEntre(db, '2026-08-03', '2026-08-04').some((c) => c.id === 'bdns:923229'));
     // Ayuntamiento fuera de Madrid
     assert.equal(fila(db, '923541')?.descarte_regla, 'ambito');

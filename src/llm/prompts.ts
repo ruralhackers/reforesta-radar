@@ -11,12 +11,19 @@ export interface TextoParaLlm {
 
 const MAX_CARACTERES_CRIBA = 12_000;
 
+/** "Comunidad de Madrid; Segovia y Ávila (Castilla y León); …": los territorios donde el proyecto puede ejecutarse, tal y como están en el perfil. */
+export function describirTerritorios(p: Perfil): string {
+  const lista = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}` : xs[0]);
+  return (p.ambito.territorios ?? []).map((t) => (t.provincias.length ? `${lista(t.provincias)} (${t.comunidad})` : t.comunidad)).join('; ');
+}
+
 export function describirPerfil(p: Perfil): string {
   return [
     `Organización: ${p.nombre} (entidad sin ánimo de lucro).`,
     'Líneas de trabajo:',
     ...p.lineas.map((l) => `- ${l.nombre}: ${l.descripcion}`),
     `Ámbito: ${p.ambito.descripcion}`,
+    `El proyecto debe ejecutarse en: ${describirTerritorios(p)}. Lo que importa es dónde se realiza el proyecto, no dónde tiene la sede la entidad.`,
   ].join('\n');
 }
 
@@ -139,9 +146,10 @@ export function promptCriba(perfil: Perfil, c: Convocatoria, condicion: string |
     '  premios o becas individuales, concursos escolares, subvenciones a entidades concretas ya decididas, temas sin relación con las líneas de trabajo.',
     '- Ante la duda, "puede_encajar": la fase siguiente lee las bases completas.',
     '- La elegibilidad se decide por el texto de la convocatoria, no por categorías administrativas.',
-    '- "exigeSedeEnOtraComunidad": solo si se te indica una condición de otra comunidad; "si" si el texto exige sede, domicilio,',
-    '  delegación o actividad en esa comunidad; "no" si consta que no; "no_consta" si el texto no lo dice; si no hay condición, "no_aplica".',
-    '  Si exige sede o actividad allí, la decisión es "descartar".',
+    '- "exigeSedeEnOtraComunidad": solo si se te indica una condición de ámbito; "si" si el texto limita los proyectos a territorios distintos de los',
+    '  admitidos (por ejemplo, restringe la convocatoria a otras provincias de la comunidad) o exige sede, domicilio o actividad fuera de ellos; "no" si',
+    '  consta que se pueden ejecutar en los territorios admitidos; "no_consta" si el texto no lo dice; si no hay condición, "no_aplica".',
+    '  Si "si", la decisión es "descartar".',
     '- El motivo, en castellano, en una frase concreta (qué dice la convocatoria que te lleva a decidir).',
     ...notaIdioma(c, false),
     ...criterioUe(c, perfil),

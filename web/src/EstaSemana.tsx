@@ -31,6 +31,39 @@ function Parecidas({ c }: { c: ConvocatoriaSemana }) {
   );
 }
 
+/** Programas de la UE (Horizon Europe) a los que solo se puede ir como socia de un consorcio: aparte y plegados, para que no tapen el resto. */
+function Consorcio({ lista }: { lista: ConvocatoriaSemana[] }) {
+  const [abierta, setAbierta] = useState(() => window.location.hash === '#consorcio');
+  if (lista.length === 0) return null;
+  return (
+    <section id="consorcio" className="mb-8">
+      <button type="button" onClick={() => setAbierta(!abierta)} aria-expanded={abierta} className="w-full text-left">
+        <h2 className="text-lg font-semibold">{abierta ? '▾' : '▸'} UE · como socio de consorcio <span className="text-sm font-normal text-stone-500">({lista.length})</span></h2>
+      </button>
+      <p className="mb-3 text-sm text-stone-600">Grandes consorcios de investigación (Horizon Europe): para una entidad pequeña solo es realista ir como socia. Su esfuerzo está penalizado en la puntuación. Por puntuación.</p>
+      {abierta && (
+        <ul className="space-y-3">
+          {lista.map((c) => (
+            <li key={c.id} className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-stone-200">
+              <div className="flex items-start justify-between gap-3">
+                <a href={rutaFicha(c.id)} className="font-semibold leading-snug text-emerald-800 hover:underline [overflow-wrap:anywhere]">{c.titulo}</a>
+                <Nota puntuacion={c.puntuacion} />
+              </div>
+              <p className="mt-1 text-sm text-stone-600">{c.organo}</p>
+              <p className="mt-2 flex flex-wrap gap-x-3 text-xs text-stone-500">
+                <span>{fecha(c.fechaPublicacion)}</span>
+                <OrigenFuente fuente={c.fuente} url={c.url} />
+                <Cierre plazo={c.plazo} />
+              </p>
+              <p className="mt-2 text-xs text-stone-600">Esfuerzo: {c.puntuacion?.factores.find((f) => f.id === 'esfuerzo')?.explicacion}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export function EstaSemana() {
   const [semana, setSemana] = useState<Semana | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +92,7 @@ export function EstaSemana() {
         <p className="mt-1 text-sm"><a href="/parecidas" className="text-emerald-800 hover:underline">Ajustar las organizaciones parecidas</a> · <a href="/fundaciones" className="text-emerald-800 hover:underline">Fundaciones</a> · <a href="/empresas" className="text-emerald-800 hover:underline">Empresas</a> · <a href="/perfil" className="text-emerald-800 hover:underline">Perfil</a> · <a href="/como-sabemos" className="text-emerald-800 hover:underline">Cómo sabemos</a>{puedeEditar && <> · <a href="/nos-interesa" className="text-emerald-800 hover:underline">Nos interesa</a></>}</p>
         {semana && (
           <p className="mt-1 text-sm text-stone-600">
-            Del {fecha(semana.desde)} al {fecha(semana.hasta)} · {semana.convocatorias.length} candidatas, abiertas, ordenadas por puntuación
+            Del {fecha(semana.desde)} al {fecha(semana.hasta)} · {semana.convocatorias.filter((c) => c.seccion !== 'consorcio').length} candidatas, abiertas, ordenadas por puntuación
           </p>
         )}
       </header>
@@ -119,6 +152,8 @@ export function EstaSemana() {
           </section>
         );
       })}
+
+      {semana && <Consorcio lista={semana.convocatorias.filter((c) => c.seccion === 'consorcio')} />}
 
       {semana?.ultimaEjecucion && (
         <footer className="mt-8 border-t border-stone-200 pt-4 text-xs text-stone-500">

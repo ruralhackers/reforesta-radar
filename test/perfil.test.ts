@@ -27,14 +27,14 @@ describe('API del perfil', () => {
   test('GET lee el perfil de la semilla y PUT lo guarda en la BD', async () => {
     const db = bdSembrada();
     const api = crearApi({ db, reloj: { now: () => AHORA } });
-    const leido = await (await api.request('/perfil')).json() as { nif: string; lineas: unknown[]; importeMinimo: number; ambito: { otrasComunidadesSiNoExigenSede: boolean } };
+    const leido = await (await api.request('/perfil')).json() as { nif: string; lineas: unknown[]; importeMinimo: number; ambito: { territorios: { comunidad: string; provincias: string[] }[] } };
     assert.equal(leido.nif, 'G80428204');
     assert.equal(leido.importeMinimo, 3000);
-    assert.equal(leido.ambito.otrasComunidadesSiNoExigenSede, true);
+    assert.deepEqual(leido.ambito.territorios.map((t) => t.comunidad), ['Comunidad de Madrid', 'Castilla y León', 'Castilla-La Mancha']);
 
     const nuevo = {
       lineas: [{ nombre: ' Agua ', descripcion: 'Charcas' }],
-      ambito: { descripcion: 'Solo Madrid', nivelesSiempre: ['estado'], comunidades: ['COMUNIDAD DE MADRID'], regiones: ['es30'], otrasComunidadesSiNoExigenSede: false },
+      ambito: { descripcion: 'Solo Madrid', nivelesSiempre: ['estado'], territorios: [{ comunidad: ' Comunidad de Madrid ', provincias: [' Segovia '] }], regiones: ['es30'] },
       importeMinimo: 10000,
     };
     const res = await put(api, nuevo);
@@ -43,7 +43,8 @@ describe('API del perfil', () => {
     assert.deepEqual(guardado.lineas, [{ nombre: 'Agua', descripcion: 'Charcas' }]);
     assert.deepEqual(guardado.ambito.nivelesSiempre, ['ESTADO']);
     assert.deepEqual(guardado.ambito.regiones, ['ES30']);
-    assert.equal(guardado.ambito.otrasComunidadesSiNoExigenSede, false);
+    assert.deepEqual(guardado.ambito.territorios, [{ comunidad: 'Comunidad de Madrid', provincias: ['Segovia'] }]);
+    assert.deepEqual(guardado.ambito.comunidades, [], 'las comunidades enteras se derivan de los territorios (Madrid lleva Segovia aquí: no está entera)');
     assert.equal(guardado.importeMinimo, 10000);
     // NIF, idPersona y finalidades excluidas no se tocan
     assert.equal(guardado.nif, 'G80428204');
@@ -66,8 +67,9 @@ describe('API del perfil', () => {
       [{ ...base, importeMinimo: 'mucho' }, /número/],
       [{ ...base, ambito: { ...base.ambito, regiones: ['Madrid'] } }, /NUTS/],
       [{ ...base, ambito: { ...base.ambito, nivelesSiempre: ['MARTE'] } }, /niveles/],
-      [{ ...base, ambito: { ...base.ambito, otrasComunidadesSiNoExigenSede: 'si' } }, /sí\/no/],
-      [{ ...base, ambito: { ...base.ambito, comunidades: [''] } }, /vacíos/],
+      [{ ...base, ambito: { ...base.ambito, territorios: [] } }, /al menos un territorio/],
+      [{ ...base, ambito: { ...base.ambito, territorios: [{ comunidad: ' ', provincias: [] }] } }, /necesita una comunidad/],
+      [{ ...base, ambito: { ...base.ambito, territorios: [{ comunidad: 'Galicia', provincias: [''] }] } }, /vacíos/],
     ];
     for (const [cuerpo, re] of casos) {
       const res = await put(api, cuerpo);
@@ -84,24 +86,24 @@ describe('el perfil editado cambia la siguiente ejecución', () => {
   const estado = (db: DatabaseSync, n: string) =>
     db.prepare('SELECT descarte_regla AS r FROM convocatorias WHERE id = ?').get(`bdns:${n}`) as { r: string | null };
 
-  test('ámbito: quitar "otras comunidades" y el nivel ESTADO descarta lo que antes entraba, y volver a admitirlos lo recupera', async () => {
+  test('ámbito: añadir un territorio recupera lo de esa comunidad, y quitar el nivel ESTADO descarta lo que antes entraba', async () => {
     const db = bdSembrada();
     const reloj = relojFijo(e.ahora);
     const deps = { db, fetch: fetchGrabado(), reloj };
     const ejecutar = async () => { reloj.adelantar(3600_000); await ejecutarRadar(deps, { diasAtras: e.diasAtras }); };
     await ejecutar();
-    assert.equal(estado(db, '923229').r, null, 'Extremadura entra condicionada');
+    assert.equal(estado(db, '923229').r, 'ambito', 'Extremadura no está en el ámbito de actuación');
     assert.equal(estado(db, '923290').r, null, 'MITECO (ESTADO) entra');
 
     const original = editable(db);
-    guardarPerfilEditable(db, { ...original, ambito: { ...original.ambito, otrasComunidadesSiNoExigenSede: false, nivelesSiempre: [] } }, reloj.now());
+    guardarPerfilEditable(db, { ...original, ambito: { ...original.ambito, territorios: [...original.ambito.territorios, { comunidad: 'Extremadura', provincias: [] }], nivelesSiempre: [] } }, reloj.now());
     await ejecutar();
-    assert.equal(estado(db, '923229').r, 'ambito', 'otra comunidad ya no entra');
+    assert.equal(estado(db, '923229').r, null, 'con Extremadura como territorio, su convocatoria vuelve (reglas reaplicadas a lo guardado)');
     assert.equal(estado(db, '923290').r, 'ambito', 'sin ESTADO siempre admitido, el Ministerio queda fuera');
 
     guardarPerfilEditable(db, original, reloj.now());
     await ejecutar();
-    assert.equal(estado(db, '923229').r, null);
+    assert.equal(estado(db, '923229').r, 'ambito');
     assert.equal(estado(db, '923290').r, null);
   });
 

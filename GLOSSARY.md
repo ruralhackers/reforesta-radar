@@ -14,8 +14,12 @@ funciones y tablas usan estas mismas palabras.
 - **Pasada / ejecución**: una vuelta completa del radar (`npm run radar`): fuentes → reglas → criba → ganadores → análisis → plazos →
   puntuación. Queda registrada con sus contadores, avisos, errores y coste (`/api/ejecuciones`).
 - **Regla**: descarte determinista en código (`src/rules.ts`): nominativa o concesión directa, ámbito fuera del perfil, finalidad ajena.
-- **Condición**: lo que deja a una convocatoria "a medias": las autonómicas de otra comunidad solo entran si la criba confirma que no
-  exigen sede o actividad allí.
+- **Ámbito de actuación**: territorios (comunidad y, si no es entera, provincias) donde el proyecto puede ejecutarse; lo que cuenta es dónde se
+  hace el proyecto, no la sede. Perfil `ambito.territorios`.
+- **Condición**: lo que deja a una convocatoria "a medias": las autonómicas de una comunidad que solo vale en parte (p. ej. Castilla y León con
+  Segovia y Ávila) entran solo si la criba confirma que admiten proyectos en esas provincias.
+- **Consorcio**: convocatoria de la UE (Horizon Europe) a la que solo se va como socia de un consorcio; sección aparte en "Esta semana",
+  con el esfuerzo penalizado (`consorcio` en `seed/puntuacion.json`).
 - **Criba**: primer filtro con LLM (Haiku) sobre los textos que ya trae la fuente: "puede encajar" o "descartar" con motivo. Fase `criba_llm`.
 - **Análisis**: lectura a fondo con LLM (Sonnet) de la ficha, extractos, bases y PDF: elegibilidad ESFL, importes, plazo, cofinanciación,
   requisitos, líneas con las que encaja e idea de proyecto, cada dato con su **cita** literal. Fase `analisis`.

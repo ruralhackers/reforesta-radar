@@ -26,6 +26,11 @@ export interface ConfigPuntuacion {
   esfuerzo: { cofinanciacionMaxima: number; requisitosSinPenalizar: number; penalizacionPorRequisito: number; suelo: number; valorDesconocido: number };
   probabilidad: { valorDesconocido: number };
   /**
+   * Programas de la UE que solo permiten ir como socia de un consorcio (p. ej. Horizon Europe). Sin esta sección no hay tratamiento especial.
+   * Prefijo = primer tramo del identificador del topic (HORIZON en HORIZON-CL6-2027-...).
+   */
+  consorcio?: { prefijosPrograma: string[]; esfuerzoMultiplicador: number };
+  /**
    * Sin fecha de cierre conocida, una convocatoria deja de entrar en el ranking (y en el correo) pasados estos días desde que se vio por
    * primera vez: si nadie ha sabido fijar el plazo en dos meses, lo más probable es que ya esté cerrada. Por defecto 60.
    */
@@ -44,6 +49,12 @@ export function leerConfigPuntuacion(ruta: string): ConfigPuntuacion {
   if (suma <= 0) throw new Error(`Configuración de puntuación: los pesos suman 0 (${ruta})`);
   if (!(c.cierranProntoDias >= 0) || !(c.nuevasDias >= 0)) throw new Error(`Configuración de puntuación: nuevasDias/cierranProntoDias inválidos (${ruta})`);
   return c;
+}
+
+/** true si es un programa de la UE de los que se enumeran en `consorcio.prefijosPrograma` (la regla es de datos, no de código). */
+export function esConsorcio(c: Convocatoria, cfg: Pick<ConfigPuntuacion, 'consorcio'>): boolean {
+  const prefijos = cfg.consorcio?.prefijosPrograma ?? [];
+  return c.fuente === 'eu_ft' && prefijos.some((x) => x.toUpperCase() === c.fuenteId.split('-')[0].toUpperCase());
 }
 
 /** Lo que se sabe de la convocatoria en el momento de puntuar. */
@@ -78,6 +89,8 @@ export interface Puntuacion {
   excluida: string | null;
   analizada: boolean;
   factores: Factor[];
+  /** Programa UE de consorcio (ver `esConsorcio`): sale del ranking principal y su esfuerzo está penalizado. */
+  consorcio?: boolean;
 }
 
 /** Resultado de un proveedor de probabilidad: `valor` null = sin datos. */
@@ -207,6 +220,15 @@ export function puntuar(
       ? { subpuntuacion: config.probabilidad.valorDesconocido, conocido: false, explicacion: p.explicacion }
       : { subpuntuacion: redondear(limitar(p.valor)), conocido: true, explicacion: p.explicacion },
   };
+  const consorcio = esConsorcio(entrada.convocatoria, config);
+  if (consorcio) {
+    const m = config.consorcio!.esfuerzoMultiplicador;
+    const e = parciales.esfuerzo;
+    parciales.esfuerzo = {
+      ...e, subpuntuacion: redondear(e.subpuntuacion * m),
+      explicacion: `como socia de un consorcio (${entrada.convocatoria.organo.nivel2 ?? 'UE'}): coordinación con varios socios y cofinanciación, esfuerzo reducido a ${Math.round(m * 100)} %; ${e.explicacion}`,
+    };
+  }
   const factores: Factor[] = FACTORES.map((id) => ({ id, nombre: NOMBRES[id], peso: config.pesos[id], ...parciales[id] }));
   const suma = factores.reduce((t, f) => t + f.peso, 0);
   const total = Math.round((factores.reduce((t, f) => t + f.peso * f.subpuntuacion, 0) / suma) * 100);
@@ -218,5 +240,5 @@ export function puntuar(
   else if (dias === null && (entrada.diasDesdePrimeraVez ?? 0) > (config.diasMaximosSinPlazo ?? DIAS_MAXIMOS_SIN_PLAZO)) {
     excluida = `Plazo desconocido y vista por primera vez hace ${entrada.diasDesdePrimeraVez} días: probablemente ya cerrada`;
   }
-  return { total: excluida ? 0 : total, excluida, analizada: entrada.analisis !== null, factores };
+  return { total: excluida ? 0 : total, excluida, analizada: entrada.analisis !== null, factores, ...(consorcio ? { consorcio: true } : {}) };
 }

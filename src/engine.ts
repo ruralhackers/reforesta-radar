@@ -3,7 +3,7 @@
 // el envío del correo será otra operación de este módulo con su propio emisor inyectado.
 import type { DatabaseSync } from 'node:sqlite';
 import {
-  type ContadoresFuente, empezarEjecucion, empezarFuente, guardarConvocatoria, guardarRegistroFase, leerPerfil,
+  type ContadoresFuente, empezarEjecucion, empezarFuente, guardarConvocatoria, guardarRegistroFase, leerPerfil, reaplicarReglas,
   type RegistroFase, registroFaseVacio, terminarEjecucion, terminarFuente, transaccion, abortarEjecucionesColgadas,
 } from './db/repo.ts';
 import { analizarConLlm, FASE_ANALISIS } from './fases/analisis.ts';
@@ -125,6 +125,9 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
   // Veredictos de LLM hechos con otro perfil (ámbito, líneas) se marcan obsoletos: se rehacen los de la ventana de pendientes.
   const reconsideradas = reconsiderarVeredictos(db, perfil);
   if (reconsideradas.cribas || reconsideradas.analisis) log(`Perfil cambiado: ${reconsideradas.cribas} cribas y ${reconsideradas.analisis} análisis quedan obsoletos (se rehacen los de los últimos ${cfgLlm.diasPendientes} días)`);
+  // Las reglas (ámbito, finalidad…) vuelven a aplicarse a todo lo guardado: un cambio de perfil alcanza también a lo que las fuentes ya no devuelven.
+  const reglasCambiadas = reaplicarReglas(db, perfil, cribar, condicionAmbito);
+  if (reglasCambiadas) log(`Reglas reaplicadas: ${reglasCambiadas} convocatorias cambian de descarte o de condición de ámbito`);
   const inicio = reloj.now();
   // Una ejecución anterior que quedó "en_curso" (proceso matado) ya no va a terminar.
   const abortadas = abortarEjecucionesColgadas(db, inicio);

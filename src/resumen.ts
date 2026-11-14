@@ -71,7 +71,8 @@ export function prepararResumen(deps: Pick<DependenciasResumen, 'db' | 'reloj' |
   };
 
   // Destacadas: las de mayor puntuación de cualquier sección. Cierran pronto: las que faltan, por fecha de cierre. Parecidas: las que faltan.
-  const destacadas = tomar([...ranking].sort((a, b) => (b.puntuacion?.total ?? -1) - (a.puntuacion?.total ?? -1)), MAX_DESTACADAS);
+  const consorcio = ranking.filter((f) => f.seccion === 'consorcio').length; // Horizon & co.: solo una línea con enlace, nunca destacadas
+  const destacadas = tomar(ranking.filter((f) => f.seccion !== 'consorcio').sort((a, b) => (b.puntuacion?.total ?? -1) - (a.puntuacion?.total ?? -1)), MAX_DESTACADAS);
   const cierranTodas = ranking.filter((f) => f.seccion === 'cierran_pronto');
   const cierran = tomar([...cierranTodas].sort((a, b) => (a.plazo?.fechaCierre ?? '9999').localeCompare(b.plazo?.fechaCierre ?? '9999')), MAX_CIERRAN);
   const parecidas = tomar(seccionParecidas(ranking), MAX_PARECIDAS);
@@ -83,7 +84,7 @@ export function prepararResumen(deps: Pick<DependenciasResumen, 'db' | 'reloj' |
     { titulo: 'Las ganan organizaciones como vosotros', intro: 'Convocatorias que ya han ganado organizaciones parecidas a Reforesta.', items: parecidas },
     ...extras,
   ];
-  const correo = componerCorreo({ hoy, lunes: lunesDeLaSemana(hoy), total: usadas.size, cierranPronto: cierranTodas.length, secciones, urlPublica });
+  const correo = componerCorreo({ hoy, lunes: lunesDeLaSemana(hoy), total: usadas.size, cierranPronto: cierranTodas.length, secciones, urlPublica, consorcio });
   return { correo, convocatorias: [...usadas], semana: semanaIso(hoy), extras: extras.reduce((n, x) => n + x.items.length, 0) };
 }
 
