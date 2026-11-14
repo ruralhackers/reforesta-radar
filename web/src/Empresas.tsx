@@ -39,15 +39,15 @@ function Tarjeta({ e, puedeEditar, alCambiar }: { e: Empresa; puedeEditar: boole
       <p className="mt-1 text-sm [overflow-wrap:anywhere]">{e.motivo}</p>
       <blockquote className="mt-2 border-l-2 border-emerald-300 pl-3 text-sm italic text-stone-700 [overflow-wrap:anywhere]">«{e.cita}»</blockquote>
       <p className="mt-2 text-xs text-stone-600">
-        Vista por primera vez el {fecha(e.primeraVezVista)} · <a href={e.enlace} target="_blank" rel="noreferrer" className="text-emerald-800 hover:underline">Resolución en el BOE</a>
+        Vista por primera vez el {fecha(e.primeraVezVista)} · <a href={e.enlace} target="_blank" rel="noreferrer" className="text-emerald-800 hover:underline">{e.origen === 'huella_carbono' ? 'Registro de huella de carbono (MITECO)' : 'Resolución en el BOE'}</a>
         {e.cif && <> · {e.cif}</>}
         {e.paginaRsc && <> · <a href={e.paginaRsc} target="_blank" rel="noreferrer" className="text-emerald-800 hover:underline">RSC</a></>}
       </p>
       {e.senales.length > 1 && (
         <div className="mt-2 text-xs">
-          <button type="button" onClick={() => setAbiertas(!abiertas)} className="text-emerald-800 hover:underline">{abiertas ? 'Ocultar' : 'Ver'} las {e.senales.length} resoluciones</button>
+          <button type="button" onClick={() => setAbiertas(!abiertas)} className="text-emerald-800 hover:underline">{abiertas ? 'Ocultar' : 'Ver'} las {e.senales.length} señales (DIA del BOE, registro de huella de carbono)</button>
           {abiertas && <ul className="mt-1 list-disc space-y-1 pl-5 text-stone-600">
-            {e.senales.map((s) => <li key={s.boeId} className="[overflow-wrap:anywhere]"><a href={s.enlace} target="_blank" rel="noreferrer" className="text-emerald-800 hover:underline">{fecha(s.fechaPublicacion)}</a> · {s.proyecto ?? s.titulo}</li>)}
+            {e.senales.map((s) => <li key={s.boeId} className="[overflow-wrap:anywhere]"><a href={s.enlace} target="_blank" rel="noreferrer" className="text-emerald-800 hover:underline">{s.tipo === 'huella_carbono' ? 'Registro de huella de carbono' : fecha(s.fechaPublicacion)}</a> · {s.proyecto ?? s.motivo}</li>)}
           </ul>}
         </div>
       )}
@@ -70,7 +70,7 @@ function Tarjeta({ e, puedeEditar, alCambiar }: { e: Empresa; puedeEditar: boole
   );
 }
 
-/** Empresas obligadas por una DIA del BOE a restaurar o compensar: las nuevas primero, con filtro por estado y, para el equipo, estado y nota. */
+/** Empresas obligadas por una DIA del BOE a restaurar o compensar, o del registro de huella de carbono del MITECO: las nuevas primero, con filtro por estado y, para el equipo, estado y nota. */
 export function Empresas() {
   const { puedeEditar, cargada } = useSesion();
   const [lista, setLista] = useState<Empresa[] | null>(null);
@@ -92,8 +92,8 @@ export function Empresas() {
         <p className="text-sm font-medium uppercase tracking-wide text-emerald-700"><a href="/" className="hover:underline">Radar de convocatorias</a></p>
         <h1 className="text-2xl font-bold sm:text-3xl">Empresas</h1>
         <p className="mt-1 text-sm text-stone-600">
-          Empresas que una declaración de impacto ambiental del BOE obliga a restaurar o compensar (hábitat, reforestación, aves…): posibles patrocinadoras de proyectos de restauración.
-          Solo datos públicos de la empresa y de la resolución; no se guardan personas de contacto.
+          Empresas que una declaración de impacto ambiental del BOE obliga a restaurar o compensar (hábitat, reforestación, aves…) o que compensan su huella de carbono en el registro del MITECO:
+          posibles patrocinadoras de proyectos de restauración. Solo datos públicos de la empresa y de la fuente; no se guardan personas de contacto.
         </p>
       </header>
 

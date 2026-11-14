@@ -331,6 +331,25 @@ const MIGRACIONES: string[] = [
     revisado_en TEXT NOT NULL
   );
   `,
+  // 14: registro de huella de carbono del MITECO (segunda fuente del canal de empresas)
+  `
+  -- Registro de huella de carbono (MITECO): organizaciones ya cribadas (por el hash de lo que el registro dice de ellas; si cambia, se vuelve a cribar)
+  -- y versión de cada fichero del registro ya recorrida entera (si no cambia y no queda nada pendiente, no se vuelve a bajar).
+  CREATE TABLE huella_cribadas (
+    hash TEXT PRIMARY KEY,
+    clave TEXT NOT NULL,                   -- NIF o nombre normalizado de la organización
+    nombre TEXT NOT NULL,
+    resultado TEXT NOT NULL CHECK (resultado IN ('financiador', 'descartada')),
+    cribada_en TEXT NOT NULL
+  );
+  CREATE INDEX huella_cribadas_por_clave ON huella_cribadas (clave);
+  CREATE TABLE huella_ficheros (
+    url TEXT PRIMARY KEY,
+    firma TEXT NOT NULL,
+    completo INTEGER NOT NULL DEFAULT 0,
+    revisado_en TEXT NOT NULL
+  );
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

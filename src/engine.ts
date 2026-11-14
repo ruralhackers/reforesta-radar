@@ -8,6 +8,7 @@ import {
 } from './db/repo.ts';
 import { analizarConLlm, FASE_ANALISIS } from './fases/analisis.ts';
 import { cribarConLlm, FASE_CRIBA } from './fases/criba.ts';
+import { CONFIG_HUELLA_POR_DEFECTO, type ConfigHuella, recogerEmpresasHuella, type ResumenHuella } from './fases/huella.ts';
 import { CONFIG_EMPRESAS_POR_DEFECTO, type ConfigEmpresas, recogerEmpresasDia, type ResumenEmpresas } from './fases/empresas.ts';
 import { CONFIG_GANADORES_POR_DEFECTO, type ConfigGanadores, recogerGanadores, type ResumenGanadores } from './fases/ganadores.ts';
 import { CONFIG_PARECIDAS_POR_DEFECTO, type ConfigParecidas, descubrirParecidas, type ResumenParecidas } from './fases/parecidas.ts';
@@ -58,6 +59,11 @@ export interface DependenciasMotor {
    * defecto) u objeto con la configuración (el CLI pasa la de las variables de entorno); ausente/false = se salta (sin red hacia el BOE).
    */
   empresas?: boolean | Partial<ConfigEmpresas>;
+  /**
+   * Empresas del registro de huella de carbono del MITECO (fase `empresas_huella_carbono`, Haiku, tras la de las DIA). Solo se ejecuta si se pide: `true`
+   * (valores por defecto) o un objeto con la configuración. Ausente = no se baja el registro (tests sin red).
+   */
+  huella?: boolean | Partial<ConfigHuella>;
   /** Espera entre peticiones a BDNS (por defecto setTimeout); los tests la inyectan. */
   dormir?: (ms: number) => Promise<void>;
   log?: (mensaje: string) => void;
@@ -86,6 +92,7 @@ export interface ResumenEjecucion {
   parecidas: ResumenParecidas | null;
   /** Empresas de las DIA del BOE; null si no se pidió la fase. */
   empresas: ResumenEmpresas | null;
+  huella: ResumenHuella | null;
   /** Convocatorias de otras fuentes marcadas como duplicadas de una de BDNS (mismo título). */
   duplicadas: ResumenDuplicadas;
 }
@@ -110,6 +117,7 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
   let parecidas = null as ResumenParecidas | null;
   let duplicadas: ResumenDuplicadas = { marcadas: 0 };
   let empresas: ResumenEmpresas | null = null;
+  let huella: ResumenHuella | null = null;
   let errorGeneral: string | null = null;
 
   try {
@@ -150,6 +158,19 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
       for (const a of e.fase.avisos) log(`  · ${a}`);
       for (const x of e.errores) log(`  ! ${x}`);
     }
+    if (deps.huella) {
+      const modelo = { ...CONFIG_LLM_POR_DEFECTO, ...deps.configLlm }.modeloCriba;
+      const cfgH: ConfigHuella = { ...CONFIG_HUELLA_POR_DEFECTO, ...(typeof deps.huella === 'object' ? deps.huella : {}) };
+      huella = await recogerEmpresasHuella({ db, fetch: deps.fetch, reloj, llm: deps.llm ?? null, modelo, perfil }, cfgH);
+      guardarRegistroFase(db, ejecucionId, huella.fase);
+      fases = [...fases, huella.fase];
+      const h = huella;
+      log(h.sinCambios
+        ? 'empresas (huella de carbono): el registro no ha cambiado desde que se recorrió entero'
+        : `empresas (huella de carbono): ${h.filasLeidas} filas leídas, ${h.organizaciones} organizaciones, ${h.preFiltradas} pasan el pre-filtro (${h.yaCribadas} ya cribadas), ${h.cribadas} cribadas con LLM, ${h.financiadoras} financiadoras (${h.empresasNuevas.length} empresas nuevas, ${h.empresasUnidas.length} unidas a una existente), ${h.descartadas} descartadas, ${h.omitidasPorTope} sin hacer por el tope, ${h.fase.costeUsd.toFixed(4)} USD, ${h.errores.length} errores`);
+      for (const a of h.fase.avisos) log(`  · ${a}`);
+      for (const x of h.errores) log(`  ! ${x}`);
+    }
     plazos = calcularPlazos(db, reloj, perfil, deps.festivos ?? leerFestivos(config.rutaFestivos), deps.fuentes);
     log(`plazos: ${plazos.total} candidatas, ${plazos.literales} literales, ${plazos.calculadas} calculadas, ${plazos.desconocidas} desconocidas, ${plazos.errores.length} errores`);
     for (const e of plazos.errores) log(`  ! ${e}`);
@@ -161,7 +182,7 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
     errorGeneral = (e as Error).message;
     throw e;
   } finally {
-    const conErrores = errorGeneral !== null || resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0 || (parecidas?.errores.length ?? 0) > 0 || (empresas?.errores.length ?? 0) > 0;
+    const conErrores = errorGeneral !== null || resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0 || (parecidas?.errores.length ?? 0) > 0 || (empresas?.errores.length ?? 0) > 0 || (huella?.errores.length ?? 0) > 0;
     try {
       terminarEjecucion(db, ejecucionId, reloj.now(), conErrores, errorGeneral);
     } catch (e) {
@@ -170,8 +191,8 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
     }
   }
 
-  const conErrores = resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0 || (parecidas?.errores.length ?? 0) > 0 || (empresas?.errores.length ?? 0) > 0;
-  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, parecidas, empresas, duplicadas };
+  const conErrores = resumen.some((f) => f.errores.length > 0) || fases.some((f) => f.errores.length > 0) || (plazos?.errores.length ?? 0) > 0 || (puntuacion?.errores.length ?? 0) > 0 || (ganadores?.errores.length ?? 0) > 0 || (parecidas?.errores.length ?? 0) > 0 || (empresas?.errores.length ?? 0) > 0 || (huella?.errores.length ?? 0) > 0;
+  return { ejecucionId, conErrores, fuentes: resumen, fases, plazos, puntuacion, ganadores, parecidas, empresas, huella, duplicadas };
 }
 
 /**

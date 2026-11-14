@@ -21,7 +21,8 @@
     "record:parecidas": "node scripts/record-bdns-parecidas.ts",
     "record:eu-ft": "node scripts/record-eu-ft.ts",
     "record:fundaciones": "node scripts/record-fundaciones.ts",
-    "record:boe": "node scripts/record-boe.ts"
+    "record:boe": "node scripts/record-boe.ts",
+    "record:huella": "node scripts/record-huella.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

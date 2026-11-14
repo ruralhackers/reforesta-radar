@@ -47,6 +47,12 @@ export const config = {
     pausaMs: Number(process.env.RADAR_PAUSA_BOE_MS ?? 300),
     maxCaracteres: Number(process.env.RADAR_MAX_CARACTERES_DIA_BOE ?? 150_000),
   },
+  /** Empresas del registro de huella de carbono del MITECO: tope de organizaciones que se criban con el LLM por ejecución, años de huella que cuentan como recientes y tiempo máximo por descarga. */
+  huella: {
+    maxCribadas: Number(process.env.RADAR_MAX_HUELLA ?? 50),
+    aniosAtras: Number(process.env.RADAR_ANIOS_HUELLA ?? 3),
+    timeoutMs: Number(process.env.RADAR_TIMEOUT_HUELLA_MS ?? 60_000),
+  },
   /** Aprendizaje ligero: cuántas de las últimas decisiones del equipo se pasan como ejemplos a la criba y el análisis de lo nuevo. */
   decisiones: {
     maxEjemplos: Number(process.env.RADAR_EJEMPLOS_DECISIONES ?? 20),

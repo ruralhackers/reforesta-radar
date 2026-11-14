@@ -18,8 +18,11 @@ export class ErrorEmpresa extends Error {
 
 export interface MedidaDia { tipo: string; cita: string }
 
+export type OrigenEmpresa = 'dia_boe' | 'huella_carbono';
+
 export interface SenalEmpresa {
-  tipo: 'dia_boe';
+  tipo: OrigenEmpresa;
+  /** Referencia única de la señal para la empresa: id de la resolución del BOE o `huella:<NIF o nombre>` en el registro de huella. */
   boeId: string;
   titulo: string;
   proyecto: string | null;
@@ -80,7 +83,7 @@ export function esEntidadJuridica(nombre: string, cif: string | null): boolean {
 export interface NuevaSenal {
   nombre: string;
   cif: string | null;
-  origen: 'dia_boe';
+  origen: OrigenEmpresa;
   motivo: string;
   cita: string;
   provincia: string | null;
@@ -111,15 +114,15 @@ export function registrarSenal(db: DatabaseSync, n: NuevaSenal, ahora: Date): { 
     }
     db.prepare(`
       INSERT OR IGNORE INTO empresa_senales (empresa_id, tipo, boe_id, titulo, proyecto, provincia, motivo, medidas, enlace, fecha_publicacion, vista_en)
-      VALUES (?, 'dia_boe', ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(empresaId, n.senal.boeId, n.senal.titulo, n.senal.proyecto, n.senal.provincia, n.motivo, JSON.stringify(n.senal.medidas), n.senal.enlace, n.senal.fechaPublicacion, ahora.toISOString());
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(empresaId, n.origen, n.senal.boeId, n.senal.titulo, n.senal.proyecto, n.senal.provincia, n.motivo, JSON.stringify(n.senal.medidas), n.senal.enlace, n.senal.fechaPublicacion, ahora.toISOString());
     return { empresaId, nueva };
   });
 }
 
 function aSenal(f: Record<string, unknown>): SenalEmpresa {
   return {
-    tipo: 'dia_boe', boeId: String(f.boe_id), titulo: String(f.titulo), proyecto: (f.proyecto as string | null) ?? null, provincia: (f.provincia as string | null) ?? null,
+    tipo: f.tipo as OrigenEmpresa, boeId: String(f.boe_id), titulo: String(f.titulo), proyecto: (f.proyecto as string | null) ?? null, provincia: (f.provincia as string | null) ?? null,
     motivo: String(f.motivo), medidas: JSON.parse(String(f.medidas)) as MedidaDia[], enlace: String(f.enlace), fechaPublicacion: String(f.fecha_publicacion), vistaEn: String(f.vista_en),
   };
 }
