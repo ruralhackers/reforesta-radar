@@ -88,8 +88,8 @@ async function listarTodo(f: typeof fetch, filtros: Record<string, string | numb
 }
 
 /** "ES30 - COMUNIDAD DE MADRID" → "ES30" */
-function codigoRegion(descripcion: string): string {
-  return descripcion.split(' - ')[0].trim();
+function codigoRegion(descripcion: string | null | undefined): string {
+  return (descripcion ?? '').split(' - ')[0].trim();
 }
 
 function idsDeRegiones(arbol: NodoRegion[], codigos: string[]): Map<number, string> {
@@ -110,8 +110,8 @@ function desdeListado(item: ItemListado, regiones: string[]): Convocatoria {
     id: `bdns:${item.numeroConvocatoria}`,
     fuente: 'bdns',
     fuenteId: item.numeroConvocatoria,
-    titulo: item.descripcion.trim(),
-    organo: { nivel1: item.nivel1, nivel2: item.nivel2, nivel3: item.nivel3 },
+    titulo: (item.descripcion ?? '').trim(),
+    organo: { nivel1: item.nivel1 ?? '', nivel2: item.nivel2 ?? null, nivel3: item.nivel3 ?? null },
     fechaPublicacion: item.fechaRecepcion,
     url: FICHA + item.numeroConvocatoria,
     tipo: null,
@@ -123,11 +123,11 @@ function desdeListado(item: ItemListado, regiones: string[]): Convocatoria {
 }
 
 function conDetalle(c: Convocatoria, d: Detalle): Convocatoria {
-  const regionesDetalle = (d.regiones ?? []).map((r) => codigoRegion(r.descripcion));
+  const regionesDetalle = (d.regiones ?? []).map((r) => codigoRegion(r?.descripcion)).filter(Boolean);
   return {
     ...c,
     titulo: d.descripcion?.trim() || c.titulo,
-    organo: d.organo ?? c.organo,
+    organo: { nivel1: d.organo?.nivel1 ?? c.organo.nivel1 ?? '', nivel2: d.organo?.nivel2 ?? c.organo.nivel2, nivel3: d.organo?.nivel3 ?? c.organo.nivel3 },
     tipo: d.tipoConvocatoria,
     finalidad: d.descripcionFinalidad,
     regiones: [...new Set([...c.regiones, ...regionesDetalle])],
@@ -175,17 +175,22 @@ async function recoger(ctx: ContextoFuente): Promise<ResultadoFuente> {
 
   const cribadas: Cribada[] = [];
   const pendientes: Convocatoria[] = [];
+  const errores: string[] = [];
   const vistas = new Set<string>();
   for (const item of listado) {
+    if (!item?.numeroConvocatoria) { errores.push('Listado: registro sin numeroConvocatoria'); continue; }
     if (vistas.has(item.numeroConvocatoria)) continue; // el paginado puede repetir si entran nuevas durante la lectura
     vistas.add(item.numeroConvocatoria);
-    const c = desdeListado(item, regionesPorConvocatoria.get(item.numeroConvocatoria) ?? []);
-    const descarte = ctx.cribar(c);
-    if (descarte) cribadas.push({ convocatoria: c, descarte });
-    else pendientes.push(c);
+    try { // un registro malformado no tumba la fuente: queda como error de ese registro
+      const c = desdeListado(item, regionesPorConvocatoria.get(item.numeroConvocatoria) ?? []);
+      const descarte = ctx.cribar(c);
+      if (descarte) cribadas.push({ convocatoria: c, descarte });
+      else pendientes.push(c);
+    } catch (e) {
+      errores.push(`Listado ${item.numeroConvocatoria}: ${(e as Error).message}`);
+    }
   }
 
-  const errores: string[] = [];
   await enParalelo(pendientes, DETALLES_EN_PARALELO, async (c) => {
     try {
       const d = await getJson<Detalle>(ctx.fetch, '/convocatorias', { numConv: c.fuenteId });
@@ -228,7 +233,7 @@ function fichaMetadatos(c: Convocatoria, d: Detalle): string {
     d.textInicio && `Inicio del plazo (texto): ${d.textInicio}`,
     d.textFin && `Fin del plazo (texto): ${d.textFin}`,
     d.descripcionBasesReguladoras && `Bases reguladoras: ${d.descripcionBasesReguladoras}`,
-    d.regiones?.length && `Regiones: ${d.regiones.map((r) => r.descripcion.trim()).join(', ')}`,
+    d.regiones?.length && `Regiones: ${d.regiones.map((r) => (r?.descripcion ?? '').trim()).join(', ')}`,
   ];
   return lineas.filter(Boolean).join('\n');
 }

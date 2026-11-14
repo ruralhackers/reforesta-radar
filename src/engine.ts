@@ -289,11 +289,15 @@ async function recorrerFuente(
     transaccion(db, () => {
       for (const cribada of r.cribadas) {
         n.recibidas++;
-        const condicion = cribada.descarte ? null : condicionAmbito(cribada.convocatoria, perfil);
-        if (guardarConvocatoria(db, { ...cribada, condicion }, reloj.now())) n.nuevas++;
-        quitarMarcaDescubierta(db, cribada.convocatoria.id); // si antes solo la había descubierto "parecidas", ahora viene directa
-        if (cribada.descarte) n.descartadas++;
-        else n.candidatas++;
+        try { // un registro malformado no tumba la fuente: queda como error de ese registro y se sigue
+          const condicion = cribada.descarte ? null : condicionAmbito(cribada.convocatoria, perfil);
+          if (guardarConvocatoria(db, { ...cribada, condicion }, reloj.now())) n.nuevas++;
+          quitarMarcaDescubierta(db, cribada.convocatoria.id); // si antes solo la había descubierto "parecidas", ahora viene directa
+          if (cribada.descarte) n.descartadas++;
+          else n.candidatas++;
+        } catch (e) {
+          errores = [...errores, `Registro ${cribada.convocatoria.id}: ${(e as Error).message}`];
+        }
       }
     });
   } catch (e) {

@@ -2,8 +2,8 @@
 // Un campo desconocido (null) nunca descarta: los metadatos de las fuentes no son fiables.
 import type { Convocatoria, Descarte, Perfil } from './types.ts';
 
-export function normalizar(s: string): string {
-  return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase().replace(/\s+/g, ' ').trim();
+export function normalizar(s: string | null | undefined): string {
+  return (s ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase().replace(/\s+/g, ' ').trim();
 }
 
 type Regla = (c: Convocatoria, p: Perfil) => Descarte | null;
@@ -15,7 +15,7 @@ const nominativa: Regla = (c) => {
 };
 
 /** Comparación de nombres de territorio: sin tildes, mayúsculas ni signos ("CASTILLA - LA MANCHA" = "Castilla-La Mancha"). */
-const clave = (s: string) => normalizar(s).replace(/[^A-Z0-9]+/g, ' ').trim();
+const clave = (s: string | null | undefined) => normalizar(s).replace(/[^A-Z0-9]+/g, ' ').trim();
 
 type Ambito =
   | { tipo: 'dentro' }

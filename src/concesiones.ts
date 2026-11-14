@@ -19,10 +19,10 @@ export function leerBeneficiario(bruto: string): Beneficiario {
   return { nif: null, nombre: t, esPersona: true };
 }
 
-const sinAcentos = (s: string) => s.normalize('NFD').replace(/\p{M}+/gu, '');
+const sinAcentos = (s: string | null | undefined) => (s ?? '').normalize('NFD').replace(/\p{M}+/gu, '');
 
 /** Minúsculas, sin acentos, solo letras y números separados por un espacio. */
-export function normalizar(s: string): string {
+export function normalizar(s: string | null | undefined): string {
   return sinAcentos(s).toLowerCase().replace(/[^a-z0-9ñ]+/g, ' ').trim();
 }
 

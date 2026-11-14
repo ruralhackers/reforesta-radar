@@ -155,3 +155,49 @@ test('una ejecución que quedó "en_curso" (proceso matado) se marca como aborta
   const estados = (db.prepare('SELECT estado FROM ejecuciones ORDER BY id').all() as { estado: string }[]).map((f) => f.estado);
   assert.deepEqual(estados, ['abortada', 'en_curso', 'ok']);
 });
+
+describe('registros malformados de BDNS', () => {
+  // Basado en los registros reales de la 923290: se les quitan campos que BDNS a veces no trae.
+  function fetchMalformado(): typeof fetch {
+    const base = fetchGrabado();
+    return (async (entrada: string | URL | Request, init?: RequestInit) => {
+      const url = String(entrada instanceof Request ? entrada.url : entrada);
+      const res = await base(entrada, init);
+      const u = new URL(url);
+      if (u.pathname.endsWith('/convocatorias/busqueda') && !u.searchParams.has('regiones') && !u.searchParams.has('descripcion')) {
+        const p = await res.json() as { content: Record<string, unknown>[] };
+        const i = p.content.findIndex((x) => x.numeroConvocatoria === '923290');
+        p.content[i] = { ...p.content[i], nivel1: undefined, nivel2: undefined, nivel3: undefined };
+        p.content.push({ id: 1, numeroConvocatoria: '999001', fechaRecepcion: '2026-08-03', nivel1: 'AUTONOMICA' }); // sin descripcion
+        p.content.push({ id: 2, numeroConvocatoria: '999002', descripcion: 'Ayudas sin órgano', fechaRecepcion: '2026-08-03' }); // sin nivel1
+        return new Response(JSON.stringify(p), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return res;
+    }) as typeof fetch;
+  }
+
+  test('un registro con campos que faltan no tumba la fuente: se descarta o se queda, sin fallo', async () => {
+    const db = bdSembrada();
+    const e = ESCENARIOS.agosto2026;
+    const falsoDetalle = fetchMalformado();
+    const fetchConDetalleSinOrgano: typeof fetch = (async (entrada: string | URL | Request, init?: RequestInit) => {
+      const url = String(entrada instanceof Request ? entrada.url : entrada);
+      const res = await falsoDetalle(entrada, init);
+      if (new URL(url).searchParams.get('numConv') === '923290') {
+        const d = await res.json() as Record<string, unknown>;
+        return new Response(JSON.stringify({ ...d, organo: { nivel1: null, nivel2: null, nivel3: null }, regiones: [{ descripcion: null }], descripcion: null }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return res;
+    }) as typeof fetch;
+    const r = await ejecutarRadar({ db, fetch: fetchConDetalleSinOrgano, reloj: relojFijo(e.ahora) }, { diasAtras: e.diasAtras });
+    const [bdns] = r.fuentes;
+    assert.ok(!bdns.errores.some((x) => /Fallo de la fuente/.test(x)), bdns.errores.join('\n'));
+    assert.ok(bdns.recibidas > 3);
+    assert.equal(bdns.candidatas + bdns.descartadas, bdns.recibidas);
+    for (const id of ['923290', '999001', '999002']) {
+      const f = fila(db, id);
+      assert.ok(f, `la ${id} se guarda`);
+      assert.ok(f.descarte_regla === null || !!f.descarte_motivo, `la ${id} se queda o se descarta con motivo`);
+    }
+  });
+});

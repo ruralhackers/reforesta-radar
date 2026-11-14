@@ -100,7 +100,7 @@ export interface FilaCompensacion {
   fecha: string;
 }
 
-const norm = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const norm = (s: string | null | undefined) => (s ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 function indices(cabecera: string[], nombres: Record<string, string>): Record<string, number> {
   const salida: Record<string, number> = {};

@@ -64,8 +64,8 @@ export interface Empresa {
  * La forma societaria SE CONSERVA (SL y SA son sociedades distintas); solo se unifican sus grafías ("S.L.U." = "SLU" = "sociedad limitada
  * unipersonal"). Dos nombres iguales salvo la forma societaria no se unen por nombre.
  */
-export function claveEmpresa(nombre: string): string {
-  return nombre.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+export function claveEmpresa(nombre: string | null | undefined): string {
+  return (nombre ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
     .replace(/[.,]/g, '')
     .replace(/[^a-z0-9ñ]+/g, ' ').trim()
     .replace(/\bsociedad limitada unipersonal\b/g, 'slu').replace(/\bsociedad anonima unipersonal\b/g, 'sau')

@@ -79,7 +79,7 @@ const MAX_MOTIVO = 260;
 const SECTORES_EXCLUIDOS = new Set(['O', 'P', 'T', 'U']);
 const TAMANOS = new Set(['gran empresa', 'mediana']);
 
-const sinAcentos = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const sinAcentos = (s: string | null | undefined) => (s ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const PALABRAS_VACIAS = new Set(['comunidad', 'comunitat', 'de', 'del', 'la', 'el', 'y', 'i', 'region', 'principado', 'foral', 'autonoma', 'illes', 'islas', 'ciutat']);
 /** Grafías distintas de la misma comunidad entre el registro y el perfil ("Balears, Illes" / "ILLES BALEARS", "Euskadi" / "País Vasco"). */
 const ALIAS_ZONA: [RegExp, string][] = [[/\bbalears\b/, 'baleares'], [/\beuskadi\b/, 'pais vasco'], [/\bvalenciana\b/, 'valencia'], [/\bcatalunya\b/, 'cataluna'], [/\bgaliza\b/, 'galicia'], [/\bnafarroa\b/, 'navarra'], [/\bcanarias\b/, 'canarias']];

@@ -26,8 +26,8 @@ export function htmlATexto(html: string): string {
  * Forma canónica para buscar una cita dentro de un texto: minúsculas, comillas y guiones tipográficos unificados,
  * sin guiones de partición de línea de los PDF y con todo el espacio en blanco reducido a un espacio.
  */
-export function normalizarParaCita(s: string): string {
-  return s
+export function normalizarParaCita(s: string | null | undefined): string {
+  return (s ?? '')
     .normalize('NFC')
     .toLowerCase()
     .replace(/­/g, '')
@@ -118,9 +118,9 @@ function cifrasDe(s: string, comoValor = false): number[][] {
   return grupos;
 }
 
-function palabrasNumericas(s: string): number[] {
+function palabrasNumericas(s: string | null | undefined): number[] {
   const n: number[] = [];
-  const palabras = s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().split(/[^a-zñ]+/).filter(Boolean);
+  const palabras = (s ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().split(/[^a-zñ]+/).filter(Boolean);
   for (let i = 0; i < palabras.length; i++) {
     const p = palabras[i];
     if (p in DECENAS) {
