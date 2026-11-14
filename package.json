@@ -22,7 +22,8 @@
     "record:eu-ft": "node scripts/record-eu-ft.ts",
     "record:fundaciones": "node scripts/record-fundaciones.ts",
     "record:boe": "node scripts/record-boe.ts",
-    "record:huella": "node scripts/record-huella.ts"
+    "record:huella": "node scripts/record-huella.ts",
+    "backtest": "node src/cli/backtest.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

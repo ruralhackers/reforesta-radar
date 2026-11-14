@@ -1,0 +1,1116 @@
+{
+  "generadoEn": "2026-11-14T02:00:10.613Z",
+  "modos": {
+    "sin_analisis": {
+      "modo": "sin_analisis",
+      "umbral": 40,
+      "a": {
+        "filas": [
+          {
+            "numero": "626301",
+            "etiqueta": "CAM proyectos ambientales 2022",
+            "titulo": "SUBVENCION ENTIDADES SIN ÁNIMO DE LUCRO PROYECTOS AMBIENTALES 2022",
+            "fechaPublicacion": "2022-05-12",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/626301",
+            "notas": [],
+            "resultado": {
+              "pasoReglas": true,
+              "motivoReglas": null,
+              "pasoCriba": true,
+              "motivoCriba": "La convocatoria financia a entidades sin ánimo de lucro proyectos ambientales en la Comunidad de Madrid (conservación de flora y fauna, hábitats de interés comunitario y biodiversidad en Red Natura 2000), con líneas afines a restauración de ecosistemas y conservación de hábitats; el plazo ya está cerrado en 2022 pero la decisión se basa en el texto de la convocatoria.",
+              "etapa": "puntuada",
+              "puntuacion": 38,
+              "factores": [
+                {
+                  "id": "encaje",
+                  "nombre": "Encaje",
+                  "peso": 35,
+                  "subpuntuacion": 0.3,
+                  "conocido": false,
+                  "explicacion": "desconocido: la convocatoria aún no se ha analizado"
+                },
+                {
+                  "id": "importe",
+                  "nombre": "Importe",
+                  "peso": 20,
+                  "subpuntuacion": 0.3,
+                  "conocido": false,
+                  "explicacion": "desconocido: sin analizar"
+                },
+                {
+                  "id": "cierre",
+                  "nombre": "Tiempo hasta el cierre",
+                  "peso": 15,
+                  "subpuntuacion": 0.4,
+                  "conocido": false,
+                  "explicacion": "desconocido: no se ha podido fijar la fecha de cierre"
+                },
+                {
+                  "id": "esfuerzo",
+                  "nombre": "Esfuerzo",
+                  "peso": 15,
+                  "subpuntuacion": 0.5,
+                  "conocido": false,
+                  "explicacion": "desconocido: sin analizar"
+                },
+                {
+                  "id": "probabilidad",
+                  "nombre": "Probabilidad",
+                  "peso": 15,
+                  "subpuntuacion": 0.5,
+                  "conocido": false,
+                  "explicacion": "desconocida: aún no hay ganadoras parecidas ni historial de Reforesta con esta convocatoria"
+                }
+              ],
+              "completa": true,
+              "destacada": false,
+              "exito": false
+            }
+          },
+          {
+            "numero": "703977",
+            "etiqueta": "CAM proyectos ambientales 2023",
+            "titulo": "SUBVENCIÓN ENTIDADES SIN ÁNIMO DE LUCRO PROYECTOS AMBIENTALES 2023",
+            "fechaPublicacion": "2023-06-19",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/703977",
+            "notas": [],
+            "resultado": {
+              "pasoReglas": true,
+              "motivoReglas": null,
+              "pasoCriba": true,
+              "motivoCriba": "Subvención autonómica de la Comunidad de Madrid para entidades sin ánimo de lucro que financien actividades y proyectos de conservación de flora, fauna, hábitats de interés comunitario y biodiversidad en Red Natura 2000, lo que encaja con las líneas de restauración y conservación de Reforesta; la convocatoria no exige sede en otra comunidad.",
+              "etapa": "puntuada",
+              "puntuacion": 38,
+              "factores": [
+                {
+                  "id": "encaje",
+                  "nombre": "Encaje",
+                  "peso": 35,
+                  "subpuntuacion": 0.3,
+                  "conocido": false,
+                  "explicacion": "desconocido: la convocatoria aún no se ha analizado"
+                },
+                {
+                  "id": "importe",
+                  "nombre": "Importe",
+                  "peso": 20,
+                  "subpuntuacion": 0.3,
+                  "conocido": false,
+                  "explicacion": "desconocido: sin analizar"
+                },
+                {
+                  "id": "cierre",
+                  "nombre": "Tiempo hasta el cierre",
+                  "peso": 15,
+                  "subpuntuacion": 0.4,
+                  "conocido": false,
+                  "explicacion": "desconocido: no se ha podido fijar la fecha de cierre"
+                },
+                {
+                  "id": "esfuerzo",
+                  "nombre": "Esfuerzo",
+                  "peso": 15,
+                  "subpuntuacion": 0.5,
+                  "conocido": false,
+                  "explicacion": "desconocido: sin analizar"
+                },
+                {
+                  "id": "probabilidad",
+                  "nombre": "Probabilidad",
+                  "peso": 15,
+                  "subpuntuacion": 0.5,
+                  "conocido": false,
+                  "explicacion": "desconocida: aún no hay ganadoras parecidas ni historial de Reforesta con esta convocatoria"
+                }
+              ],
+              "completa": true,
+              "destacada": false,
+              "exito": false
+            }
+          },
+          {
+            "numero": "782630",
+            "etiqueta": "CAM proyectos ambientales 2024",
+            "titulo": "SUBVENCIÓN ENTIDADES SIN ÁNIMO DE LUCRO PROYECTOS AMBIENTALES 2024",
+            "fechaPublicacion": "2024-08-28",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/782630",
+            "notas": [],
+            "resultado": {
+              "pasoReglas": true,
+              "motivoReglas": null,
+              "pasoCriba": true,
+              "motivoCriba": "Convocatoria de la Comunidad de Madrid para entidades sin ánimo de lucro que financia actividades y proyectos ambientales de conservación, defensa y recuperación del patrimonio natural (biodiversidad, hábitats de interés comunitario, humedales, Red Natura 2000), alineada con las líneas de restauración y conservación de Reforesta; no exige sede fuera de la Comunidad de Madrid.",
+              "etapa": "puntuada",
+              "puntuacion": 38,
+              "factores": [
+                {
+                  "id": "encaje",
+                  "nombre": "Encaje",
+                  "peso": 35,
+                  "subpuntuacion": 0.3,
+                  "conocido": false,
+                  "explicacion": "desconocido: la convocatoria aún no se ha analizado"
+                },
+                {
+                  "id": "importe",
+                  "nombre": "Importe",
+                  "peso": 20,
+                  "subpuntuacion": 0.3,
+                  "conocido": false,
+                  "explicacion": "desconocido: sin analizar"
+                },
+                {
+                  "id": "cierre",
+                  "nombre": "Tiempo hasta el cierre",
+                  "peso": 15,
+                  "subpuntuacion": 0.4,
+                  "conocido": false,
+                  "explicacion": "desconocido: no se ha podido fijar la fecha de cierre"
+                },
+                {
+                  "id": "esfuerzo",
+                  "nombre": "Esfuerzo",
+                  "peso": 15,
+                  "subpuntuacion": 0.5,
+                  "conocido": false,
+                  "explicacion": "desconocido: sin analizar"
+                },
+                {
+                  "id": "probabilidad",
+                  "nombre": "Probabilidad",
+                  "peso": 15,
+                  "subpuntuacion": 0.5,
+                  "conocido": false,
+                  "explicacion": "desconocida: aún no hay ganadoras parecidas ni historial de Reforesta con esta convocatoria"
+                }
+              ],
+              "completa": true,
+              "destacada": false,
+              "exito": false
+            }
+          },
+          {
+            "numero": "825309",
+            "etiqueta": "CAM proyectos ambientales 2025",
+            "titulo": "SUBVENCIÓN ENTIDADES SIN ÁNIMO DE LUCRO PROYECTOS AMBIENTALES 2025",
+            "fechaPublicacion": "2025-04-07",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/825309",
+            "notas": [],
+            "resultado": {
+              "pasoReglas": true,
+              "motivoReglas": null,
+              "pasoCriba": true,
+              "motivoCriba": "La convocatoria financia proyectos ambientales de entidades sin ánimo de lucro en la Comunidad de Madrid (conservación de biodiversidad, espacios protegidos, hábitats de interés comunitario, humedales y Red Natura 2000), lo que encaja con las líneas de restauración y conservación de Reforesta; no exige sede en otra comunidad.",
+              "etapa": "puntuada",
+              "puntuacion": 47,
+              "factores": [
+                {
+                  "id": "encaje",
+                  "nombre": "Encaje",
+                  "peso": 35,
+                  "subpuntuacion": 0.3,
+                  "conocido": false,
+                  "explicacion": "desconocido: la convocatoria aún no se ha analizado"
+                },
+                {
+                  "id": "importe",
+                  "nombre": "Importe",
+                  "peso": 20,
+                  "subpuntuacion": 0.3,
+                  "conocido": false,
+                  "explicacion": "desconocido: sin analizar"
+                },
+                {
+                  "id": "cierre",
+                  "nombre": "Tiempo hasta el cierre",
+                  "peso": 15,
+                  "subpuntuacion": 1,
+                  "conocido": true,
+                  "explicacion": "faltan 28 días (fecha calculada): tiempo de sobra"
+                },
+                {
+                  "id": "esfuerzo",
+                  "nombre": "Esfuerzo",
+                  "peso": 15,
+                  "subpuntuacion": 0.5,
+                  "conocido": false,
+                  "explicacion": "desconocido: sin analizar"
+                },
+                {
+                  "id": "probabilidad",
+                  "nombre": "Probabilidad",
+                  "peso": 15,
+                  "subpuntuacion": 0.5,
+                  "conocido": false,
+                  "explicacion": "desconocida: aún no hay ganadoras parecidas ni historial de Reforesta con esta convocatoria"
+                }
+              ],
+              "completa": true,
+              "destacada": true,
+              "exito": true
+            }
+          },
+          {
+            "numero": "904719",
+            "etiqueta": "CAM proyectos ambientales 2026 · ejemplo del reto: Orden 1689/2026",
+            "titulo": "SUBVENCIÓN ENTIDADES SIN ÁNIMO DE LUCRO PROYECTOS AMBIENTALES 2026",
+            "fechaPublicacion": "2026-05-11",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/904719",
+            "notas": [
+              "La Orden 1689/2026 del reto es esta misma convocatoria: su extracto se titula «EXTRACTO de la Orden 1689/2026, de la Consejería de Medio Ambiente, Agricultura e Interior…»"
+            ],
+            "resultado": {
+              "pasoReglas": true,
+              "motivoReglas": null,
+              "pasoCriba": true,
+              "motivoCriba": "La convocatoria financia proyectos ambientales de entidades sin ánimo de lucro en la Comunidad de Madrid, priorizando biodiversidad, especies catalogadas, humedales, hábitats de interés comunitario y Red Natura 2000, que encajan con las líneas de restauración y conservación de Reforesta.",
+              "etapa": "puntuada",
+              "puntuacion": 47,
+              "factores": [
+                {
+                  "id": "encaje",
+                  "nombre": "Encaje",
+                  "peso": 35,
+                  "subpuntuacion": 0.3,
+                  "conocido": false,
+                  "explicacion": "desconocido: la convocatoria aún no se ha analizado"
+                },
+                {
+                  "id": "importe",
+                  "nombre": "Importe",
+                  "peso": 20,
+                  "subpuntuacion": 0.3,
+                  "conocido": false,
+                  "explicacion": "desconocido: sin analizar"
+                },
+                {
+                  "id": "cierre",
+                  "nombre": "Tiempo hasta el cierre",
+                  "peso": 15,
+                  "subpuntuacion": 1,
+                  "conocido": true,
+                  "explicacion": "faltan 28 días: tiempo de sobra"
+                },
+                {
+                  "id": "esfuerzo",
+                  "nombre": "Esfuerzo",
+                  "peso": 15,
+                  "subpuntuacion": 0.5,
+                  "conocido": false,
+                  "explicacion": "desconocido: sin analizar"
+                },
+                {
+                  "id": "probabilidad",
+                  "nombre": "Probabilidad",
+                  "peso": 15,
+                  "subpuntuacion": 0.5,
+                  "conocido": false,
+                  "explicacion": "desconocida: aún no hay ganadoras parecidas ni historial de Reforesta con esta convocatoria"
+                }
+              ],
+              "completa": true,
+              "destacada": true,
+              "exito": true
+            }
+          },
+          {
+            "numero": "923290",
+            "etiqueta": "MITECO línea A 2026 · ejemplo del reto",
+            "titulo": "AYUDAS CONCURRENCIA COMPETITIVA LÍNEA A DESARROLLO ACTIVIDADES INTERÉS GENERAL CONSIDERADAS INTERÉS SOCIAL, EN EL ÁMBITO DE LA INVESTIGACIÓN CIENTÍFICA Y TÉCNICA Y PROTECCIÓN MEDIO AMBIENTE EN MATERIAS DE COMPETENCIA ESTATAL. ANUALIDAD 2026.",
+            "fechaPublicacion": "2026-08-03",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/923290",
+            "notas": [],
+            "resultado": {
+              "pasoReglas": true,
+              "motivoReglas": null,
+              "pasoCriba": true,
+              "motivoCriba": "El extracto convoca la Línea A de ayudas a actividades de interés general y social para entidades del Tercer Sector de ámbito estatal en investigación científica y protección del medio ambiente, sin exigir sede en otra comunidad; el encaje con la línea de restauración de ecosistemas debe confirmarse en las bases completas.",
+              "etapa": "puntuada",
+              "puntuacion": 47,
+              "factores": [
+                {
+                  "id": "encaje",
+                  "nombre": "Encaje",
+                  "peso": 35,
+                  "subpuntuacion": 0.3,
+                  "conocido": false,
+                  "explicacion": "desconocido: la convocatoria aún no se ha analizado"
+                },
+                {
+                  "id": "importe",
+                  "nombre": "Importe",
+                  "peso": 20,
+                  "subpuntuacion": 0.3,
+                  "conocido": false,
+                  "explicacion": "desconocido: sin analizar"
+                },
+                {
+                  "id": "cierre",
+                  "nombre": "Tiempo hasta el cierre",
+                  "peso": 15,
+                  "subpuntuacion": 1,
+                  "conocido": true,
+                  "explicacion": "faltan 25 días (fecha calculada): tiempo de sobra"
+                },
+                {
+                  "id": "esfuerzo",
+                  "nombre": "Esfuerzo",
+                  "peso": 15,
+                  "subpuntuacion": 0.5,
+                  "conocido": false,
+                  "explicacion": "desconocido: sin analizar"
+                },
+                {
+                  "id": "probabilidad",
+                  "nombre": "Probabilidad",
+                  "peso": 15,
+                  "subpuntuacion": 0.5,
+                  "conocido": false,
+                  "explicacion": "desconocida: aún no hay ganadoras parecidas ni historial de Reforesta con esta convocatoria"
+                }
+              ],
+              "completa": true,
+              "destacada": true,
+              "exito": true
+            }
+          }
+        ],
+        "total": 6,
+        "calculadas": 6,
+        "completas": 6,
+        "exitos": 3,
+        "pasanReglas": 6,
+        "pasanCriba": 6
+      },
+      "b": {
+        "filas": [
+          {
+            "numero": "616944",
+            "titulo": "Convocatoria pública de subvenciones del Área Transición Ecológica del Ayuntamiento de Móstoles, para la realización de actividades de utilidad pública o de interés social con fines medioambientales y ecosociales, ejercicio 2022",
+            "organo": "LOCAL · MÓSTOLES · AYUNTAMIENTO DE MÓSTOLES",
+            "fechaPublicacion": "2022-03-23",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/616944",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: región ES3",
+              "Finalidad ambiental: «transicion ecologica»",
+              "Admite ESFL: la ganó SEO/BirdLife y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "SEO/BirdLife"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "Convocatoria del Ayuntamiento de Móstoles dirigida a asociaciones y entidades sin ánimo de lucro para actividades medioambientales y ecosociales de utilidad pública, compatible con las líneas de restauración, conservación y educación ambiental; el ámbito es municipal de Madrid y no se exige sede en otra comunidad.",
+            "puntuacion": 38,
+            "destacada": false
+          },
+          {
+            "numero": "628830",
+            "titulo": "Subvenciones a entidades del tercer sector y ONGs. Anualidad 2022",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · DIRECCIÓN GENERAL DE SERVICIOS",
+            "fechaPublicacion": "2022-05-24",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/628830",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «transicion ecologica»",
+              "Admite ESFL: la ganó SEO/BirdLife, GREFA, FUNDACION GLOBAL NATURE y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "SEO/BirdLife",
+              "GREFA",
+              "FUNDACION GLOBAL NATURE"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "Convocatoria estatal para entidades del Tercer Sector y ONG que desarrollen actividades de interés general en investigación científica y técnica de carácter medioambiental, lo que puede relacionarse con las líneas de restauración, conservación y educación ambiental de Reforesta, aunque el extracto no detalla las actuaciones elegibles y remite a las bases reguladoras.",
+            "puntuacion": 38,
+            "destacada": false
+          },
+          {
+            "numero": "637523",
+            "titulo": "NGEU-MRR BB.RR. CONV22 DESARR SOCIO ECON RES BIOSFERA CUENCAS ALTAS ESAL",
+            "organo": "AUTONOMICA · COMUNIDAD DE MADRID · CONSEJERÍA DE MEDIO AMBIENTE, AGRICULTURA E INTERIOR",
+            "fechaPublicacion": "2022-07-05",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/637523",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: Comunidad: COMUNIDAD DE MADRID",
+              "Finalidad ambiental: «medio ambiente»",
+              "Admite ESFL: la ganó Asociación Herpetológica Española (AHE), GREFA y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "Asociación Herpetológica Española (AHE)",
+              "GREFA"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "Convocatoria autonómica de Madrid para desarrollo socioeconómico en reservas de la biosfera de las cuencas altas, dirigida a entidades sin ánimo de lucro, que puede encajar con restauración de ecosistemas y conservación de hábitats en la Sierra de Guadarrama; falta leer las bases completas para confirmar actividades y requisitos.",
+            "puntuacion": 38,
+            "destacada": false
+          },
+          {
+            "numero": "645500",
+            "titulo": "Convocatoria de ayudas de la Fundación Biodiversidad F.S.P., en régimen de concurrencia competitiva, a determinadas ONG para la participación en la definición, propuesta y ejecución de políticas públicas de competencia estatal",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · FUNDACIÓN BIODIVERSIDAD",
+            "fechaPublicacion": "2022-08-25",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/645500",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «biodiversidad»",
+              "Admite ESFL: la ganó SEO/BirdLife y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "SEO/BirdLife"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "El extracto limita la convocatoria a organizaciones no gubernamentales que formen parte del Consejo Asesor de Medio Ambiente, para cofinanciar actividades de biodiversidad y cambio climático; no consta que Reforesta sea miembro, lo que debe verificarse en las bases completas, pero no se descarta por ello en esta criba.",
+            "puntuacion": 38,
+            "destacada": false
+          },
+          {
+            "numero": "653621",
+            "titulo": "Resolución de la Dirección de la Fundación Biodiversidad FSP que aprueba la publicación de la convocatoria de subvenciones para actuaciones de renaturalización y resiliencia de ciudades españolas 2022 del Plan de Recuperación, Transformación y Resiliencia",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · FUNDACIÓN BIODIVERSIDAD",
+            "fechaPublicacion": "2022-10-14",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/653621",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «biodiversidad»",
+              "Admite ESFL: la ganó SEO/BirdLife, FUNDACION GLOBAL NATURE y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "SEO/BirdLife",
+              "FUNDACION GLOBAL NATURE"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "La convocatoria financia actuaciones de renaturalización urbana, infraestructura verde y biodiversidad en ciudades, y admite como beneficiarias en agrupación a entidades sin ánimo de lucro (art. 2.2.b), lo que encaja con la restauración de ecosistemas y la conservación de hábitats de Reforesta; no consta exigencia de sede en otra comunidad, aunque la entidad debe integrarse en agrupación con un ayuntamiento limítrofe.",
+            "puntuacion": 47,
+            "destacada": true
+          },
+          {
+            "numero": "670489",
+            "titulo": "Resolución de la Dirección de la Fundación Biodiversidad F.S.P., por la que se aprueba la publicación de convocatoria de subvenciones para la realización de proyectos que contribuyan a implementar el  PNACC 2021-2030 en 2023",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · FUNDACIÓN BIODIVERSIDAD",
+            "fechaPublicacion": "2023-01-13",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/670489",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «biodiversidad»",
+              "Admite ESFL: la ganó Fundación Santa María la Real, FUNDACION GLOBAL NATURE y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "Fundación Santa María la Real",
+              "FUNDACION GLOBAL NATURE"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "La convocatoria financia proyectos de adaptación al cambio climático (PNACC 2021-2030) y está abierta a entidades sin ánimo de lucro, lo que puede cuadrar con las líneas de restauración de ecosistemas y conservación de hábitats, aunque el texto se centra en conocimiento científico y no exige sede en otra comunidad.",
+            "puntuacion": 47,
+            "destacada": true
+          },
+          {
+            "numero": "687060",
+            "titulo": "SUBVENCIONES PARA LA REALIZACIÓN DE PROGRAMAS DE VOLUNTARIADO EN EL MARCO DEL PLAN DE SENSIBILIZACIÓN Y VOLUNTARIADO EN LA RED DE PARQUES NACIONALES, Y CENTROS Y FINCAS ADSCRITOS AL OAPN - 2023",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · ORGANISMO AUTÓNOMO PARQUES NACIONALES",
+            "fechaPublicacion": "2023-04-11",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/687060",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «transicion ecologica»",
+              "Admite ESFL: la ganó Asociación Herpetológica Española (AHE), SEO/BirdLife y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "Asociación Herpetológica Española (AHE)",
+              "SEO/BirdLife"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "La convocatoria financia programas de voluntariado en parques nacionales y centros adscritos dirigidos a entidades de voluntariado, lo que encaja con la línea de educación ambiental y voluntariado de Reforesta; el texto no exige sede en otra comunidad y las bases completas deben revisarse.",
+            "puntuacion": 38,
+            "destacada": false
+          },
+          {
+            "numero": "690409",
+            "titulo": "Convocatoria de subvenciones para apoyo a proyectos transformadores para la promoción de la bioeconomía ligada al ámbito forestal y la contribución a la transición ecológica 2023 en el marco del PRTR",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · FUNDACIÓN BIODIVERSIDAD",
+            "fechaPublicacion": "2023-04-25",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/690409",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «forestal»",
+              "Admite ESFL: la ganó SEO/BirdLife, Fundación Santa María la Real, FUNDACION GLOBAL NATURE y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "SEO/BirdLife",
+              "Fundación Santa María la Real",
+              "FUNDACION GLOBAL NATURE"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "El extracto BOE-B-2023-12404 admite como beneficiarias a entidades y organizaciones sin ánimo de lucro (art. 41.a) para proyectos transformadores de bioeconomía, transición ecológica y gestión de recursos forestales, aunque exige la participación de una entidad científica; no consta condición de sede en otra comunidad.",
+            "puntuacion": 38,
+            "destacada": false
+          },
+          {
+            "numero": "704741",
+            "titulo": "Orden de 21 de Junio de 2023  por la que se convocan subvenciones para la financiación de proyectos promovidos por entidades sin ánimo de lucro, para incentivar la participación social en proyectos que tengan como objetivo la transformación territorial",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · DIRECCIÓN GENERAL DE POLÍTICAS CONTRA LA DESPOBLACIÓN",
+            "fechaPublicacion": "2023-06-22",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/704741",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «transicion ecologica»",
+              "Admite ESFL: la ganó Fundación Santa María la Real y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "Fundación Santa María la Real"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "Convocatoria estatal de subvenciones para proyectos innovadores promovidos por entidades sin ánimo de lucro para la transformación territorial y la lucha contra la despoblación, con dimensión medioambiental y apertura a entidades sin ánimo de lucro, compatible con las líneas de restauración de ecosistemas y conservación de hábitats; no exige sede en otra comunidad.",
+            "puntuacion": 38,
+            "destacada": false
+          },
+          {
+            "numero": "712977",
+            "titulo": "AYUDAS CONCURRENCIA COMPETITIVA LÍNEA A DESARROLLO ACTIVIDADES INTERÉS GENERAL CONSIDERADAS INTERÉS SOCIAL, EN EL ÁMBITO DE LA INVESTIGACIÓN CIENTÍFICA Y TÉCNICA Y PROTECCIÓN MEDIO AMBIENTE EN MATERIAS DE COMPETENCIA ESTATAL. ANUALIDAD 2023.",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · DIRECCIÓN GENERAL DE SERVICIOS",
+            "fechaPublicacion": "2023-08-18",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/712977",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «medio ambiente»",
+              "Admite ESFL: la ganó Grupo Brinzal, SEO/BirdLife, GREFA, FUNDACION GLOBAL NATURE y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "Grupo Brinzal",
+              "SEO/BirdLife",
+              "GREFA",
+              "FUNDACION GLOBAL NATURE"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "La convocatoria financia a entidades del Tercer Sector y ONG de ámbito estatal para proyectos de protección del medio ambiente e investigación, lo que puede relacionarse con las líneas de restauración de ecosistemas y conservación de hábitats de Reforesta.",
+            "puntuacion": 38,
+            "destacada": false
+          },
+          {
+            "numero": "723691",
+            "titulo": "CONVOCATORIA PÚBLICA DE SUBVENCIONES DEL ÁREA DE MEDIO AMBIENTE PARA ASOCIACIONES Y ENTIDADES SIN ÁNIMO DE LUCRO PARA LA REALIZACIÓN DE ACTIVIDADES MEDIOAMBIENTALES Y ECOSOCIALES DEL AYUNTAMIENTO DE MÓSTOLES. AÑO 2024.",
+            "organo": "LOCAL · MÓSTOLES · AYUNTAMIENTO DE MÓSTOLES",
+            "fechaPublicacion": "2023-10-26",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/723691",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: región ES3",
+              "Finalidad ambiental: «medio ambiente»",
+              "Admite ESFL: la ganó SEO/BirdLife y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "SEO/BirdLife"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "Convocatoria municipal de Móstoles para entidades sin ánimo de lucro destinada a actividades medioambientales y ecosociales, compatible con las líneas de educación ambiental y restauración de ecosistemas de Reforesta; no hay condición de ámbito ni de sede en otra comunidad.",
+            "puntuacion": 38,
+            "destacada": false
+          },
+          {
+            "numero": "727799",
+            "titulo": "Convocatoria de subvenciones, en régimen de concurrencia competitiva, para el fomento de la economía azul y el impulso de la sostenibilidad pesquera y acuícola, en el marco del programa pleamar, cofinanciado por el FEMPA en el año 2023",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · FUNDACIÓN BIODIVERSIDAD",
+            "fechaPublicacion": "2023-11-17",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/727799",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «economia azul»",
+              "Admite ESFL: la ganó SEO/BirdLife y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "SEO/BirdLife"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "La convocatoria admite entidades privadas sin ánimo de lucro y financia proyectos de investigación sobre pesca y acuicultura sostenibles y conocimiento del medio marino, que es ámbito cercano a la conservación de hábitats y ecosistemas, aunque no es un tema central de las líneas de Reforesta y requiere lectura de bases completas.",
+            "puntuacion": 38,
+            "destacada": false
+          },
+          {
+            "numero": "738647",
+            "titulo": "Convocatoria de ayudas de la Fundación Biodiversidad F.S.P., en régimen de concurrencia competitiva, a determinadas ONG para la participación en la definición, propuesta y ejecución de políticas públicas de competencia estatal",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · FUNDACIÓN BIODIVERSIDAD",
+            "fechaPublicacion": "2024-01-10",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/738647",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «biodiversidad»",
+              "Admite ESFL: la ganó SEO/BirdLife y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "SEO/BirdLife"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "Convoca ayudas a ONG ambientales para cofinanciar actividades de biodiversidad y cambio climático en la definición y ejecución de políticas estatales; el beneficiario debe ser entidad sin ánimo de lucro que forme parte del Consejo Asesor de Medio Ambiente, lo que debe verificarse en las bases completas, y no se exige sede en otra comunidad.",
+            "puntuacion": 38,
+            "destacada": false
+          },
+          {
+            "numero": "766455",
+            "titulo": "Subvenciones para la realización de Programas de Voluntariado en el Marco del Plan de Sensibilización y Voluntariado en la Red de Parques Nacionales, y Centros y Fincas adscritos al OAPN-2024",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · ORGANISMO AUTÓNOMO PARQUES NACIONALES",
+            "fechaPublicacion": "2024-06-07",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/766455",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «transicion ecologica»",
+              "Admite ESFL: la ganó Asociación Herpetológica Española (AHE), SEO/BirdLife y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "Asociación Herpetológica Española (AHE)",
+              "SEO/BirdLife"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "La convocatoria financia programas de voluntariado en parques nacionales y centros adscritos a entidades de voluntariado, lo que encaja con la línea de educación ambiental y voluntariado de Reforesta; no exige sede en otra comunidad.",
+            "puntuacion": 38,
+            "destacada": false
+          },
+          {
+            "numero": "782254",
+            "titulo": "AYUDAS CONCURRENCIA COMPETITIVA LÍNEA A DESARROLLO ACTIVIDADES INTERÉS GENERAL CONSIDERADAS INTERÉS SOCIAL, EN EL ÁMBITO DE LA INVESTIGACIÓN CIENTÍFICA Y TÉCNICA Y PROTECCIÓN MEDIO AMBIENTE EN MATERIAS DE COMPETENCIA ESTATAL. ANUALIDAD 2024.",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · DIRECCIÓN GENERAL DE SERVICIOS",
+            "fechaPublicacion": "2024-08-26",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/782254",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «medio ambiente»",
+              "Admite ESFL: la ganó Grupo Brinzal, SEO/BirdLife, GREFA, FUNDACION GLOBAL NATURE y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "Grupo Brinzal",
+              "SEO/BirdLife",
+              "GREFA",
+              "FUNDACION GLOBAL NATURE"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "La convocatoria financia a entidades del Tercer Sector de ámbito estatal para actividades de interés general en investigación científica y protección del medio ambiente (Línea A), sin exigir sede en otra comunidad, por lo que puede encajar con la línea de restauración de ecosistemas y conservación de hábitats de Reforesta.",
+            "puntuacion": 38,
+            "destacada": false
+          },
+          {
+            "numero": "803854",
+            "titulo": "Resolución Dirección de Fundación Biodiversidad que publica la convocatoria de subvenciones para realizar proyectos que contribuyan a la mejora ambiental en el ámbito agropecuario y forestal, y contribución al desarrollo territorial sostenible en Doñana.",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · FUNDACIÓN BIODIVERSIDAD",
+            "fechaPublicacion": "2024-12-18",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/803854",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «biodiversidad»",
+              "Admite ESFL: la ganó SEO/BirdLife y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "SEO/BirdLife"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": false,
+            "etapa": "criba_llm",
+            "motivo": "La convocatoria exige proyectos piloto en el área de influencia de Doñana (municipios de Cádiz, Huelva y Sevilla), territorio que no está en el ámbito de actuación de Reforesta, y su condición de ámbito es ninguna, por lo que no consta exigencia de sede en otra comunidad pero el ámbito geográfico no coincide con Madrid ni con las líneas de trabajo de la organización.",
+            "puntuacion": null,
+            "destacada": false
+          },
+          {
+            "numero": "804414",
+            "titulo": "Resolución Dirección de la Fundación Biodiversidad, que aprueba publicación de convocatoria de subvenciones para fomentar actuaciones de desarrollo y consolidación de la infraestructura verde de ciudades españolas, cofinanciada por el FEDER.",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · FUNDACIÓN BIODIVERSIDAD",
+            "fechaPublicacion": "2024-12-19",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/804414",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «biodiversidad»",
+              "Admite ESFL: la ganó SEO/BirdLife y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "SEO/BirdLife"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "Las entidades sin ánimo de lucro solo pueden participar como integrantes de una agrupación coordinada por un ayuntamiento, diputación u otra entidad del apartado 1 del artículo 2.2 de la Orden TED/1060/2024, y el objeto (renaturalización urbana, biodiversidad e infraestructura verde) se relaciona con las líneas de restauración y hábitats de Reforesta.",
+            "puntuacion": 47,
+            "destacada": true
+          },
+          {
+            "numero": "804429",
+            "titulo": "Resolución de la Dirección de la Fundación Biodiversidad, que aprueba la publicación de la convocatoria de subvenciones, para apoyo a programas y proyectos de impulso de infraestructura verde a través de la generación del conocimiento (FEDER)",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · FUNDACIÓN BIODIVERSIDAD",
+            "fechaPublicacion": "2024-12-19",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/804429",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «biodiversidad»",
+              "Admite ESFL: la ganó ASOC NACIONAL MICORRIZA y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "ASOC NACIONAL MICORRIZA"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "La convocatoria estatal (FEDER) admite a entidades sin ánimo de lucro en la línea 2 para proyectos de restauración ecológica, conectividad e infraestructura verde, lo que cubre la línea de restauración de ecosistemas de Reforesta; no exige sede en otra comunidad y el plazo cierra el 20/02/2025.",
+            "puntuacion": 47,
+            "destacada": true
+          },
+          {
+            "numero": "804448",
+            "titulo": "Resolución de la Dirección de la Fundación Biodiversidad, que aprueba la publicación de convocatoria de subvenciones, para apoyo de proyectos aprobados en el marco del programa LIFE en ámbito de la biodiversidad y fomento de digitalización.",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · FUNDACIÓN BIODIVERSIDAD",
+            "fechaPublicacion": "2024-12-19",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/804448",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «biodiversidad»",
+              "Admite ESFL: la ganó GREFA, ASOC NACIONAL MICORRIZA, FUNDACION GLOBAL NATURE y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "GREFA",
+              "ASOC NACIONAL MICORRIZA",
+              "FUNDACION GLOBAL NATURE"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "La convocatoria financia proyectos de conservación del patrimonio natural y biodiversidad (línea LIFE y digitalización del conocimiento del patrimonio natural) y admite a entidades privadas sin ánimo de lucro que realicen actividades de I+D+i o generen conocimiento científico, lo que puede encajar con las líneas de restauración de ecosistemas y conservación de hábitats de Reforesta, aunque habrá que verificar en las bases completas si Reforesta cumple el requisito de I+D+i según sus estatutos.",
+            "puntuacion": 47,
+            "destacada": true
+          },
+          {
+            "numero": "810915",
+            "titulo": "Convocatoria de subvenciones de la Fundación Biodiversidad F.S.P. en régimen de concurrencia competitiva, para la adquisición o mejora de competencias para la transición ecológica, en el marco del Programa Empleaverde+, cofinanciado por FSE+",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · FUNDACIÓN BIODIVERSIDAD",
+            "fechaPublicacion": "2025-01-24",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/810915",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «biodiversidad»",
+              "Admite ESFL: la ganó FUNDACION GLOBAL NATURE y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "FUNDACION GLOBAL NATURE"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "La convocatoria estatal de la Fundación Biodiversidad financia actuaciones de capacitación para la transición ecológica (Empleaverde+), un tema cercano a la restauración de ecosistemas y la educación ambiental, y el extracto no excluye de entrada a entidades sin ánimo de lucro; la elegibilidad concreta debe confirmarse en las bases.",
+            "puntuacion": 47,
+            "destacada": true
+          },
+          {
+            "numero": "831272",
+            "titulo": "CONVOCATORIA PÚBLICA DE SUBVENCIONES DEL ÁREA DE MEDIO AMBIENTE PARA ASOCIACIONES Y ENTIDADES SIN ÁNIMO DE LUCRO PARA LA REALIZACIÓN DE ACTIVIDADES MEDIOAMBIENTALES Y ECOSOCIALES DEL AYUNTAMIENTO DE MÓSTOLES. AÑO 2025.",
+            "organo": "LOCAL · MÓSTOLES · AYUNTAMIENTO DE MÓSTOLES",
+            "fechaPublicacion": "2025-05-08",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/831272",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: región ES300",
+              "Finalidad ambiental: «medio ambiente»",
+              "Admite ESFL: la ganó SEO/BirdLife y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "SEO/BirdLife"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "Convocatoria del Ayuntamiento de Móstoles para asociaciones y entidades sin ánimo de lucro en actividades medioambientales y ecosociales, dentro del ámbito municipal de Madrid y sin condición de sede en otra comunidad.",
+            "puntuacion": 47,
+            "destacada": true
+          },
+          {
+            "numero": "833416",
+            "titulo": "Convocatoria de concesión de subvenciones para el fomento de la economía azul y el impulso de la sostenibilidad pesquera y acuícola, en el marco del Programa Pleamar, cofinanciado por el FEMPA, en 2025",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · FUNDACIÓN BIODIVERSIDAD",
+            "fechaPublicacion": "2025-05-19",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/833416",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «economia azul»",
+              "Admite ESFL: la ganó SEO/BirdLife y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "SEO/BirdLife"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": false,
+            "etapa": "criba_llm",
+            "motivo": "La convocatoria financia proyectos de sostenibilidad pesquera y acuícola, economía azul e investigación marina, sin relación con las líneas de Reforesta (restauración de ecosistemas terrestres, conservación de hábitats, educación ambiental), aunque admite entidades sin ánimo de lucro.",
+            "puntuacion": null,
+            "destacada": false
+          },
+          {
+            "numero": "835470",
+            "titulo": "Resolución de la Fundación Biodiversidad que aprueba la publicación de la convocatoria de concesión de subvenciones para apoyo a a programas y proyectos de impulso a la bioeconomía, cofinanciada por el Fondo Europeo de Desarrollo Regional (FEDER)",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · FUNDACIÓN BIODIVERSIDAD",
+            "fechaPublicacion": "2025-05-27",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/835470",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «biodiversidad»",
+              "Admite ESFL: la ganó SEO/BirdLife y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "SEO/BirdLife"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "La convocatoria financia proyectos de infraestructura verde, restauración de ecosistemas degradados y biodiversidad, y admite como beneficiarias a entidades y organizaciones sin ánimo de lucro (letra a del apartado Primero del extracto), lo que encaja con las líneas de Reforesta; el plazo de solicitudes terminaba el 23 de julio de 2025 y conviene verificarlo.",
+            "puntuacion": 47,
+            "destacada": true
+          },
+          {
+            "numero": "837090",
+            "titulo": "Subvenciones para la realización de Programas de Voluntariado en el Marco del Plan de Sensibilización y Voluntariado en la Red de Parques Nacionales, y Centros y Fincas adscritos al OAPN-2025",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · ORGANISMO AUTÓNOMO PARQUES NACIONALES",
+            "fechaPublicacion": "2025-06-03",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/837090",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «transicion ecologica»",
+              "Admite ESFL: la ganó Asociación Herpetológica Española (AHE), SEO/BirdLife y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "Asociación Herpetológica Española (AHE)",
+              "SEO/BirdLife"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "La convocatoria financia programas de voluntariado en parques nacionales y centros adscritos a entidades de voluntariado, lo que se relaciona con la línea de educación ambiental y voluntariado de Reforesta; el texto no restringe por sede en otra comunidad.",
+            "puntuacion": 47,
+            "destacada": true
+          },
+          {
+            "numero": "848938",
+            "titulo": "AYUDAS CONCURRENCIA COMPETITIVA LÍNEA A DESARROLLO ACTIVIDADES INTERÉS GENERAL CONSIDERADAS INTERÉS SOCIAL, EN EL ÁMBITO DE LA INVESTIGACIÓN CIENTÍFICA Y TÉCNICA Y PROTECCIÓN MEDIO AMBIENTE EN MATERIAS DE COMPETENCIA ESTATAL. ANUALIDAD 2025.",
+            "organo": "ESTADO · MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO · DIRECCIÓN GENERAL DE SERVICIOS",
+            "fechaPublicacion": "2025-07-29",
+            "urlBdns": "https://www.infosubvenciones.es/bdnstrans/GE/es/convocatorias/848938",
+            "reglas": [
+              "Concurrencia competitiva (Concurrencia competitiva - canónica), no nominativa",
+              "Ámbito: nivel ESTADO",
+              "Finalidad ambiental: «medio ambiente»",
+              "Admite ESFL: la ganó Grupo Brinzal, SEO/BirdLife, GREFA, FUNDACION GLOBAL NATURE y el título no la limita a empresas ni administraciones"
+            ],
+            "ganadoras": [
+              "Grupo Brinzal",
+              "SEO/BirdLife",
+              "GREFA",
+              "FUNDACION GLOBAL NATURE"
+            ],
+            "procesada": true,
+            "pasoReglas": true,
+            "pasoCriba": true,
+            "etapa": "puntuada",
+            "motivo": "El extracto convoca la línea a para entidades del Tercer Sector u ONG de ámbito estatal en protección del medio ambiente e investigación, lo que puede cuadrar con las líneas de restauración de ecosistemas y conservación de hábitats de Reforesta, pendiente de revisar requisitos en las bases.",
+            "puntuacion": 47,
+            "destacada": true
+          }
+        ],
+        "metrica": {
+          "conjunto": 25,
+          "procesadas": 25,
+          "provisionales": 0,
+          "sinProcesar": 0,
+          "sinDatos": 0,
+          "pasanCriba": 23,
+          "porcentajePasaCriba": 92,
+          "puntuaciones": [
+            38,
+            38,
+            38,
+            38,
+            38,
+            38,
+            38,
+            38,
+            38,
+            38,
+            38,
+            38,
+            38,
+            47,
+            47,
+            47,
+            47,
+            47,
+            47,
+            47,
+            47,
+            47,
+            47
+          ],
+          "medianaPuntuacion": 38,
+          "distribucion": [
+            {
+              "etiqueta": "menos de 20",
+              "n": 0
+            },
+            {
+              "etiqueta": "20–29",
+              "n": 0
+            },
+            {
+              "etiqueta": "30–39",
+              "n": 13
+            },
+            {
+              "etiqueta": "40–49",
+              "n": 10
+            },
+            {
+              "etiqueta": "50–59",
+              "n": 0
+            },
+            {
+              "etiqueta": "60 o más",
+              "n": 0
+            }
+          ],
+          "destacadas": 10,
+          "encajabanSinReforesta": 25
+        },
+        "excluidas": [
+          {
+            "motivo": "Concesión directa",
+            "n": 143
+          },
+          {
+            "motivo": "Fuera del ámbito del perfil",
+            "n": 75
+          },
+          {
+            "motivo": "Sin finalidad ambiental",
+            "n": 49
+          },
+          {
+            "motivo": "Registrada en BDNS el …, antes de 2022",
+            "n": 15
+          },
+          {
+            "motivo": "El título la limita a empresas, autónomos o administraciones, sin nombrar entidades sin ánimo de lucro",
+            "n": 1
+          }
+        ],
+        "examinadas": 308
+      },
+      "titular": "De las 6 convocatorias conocidas (las de Reforesta y los ejemplos del reto), el radar habría pasado 3 por las reglas y la criba con puntuación destacada (40 o más).",
+      "titularB": "Además, de 25 convocatorias que encajaban por reglas objetivas, ganaron organizaciones parecidas y donde Reforesta no figura entre los ganadores, el radar habría dejado pasar la criba a 23 (92 %) y destacado 10.",
+      "coste": {
+        "ejecuciones": 1,
+        "llamadas": 31,
+        "costeUsd": 0.014
+      }
+    }
+  },
+  "reglasB": {
+    "palabrasAmbientales": [
+      "ambiental",
+      "ambientales",
+      "medio ambiente",
+      "medioambiental",
+      "biodiversidad",
+      "naturaleza",
+      "natural",
+      "naturales",
+      "natura 2000",
+      "forestal",
+      "montes",
+      "ecosistema",
+      "ecosistemas",
+      "conservacion",
+      "fauna",
+      "flora",
+      "especies",
+      "habitat",
+      "reforestacion",
+      "cambio climatico",
+      "transicion ecologica",
+      "agroambiental",
+      "espacios protegidos",
+      "reserva de la biosfera",
+      "reservas de la biosfera",
+      "ornitologi",
+      "avifauna",
+      "ecologico",
+      "ecologica",
+      "economia azul",
+      "voluntariado ambiental",
+      "sensibilizacion ambiental"
+    ]
+  }
+}

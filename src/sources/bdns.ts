@@ -143,6 +143,16 @@ export async function convocatoriaConDetalle(
   return conDetalle(c, await getJson<Detalle>(f, '/convocatorias', { numConv: item.numeroConvocatoria }));
 }
 
+/** Una convocatoria por su número, solo con su detalle (el backtest no pasa por el listado). */
+export async function convocatoriaDeNumero(f: typeof fetch, numero: string): Promise<Convocatoria> {
+  const d = await getJson<Detalle>(f, '/convocatorias', { numConv: numero });
+  const base = desdeListado({
+    id: 0, numeroConvocatoria: numero, descripcion: d.descripcion ?? '', fechaRecepcion: d.fechaRecepcion,
+    nivel1: d.organo?.nivel1 ?? '', nivel2: d.organo?.nivel2 ?? null, nivel3: d.organo?.nivel3 ?? null,
+  }, []);
+  return conDetalle(base, d);
+}
+
 async function enParalelo<T>(items: T[], n: number, tarea: (item: T) => Promise<void>): Promise<void> {
   let i = 0;
   const trabajador = async () => {

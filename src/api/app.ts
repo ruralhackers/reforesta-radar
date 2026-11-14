@@ -1,4 +1,5 @@
 // API HTTP (Hono). Sin estado propio: lee de la BD. `crearApi` es el punto de prueba (app.request en memoria).
+import { existsSync, readFileSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 import { Hono } from 'hono';
 import { diaLocal, sumarDias } from '../dates.ts';
@@ -16,6 +17,7 @@ import { activarParecida, altaParecidaManual, leerParecidasConAportes, NIF_ENTID
 import { anadirNota, borrarNota, decidir, deshacerDecision, ErrorDecision, leerDecision, leerDecisiones, leerNotas, MOTIVOS_DESCARTE, nosInteresa } from '../db/decisiones.ts';
 import { actualizarEmpresa, contarEmpresasBaja, ErrorEmpresa, ESTADOS_EMPRESA, type EstadoEmpresa, leerEmpresas } from '../db/empresas.ts';
 import { activarFuente, altaFuente, ErrorFundacion, leerFuentesVigiladas, quitarFuente } from '../db/fundaciones.ts';
+import { construirInforme, type Informe } from '../backtest/informe.ts';
 import { config } from '../config.ts';
 import { crearAcceso, type OpcionesEquipo } from './equipo.ts';
 import { fuentePorNombre } from '../sources/index.ts';
@@ -25,7 +27,8 @@ import type { Reloj } from '../types.ts';
 
 const DIA = /^\d{4}-\d{2}-\d{2}$/;
 
-export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabilidadInyectada, equipo: opcionesEquipo }: { db: DatabaseSync; reloj: Reloj; fuentes?: Fuente[]; puntuacion?: ConfigPuntuacion; probabilidad?: ProveedorProbabilidad; equipo?: OpcionesEquipo }): Hono {
+export function crearApi(opciones: { db: DatabaseSync; reloj: Reloj; fuentes?: Fuente[]; puntuacion?: ConfigPuntuacion; probabilidad?: ProveedorProbabilidad; equipo?: OpcionesEquipo; rutaBacktest?: string }): Hono {
+  const { db, reloj, fuentes, puntuacion, probabilidad: probabilidadInyectada, equipo: opcionesEquipo } = opciones;
   const api = new Hono();
   // Modo privado (TEAM_PASSWORD): ver src/api/equipo.ts. `acceso.requiereEquipo` es el marcador de lo privado.
   const acceso = crearAcceso(opcionesEquipo ?? config.equipo);
@@ -307,6 +310,16 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
   });
 
   api.get('/ejecuciones', (c) => c.json(ultimasEjecuciones(db, 20)));
+
+  // "Cómo sabemos": resultados del backtest (npm run backtest). Público y sin datos del equipo. Si esta BD aún no tiene resultados se sirve el
+  // informe exportado en seed/backtest.json (así la demo desplegada enseña los números que se calcularon al preparar la entrega).
+  api.get('/backtest', (c) => {
+    const informe = construirInforme(db, reloj.now());
+    if (Object.keys(informe.modos).length) return c.json({ ...informe, origen: 'bd' });
+    const ruta = opciones.rutaBacktest ?? config.rutaBacktest;
+    if (existsSync(ruta)) return c.json({ ...(JSON.parse(readFileSync(ruta, 'utf8')) as Informe), origen: 'fichero' });
+    return c.json({ ...informe, origen: 'vacio' });
+  });
 
   return api;
 }

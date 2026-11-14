@@ -376,6 +376,51 @@ const MIGRACIONES: string[] = [
     ELSE 1 END;
   ALTER TABLE empresas ADD COLUMN oculta TEXT;   -- motivo por el que no se muestra (p. ej. 'sin forma jurídica'); NULL = visible
   `,
+  // 17: backtest "Cómo sabemos" (npm run backtest). Tablas propias: el backtest nunca toca convocatorias, decisiones ni ranking vivos.
+  `
+  -- Conjuntos de prueba: (a) las convocatorias conocidas (Reforesta y reto); (b) las ganadas por parecidas con reglas objetivas (admitidas y excluidas, para poder revisarlo).
+  CREATE TABLE IF NOT EXISTS backtest_conjunto (
+    conjunto TEXT NOT NULL CHECK (conjunto IN ('a', 'b')),
+    numero TEXT NOT NULL,                  -- número de convocatoria en BDNS
+    titulo TEXT NOT NULL,
+    organo TEXT NOT NULL,
+    finalidad TEXT,
+    fecha_publicacion TEXT NOT NULL,       -- YYYY-MM-DD
+    admitida INTEGER NOT NULL,             -- 0 = examinada y excluida por una regla objetiva (b)
+    reglas TEXT NOT NULL,                  -- JSON: reglas que la admiten (o el motivo de exclusión); en (a), notas
+    ganadoras TEXT NOT NULL DEFAULT '[]',  -- JSON: parecidas que la ganaron (b)
+    etiqueta TEXT,                         -- (a) p. ej. «CAM 2025», «Ejemplo del reto»
+    orden TEXT NOT NULL,                   -- hash estable para elegir qué se procesa primero en (b)
+    creada_en TEXT NOT NULL,
+    PRIMARY KEY (conjunto, numero)
+  );
+  -- Resultado por convocatoria y modo (sin_analisis | con_analisis): reglas, criba, puntuación con el reloj en su fecha de publicación.
+  CREATE TABLE IF NOT EXISTS backtest_resultados (
+    conjunto TEXT NOT NULL,
+    numero TEXT NOT NULL,
+    modo TEXT NOT NULL,
+    paso_reglas INTEGER NOT NULL,
+    motivo_reglas TEXT,
+    paso_criba INTEGER NOT NULL,
+    motivo_criba TEXT,
+    etapa TEXT NOT NULL,                   -- 'sin_datos' | 'reglas' | 'criba_llm' | 'analisis' | 'puntuacion' | 'puntuada' | 'pendiente'
+    puntuacion REAL,
+    factores TEXT NOT NULL DEFAULT '[]',
+    destacada INTEGER NOT NULL,            -- pasa reglas y criba y puntuacion >= umbral
+    umbral REAL NOT NULL,
+    completa INTEGER NOT NULL,             -- 0 = criba sin hacer por el tope de llamadas
+    calculado_en TEXT NOT NULL,
+    PRIMARY KEY (conjunto, numero, modo)
+  );
+  -- Una fila por ejecución del backtest: llamadas reales al LLM y coste.
+  CREATE TABLE IF NOT EXISTS backtest_ejecuciones (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    modo TEXT NOT NULL,
+    empezada_en TEXT NOT NULL,
+    llamadas INTEGER NOT NULL,
+    coste_usd REAL NOT NULL
+  );
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

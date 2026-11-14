@@ -323,3 +323,38 @@ export interface Empresa {
 /** Ordenadas por prioridad (DIA, registro con compensación, y con `baja` también el registro de baja confianza). `ocultas` = las de baja confianza que no vienen. */
 export const leerEmpresas = async (equipo: boolean, baja = false) => pedir<{ empresas: Empresa[]; ocultas: number }>(`${equipo ? '/api/equipo/empresas' : '/api/empresas'}${baja ? '?baja=1' : ''}`);
 export const actualizarEmpresa = (id: number, cambios: { estado?: EstadoEmpresa; nota?: string }) => pedir<{ id: number; estado: EstadoEmpresa; nota: string | null }>(`/api/empresas/${id}`, 'PATCH', cambios);
+
+// --- Cómo sabemos (backtest) ---
+export interface BacktestFactor { nombre: string; peso: number; subpuntuacion: number; conocido: boolean; explicacion: string }
+export interface BacktestFilaA {
+  numero: string; etiqueta: string | null; titulo: string; fechaPublicacion: string; urlBdns: string; notas: string[];
+  resultado: { pasoReglas: boolean; motivoReglas: string | null; pasoCriba: boolean; motivoCriba: string | null; etapa: string; puntuacion: number | null; factores: BacktestFactor[]; completa: boolean; destacada: boolean; exito: boolean } | null;
+}
+export interface BacktestFilaB {
+  numero: string; titulo: string; organo: string; fechaPublicacion: string; urlBdns: string; reglas: string[]; ganadoras: string[];
+  procesada: boolean; pasoReglas: boolean | null; pasoCriba: boolean | null; etapa: string | null; motivo: string | null; puntuacion: number | null; destacada: boolean | null;
+}
+export interface BacktestMetricaB {
+  conjunto: number; procesadas: number; provisionales: number; sinProcesar: number; sinDatos: number; pasanCriba: number; porcentajePasaCriba: number | null;
+  puntuaciones: number[]; medianaPuntuacion: number | null; distribucion: { etiqueta: string; n: number }[]; destacadas: number; encajabanSinReforesta: number;
+}
+export interface BacktestModo {
+  modo: 'sin_analisis' | 'con_analisis';
+  umbral: number;
+  a: { filas: BacktestFilaA[]; total: number; calculadas: number; completas: number; exitos: number; pasanReglas: number; pasanCriba: number };
+  b: { filas: BacktestFilaB[]; metrica: BacktestMetricaB; excluidas: { motivo: string; n: number }[]; examinadas: number };
+  titular: string;
+  titularB: string | null;
+  coste: { ejecuciones: number; llamadas: number; costeUsd: number };
+}
+export interface Backtest {
+  generadoEn: string;
+  origen: 'bd' | 'fichero' | 'vacio';
+  modos: { sin_analisis?: BacktestModo; con_analisis?: BacktestModo };
+  reglasB: { palabrasAmbientales: string[] };
+}
+export async function leerBacktest(): Promise<Backtest> {
+  const res = await fetch('/api/backtest');
+  if (!res.ok) throw new Error(`Error ${res.status} al leer el backtest`);
+  return (await res.json()) as Backtest;
+}

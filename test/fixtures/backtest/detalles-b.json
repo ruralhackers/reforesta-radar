@@ -1,0 +1,104 @@
+{
+ "585683": {
+  "codigoBDNS": "585683",
+  "descripcion": "Convocatoria de subvenciones de la Fundación Biodiversidad F.S.P., para apoyo a grandes proyectos transformadores de índole científico-técnica para la promoción de la bioeconomía y la contribución a la transición ecológica 2021en el marco del PRTR.",
+  "fechaRecepcion": "2021-09-28",
+  "organo": {
+   "nivel1": "ESTADO",
+   "nivel2": "MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO",
+   "nivel3": "FUNDACIÓN BIODIVERSIDAD"
+  },
+  "tipoConvocatoria": "Concurrencia competitiva - canónica",
+  "descripcionFinalidad": "Investigación, desarrollo e innovación",
+  "regiones": [
+   {
+    "descripcion": "ES - ESPAÑA "
+   }
+  ]
+ },
+ "644841": {
+  "codigoBDNS": "644841",
+  "descripcion": "Subvención nominativa PGE 2022 SEO/BirdLife",
+  "fechaRecepcion": "2022-08-22",
+  "organo": {
+   "nivel1": "ESTADO",
+   "nivel2": "MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO",
+   "nivel3": "DIRECCIÓN GENERAL DE SERVICIOS"
+  },
+  "tipoConvocatoria": "Concesión directa - instrumental",
+  "descripcionFinalidad": "Investigación, desarrollo e innovación",
+  "regiones": [
+   {
+    "descripcion": "ES - ESPAÑA "
+   }
+  ]
+ },
+ "712977": {
+  "codigoBDNS": "712977",
+  "descripcion": "AYUDAS CONCURRENCIA COMPETITIVA LÍNEA A DESARROLLO ACTIVIDADES INTERÉS GENERAL CONSIDERADAS INTERÉS SOCIAL, EN EL ÁMBITO DE LA INVESTIGACIÓN CIENTÍFICA Y TÉCNICA Y PROTECCIÓN MEDIO AMBIENTE EN MATERIAS DE COMPETENCIA ESTATAL. ANUALIDAD 2023.",
+  "fechaRecepcion": "2023-08-18",
+  "organo": {
+   "nivel1": "ESTADO",
+   "nivel2": "MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO",
+   "nivel3": "DIRECCIÓN GENERAL DE SERVICIOS"
+  },
+  "tipoConvocatoria": "Concurrencia competitiva - canónica",
+  "descripcionFinalidad": "Investigación, desarrollo e innovación",
+  "regiones": [
+   {
+    "descripcion": "ES - ESPAÑA "
+   }
+  ]
+ },
+ "827459": {
+  "codigoBDNS": "827459",
+  "descripcion": "Orden de 15 de abril de 2025 de la Consejería de Medio Ambiente, Vivienda y O. del Territorio por la que se convocan los «Premios Autonómicos Fuentes Claras para la Sostenibilidad en municipios pequeños de Castilla y León», correspondientes al año 2025",
+  "fechaRecepcion": "2025-04-16",
+  "organo": {
+   "nivel1": "AUTONOMICA",
+   "nivel2": "CASTILLA Y LEÓN",
+   "nivel3": "CONSEJERÍA DE MEDIO AMBIENTE Y ENERGÍA"
+  },
+  "tipoConvocatoria": "Concurrencia competitiva - canónica",
+  "descripcionFinalidad": "Otras actuaciones de carácter económico",
+  "regiones": [
+   {
+    "descripcion": "ES41 - CASTILLA Y LEON"
+   }
+  ]
+ },
+ "837090": {
+  "codigoBDNS": "837090",
+  "descripcion": "Subvenciones para la realización de Programas de Voluntariado en el Marco del Plan de Sensibilización y Voluntariado en la Red de Parques Nacionales, y Centros y Fincas adscritos al OAPN-2025",
+  "fechaRecepcion": "2025-06-03",
+  "organo": {
+   "nivel1": "ESTADO",
+   "nivel2": "MINISTERIO PARA LA TRANSICIÓN ECOLÓGICA Y EL RETO DEMOGRÁFICO",
+   "nivel3": "ORGANISMO AUTÓNOMO PARQUES NACIONALES"
+  },
+  "tipoConvocatoria": "Concurrencia competitiva - canónica",
+  "descripcionFinalidad": "Otras actuaciones de carácter económico",
+  "regiones": [
+   {
+    "descripcion": "ES - ESPAÑA "
+   }
+  ]
+ },
+ "897908": {
+  "codigoBDNS": "897908",
+  "descripcion": "SUBVENCIÓN A ASOCIACIONES PROYECTOS JUVENILES FORMACIÓN 2026",
+  "fechaRecepcion": "2026-04-09",
+  "organo": {
+   "nivel1": "AUTONOMICA",
+   "nivel2": "COMUNIDAD DE MADRID",
+   "nivel3": "CONSEJERÍA DE FAMILIA, JUVENTUD Y ASUNTOS SOCIALES"
+  },
+  "tipoConvocatoria": "Concurrencia competitiva - canónica",
+  "descripcionFinalidad": "Educación",
+  "regiones": [
+   {
+    "descripcion": "ES3 - COMUNIDAD DE MADRID"
+   }
+  ]
+ }
+}

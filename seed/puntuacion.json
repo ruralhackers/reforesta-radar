@@ -3,6 +3,7 @@
   "pesos": { "encaje": 35, "importe": 20, "cierre": 15, "esfuerzo": 15, "probabilidad": 15 },
   "nuevasDias": 7,
   "cierranProntoDias": 21,
+  "destacadaDesde": 40,
   "encaje": {
     "_": "Subpuntuación según el número de líneas del perfil con las que encaja (índice = nº de líneas; el último valor vale para más). Si la elegibilidad para entidades sin ánimo de lucro es desconocida se multiplica por esflDesconocido.",
     "porLineas": [0, 0.7, 0.9, 1],

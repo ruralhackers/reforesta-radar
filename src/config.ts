@@ -9,6 +9,14 @@ export const config = {
   rutaFestivos: process.env.FESTIVOS_FILE ?? fileURLToPath(new URL('../seed/festivos.json', import.meta.url)),
   /** Pesos y umbrales de la puntuación. */
   rutaPuntuacion: process.env.PUNTUACION_FILE ?? fileURLToPath(new URL('../seed/puntuacion.json', import.meta.url)),
+  /** Informe público del backtest ("Cómo sabemos") que se sirve cuando la BD aún no tiene resultados (lo escribe `npm run backtest`). */
+  rutaBacktest: process.env.BACKTEST_FILE ?? fileURLToPath(new URL('../seed/backtest.json', import.meta.url)),
+  /** Backtest: BD de trabajo (criba y caché del LLM; nunca la del radar), tope de convocatorias del conjunto (b) por ejecución y pasada de construcción. */
+  backtest: {
+    rutaBdTrabajo: process.env.BACKTEST_DB ?? 'data/backtest/trabajo.sqlite',
+    maxB: Number(process.env.BACKTEST_MAX_B ?? 150),
+    maxDetallesB: Number(process.env.BACKTEST_MAX_DETALLES_B ?? 400),
+  },
   puerto: Number(process.env.PORT ?? 8116),
   host: process.env.HOST ?? '127.0.0.1',
   diasAtras: Number(process.env.LOOKBACK_DAYS ?? 7),
