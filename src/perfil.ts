@@ -132,9 +132,9 @@ export function versionCriba(p: Perfil): string {
   return hash([p.nombre, lineasOrdenadas(p), a.descripcion, [...a.nivelesSiempre].sort(), territoriosOrdenados(p), [...a.regiones].sort(), ...parteDomicilio(p)]);
 }
 
-/** Versión del perfil para el análisis: solo las líneas de trabajo (prompt y enumerado del esquema). */
+/** Versión del perfil para el análisis: las líneas de trabajo (prompt y enumerado del esquema) y el domicilio (elegibilidad por sede). */
 export function versionLineas(p: Perfil): string {
-  return hash([p.nombre, lineasOrdenadas(p)]);
+  return hash([p.nombre, lineasOrdenadas(p), ...parteDomicilio(p)]);
 }
 
 /** Versiones con la fórmula anterior (líneas en su orden): un veredicto hecho con el mismo perfil se re-estampa sin rehacerse. */
@@ -143,7 +143,7 @@ function versionesAnteriores(p: Perfil): { criba: string; lineas: string } {
   const lineas = p.lineas.map((l) => [l.nombre, l.descripcion]);
   return {
     criba: hash([p.nombre, lineas, a.descripcion, [...a.nivelesSiempre].sort(), territoriosOrdenados(p), [...a.regiones].sort(), ...parteDomicilio(p)]),
-    lineas: hash([p.nombre, lineas]),
+    lineas: hash([p.nombre, lineas, ...parteDomicilio(p)]),
   };
 }
 

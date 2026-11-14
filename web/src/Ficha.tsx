@@ -107,6 +107,7 @@ export function Ficha({ id }: { id: string }) {
   const a = ficha.analisis?.campos;
   const importe = a && (a.importeMaximoProyecto.valor ? { ...citado(a.importeMaximoProyecto), nombre: 'Importe máximo por proyecto' } : a.importeTotal.valor ? { ...citado(a.importeTotal), nombre: 'Importe total' } : null);
   const esfl = a?.elegibilidadEsfl;
+  const sede = a?.elegibilidadSede?.valor === 'no' ? a.elegibilidadSede : null;
   const plazo = ficha.plazo;
   const cierre = plazo && textoCierre(plazo);
   const cerrada = plazo?.diasHastaCierre != null && plazo.diasHastaCierre < 0;
@@ -132,7 +133,7 @@ export function Ficha({ id }: { id: string }) {
             <dl className="divide-y divide-linea">
               <Dato nombre={importe?.nombre ?? 'Importe'} valor={importe?.valor ?? null} cita={importe?.cita} documento={importe?.documento} />
               <Dato nombre="Cierre" valor={cierre ?? (plazo?.fechaCierre ? fecha(plazo.fechaCierre) : null)} cita={citaCierre} documento={citaCierre && !plazo?.textoOriginal ? a?.plazo.documento : 'texto original'} resaltar={cerrada ? 'mal' : plazo?.diasHastaCierre != null && plazo.diasHastaCierre <= 7 ? 'aviso' : undefined} />
-              <Dato nombre="¿Podemos pedirla?" valor={esfl?.valor ? (esfl.valor === 'si' ? 'Sí, admite entidades sin ánimo de lucro' : 'No admite entidades sin ánimo de lucro') : null} cita={esfl?.cita} documento={esfl?.documento} resaltar={esfl?.valor === 'si' ? 'bien' : esfl?.valor === 'no' ? 'mal' : undefined} />
+              <Dato nombre="¿Podemos pedirla?" valor={sede ? `No: ${sede.razon ?? 'exige sede en otro territorio'}` : esfl?.valor ? (esfl.valor === 'si' ? 'Sí, admite entidades sin ánimo de lucro' : 'No admite entidades sin ánimo de lucro') : null} cita={sede ? sede.cita : esfl?.cita} documento={sede ? sede.documento : esfl?.documento} resaltar={sede ? 'mal' : esfl?.valor === 'si' ? 'bien' : esfl?.valor === 'no' ? 'mal' : undefined} />
               <Dato nombre="Cofinanciación" valor={a?.cofinanciacion.valor ?? null} cita={a?.cofinanciacion.cita} documento={a?.cofinanciacion.documento} />
             </dl>
             {puedeEditar && <div className="border-t border-linea"><BotonesDecision id={ficha.id} decision={decision} alCambiar={setDecision} /></div>}

@@ -241,7 +241,8 @@ export function puntuar(
 
   let excluida: string | null = null;
   const dias = entrada.plazo?.diasHastaCierre ?? null;
-  if (entrada.analisis?.elegibilidadEsfl.valor === 'no') excluida = 'No admite entidades sin ánimo de lucro';
+  if (entrada.analisis?.elegibilidadSede?.valor === 'no') excluida = entrada.analisis.elegibilidadSede.razon ?? 'Exige sede o inscripción en otro territorio';
+  else if (entrada.analisis?.elegibilidadEsfl.valor === 'no') excluida = 'No admite entidades sin ánimo de lucro';
   else if (dias !== null && dias < 0) excluida = entrada.plazo?.fechaCierre ? `Cerrada el ${fechaLarga(entrada.plazo.fechaCierre)}` : 'Cerrada';
   else if (dias === null && (entrada.diasDesdePrimeraVez ?? 0) > (config.diasMaximosSinPlazo ?? DIAS_MAXIMOS_SIN_PLAZO)) {
     excluida = `Plazo desconocido y vista por primera vez hace ${entrada.diasDesdePrimeraVez} días: probablemente ya cerrada`;

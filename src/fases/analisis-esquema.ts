@@ -13,6 +13,8 @@ export interface CampoCitado<T extends string = string> {
   documento: string | null;
   /** Solo si es desconocido. */
   motivo?: string;
+  /** Solo en `elegibilidadSede` con valor "no": por qué (p. ej. "Exige sede social en el Distrito de Usera; la entidad está en Tres Cantos"). */
+  razon?: string;
 }
 
 export interface LineaEncaje {
@@ -25,6 +27,8 @@ export interface LineaEncaje {
 /** Lo que se guarda en `convocatoria_fases.datos` de la fase `analisis` (campo `analisis`). */
 export interface Analisis {
   elegibilidadEsfl: CampoCitado<'si' | 'no'>;
+  /** "no" si los documentos exigen sede, domicilio o inscripción en un territorio donde la entidad no está domiciliada; ausente en análisis anteriores. */
+  elegibilidadSede?: CampoCitado<'si' | 'no'>;
   importeMaximoProyecto: CampoCitado;
   importeTotal: CampoCitado;
   plazo: CampoCitado;
@@ -61,6 +65,12 @@ export function esquemaAnalisis(perfil: Perfil): Record<string, unknown> {
     type: 'object',
     properties: {
       elegibilidadEsfl: esquemaCampo({ type: 'string', enum: ['si', 'no', ''] }),
+      elegibilidadSede: {
+        type: 'object',
+        properties: { valor: { type: 'string', enum: ['si', 'no', ''] }, cita: texto, documento: texto, razon: texto },
+        required: ['valor', 'cita', 'documento', 'razon'],
+        additionalProperties: false,
+      },
       importeMaximoProyecto: esquemaCampo(),
       importeTotal: esquemaCampo(),
       plazo: esquemaCampo(),
@@ -83,7 +93,7 @@ export function esquemaAnalisis(perfil: Perfil): Record<string, unknown> {
       ideaProyecto: texto,
       tituloCorto: texto,
     },
-    required: ['elegibilidadEsfl', 'importeMaximoProyecto', 'importeTotal', 'plazo', 'cofinanciacion', 'requisitos', 'lineas', 'ideaProyecto', 'tituloCorto'],
+    required: ['elegibilidadEsfl', 'elegibilidadSede', 'importeMaximoProyecto', 'importeTotal', 'plazo', 'cofinanciacion', 'requisitos', 'lineas', 'ideaProyecto', 'tituloCorto'],
     additionalProperties: false,
   };
 }
@@ -159,8 +169,20 @@ export function aplicarCitas(bruto: unknown, textos: TextoLeido[], perfil: Perfi
     lineas.push({ linea, motivo: str(o.motivo) ?? '', cita: documento ? cita : null, documento });
   }
 
+  /** Sede: solo cuenta un "no" con cita comprobada y razón; sin domicilio en el perfil no se evalúa. */
+  const sede = (): CampoCitado<'si' | 'no'> => {
+    const c = campo('elegibilidadSede', r.elegibilidadSede, ['si', 'no'] as const);
+    if (!perfil.domicilio) return { valor: null, cita: null, documento: null, motivo: 'La entidad no tiene domicilio en el perfil' };
+    if (c.valor !== 'no') return c;
+    const o = (r.elegibilidadSede && typeof r.elegibilidadSede === 'object' ? r.elegibilidadSede : {}) as Bruto;
+    const razon = str(o.razon);
+    if (!razon) { correcciones.push('elegibilidadSede: sin razón; se descarta el valor "no"'); return { valor: null, cita: null, documento: null, motivo: 'sin razón' }; }
+    return { ...c, razon };
+  };
+
   return {
     elegibilidadEsfl: campo('elegibilidadEsfl', r.elegibilidadEsfl, ['si', 'no'] as const),
+    elegibilidadSede: sede(),
     importeMaximoProyecto: campo('importeMaximoProyecto', r.importeMaximoProyecto, undefined, true),
     importeTotal: campo('importeTotal', r.importeTotal, undefined, true),
     plazo: campo('plazo', r.plazo, undefined, true),

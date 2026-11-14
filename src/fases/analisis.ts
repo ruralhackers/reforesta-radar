@@ -58,10 +58,12 @@ export async function analizarConLlm(
       const analisis = validarRespuesta(() => aplicarCitas(datos, textos, perfil));
       aCache(ctx, clave, r);
       const e = analisis.elegibilidadEsfl;
-      const descarta = e.valor === 'no';
+      const s = analisis.elegibilidadSede;
+      const sedeNo = s?.valor === 'no';
+      const descarta = e.valor === 'no' || sedeNo;
       guardarFase(ctx.db, {
         convocatoriaId: c.id, fase: FASE_ANALISIS, descarta,
-        motivo: descarta ? `No admite entidades sin ánimo de lucro: «${e.cita}»` : null,
+        motivo: sedeNo ? `${s.razon ?? 'Exige sede o inscripción en otro territorio'}: «${s.cita}»` : descarta ? `No admite entidades sin ánimo de lucro: «${e.cita}»` : null,
         datos: {
           modelo: r.modelo, desdeCache: r.desdeCache, analisis, versionLineas: versionLineas(perfil),
           documentos: lectura.textos.map((t) => ({ titulo: t.titulo, caracteres: t.texto.length })),

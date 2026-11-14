@@ -108,6 +108,7 @@ export interface CampoCitado {
 
 export interface CamposAnalisis {
   elegibilidadEsfl: CampoCitado;
+  elegibilidadSede?: CampoCitado & { razon?: string };
   importeMaximoProyecto: CampoCitado;
   importeTotal: CampoCitado;
   plazo: CampoCitado;
