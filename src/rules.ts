@@ -68,6 +68,12 @@ const ambito: Regla = (c, p) => {
  * por regla, pero la criba LLM debe comprobar que admiten proyectos en las provincias admitidas. null = sin condición.
  */
 export function condicionAmbito(c: Convocatoria, p: Perfil): string | null {
+  // Fundaciones y premios (fuente 'fundacion'; la UE tiene su propio criterio): no hay órgano territorial que lo decida por regla, así que SIEMPRE llevan la condición del perfil
+  // y la criba LLM comprueba dónde puede ejecutarse el proyecto (un premio solo para Latinoamérica o África no es para esta entidad).
+  if (c.fuente === 'fundacion') {
+    const donde = (p.ambito.territorios ?? []).map((t) => (t.provincias.length ? `${t.provincias.join(', ')} (${t.comunidad})` : t.comunidad)).join('; ');
+    return donde ? `el proyecto debe poder ejecutarse en ${donde}; si la convocatoria o el premio se limita a otro país, continente o región, no encaja` : null;
+  }
   const a = clasificarAmbito(c, p);
   if (a.tipo !== 'parcial') return null;
   return `${a.comunidad}: solo encaja si permite ejecutar el proyecto en ${a.provincias.join(', ')} (no si lo limita a otras provincias de la comunidad)`;

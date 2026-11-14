@@ -29,8 +29,13 @@ const EXTRACCIONES: Record<string, unknown[]> = {
   [PREMIOS]: [{
     titulo: 'Premio Biodiversidad España', url: 'https://www.biophilia-fbbva.es/premios/xxi-premio-biodiversidad-espana',
     plazo: '', importe: 'dotado con 250.000 euros', extracto: '', resumen: 'Premio a la conservación de la biodiversidad en España',
+  }, {
+    titulo: 'Premio Biodiversidad Latinoamérica', url: 'https://www.biophilia-fbbva.es/premios/xxi-premio-biodiversidad-latinoamerica',
+    plazo: '', importe: 'dotado con 250.000 euros', extracto: '', resumen: 'Premio a actuaciones de conservación en Latinoamérica',
   }],
 };
+
+const criba: string[] = [];
 
 function llmFalso(): Llm {
   return {
@@ -39,8 +44,20 @@ function llmFalso(): Llm {
       if (p.tarea === 'extraccion') {
         const pagina = /^Página: (\S+)/m.exec(p.mensaje)![1];
         datos = { convocatorias: EXTRACCIONES[pagina] };
-      } else if (p.tarea === 'criba') datos = { decision: 'puede_encajar', motivo: 'Encaja con educación ambiental', exigeSedeEnOtraComunidad: 'no_aplica' };
-      else throw new Error('sin análisis en este test');
+      } else if (p.tarea === 'criba') {
+        // Responde como lo haría la criba real con el campo estructurado: solo si hay condición de ámbito y el texto limita a Latinoamérica.
+        criba.push(p.mensaje);
+        const condicion = /^Condición de ámbito: (?!ninguna)/m.test(p.mensaje);
+        const fuera = /Latinoamérica/.test(p.mensaje.split('\n')[0]);
+        datos = { decision: 'puede_encajar', motivo: fuera ? 'Solo actuaciones en Latinoamérica' : 'Encaja con educación ambiental', exigeSedeEnOtraComunidad: !condicion ? 'no_aplica' : fuera ? 'si' : 'no' };
+      } else {
+        const c = (valor: string, cita: string) => ({ valor, cita, documento: 'Ficha de la fundación' });
+        const nada = { valor: '', cita: '', documento: '' };
+        datos = {
+          elegibilidadEsfl: nada, elegibilidadSede: { ...nada, razon: '' }, importeMaximoProyecto: nada, importeTotal: c('250.000 euros', 'dotado con 250.000 euros'),
+          plazo: nada, cofinanciacion: c('no se exige cofinanciación', 'ni exige cofinanciación'), requisitos: [], lineas: [], ideaProyecto: 'Presentar un proyecto de restauración.', tituloCorto: 'Premio Biodiversidad España',
+        };
+      }
       return { datos, modelo: p.modelo, uso: { entrada: 2000, salida: 300, cacheLectura: 0, cacheEscritura: 0 } };
     },
   };
@@ -53,13 +70,14 @@ describe('fundación y premio nuevos con páginas grabadas', () => {
     altaFuente(db, { nombre: 'Fundación Ibercaja', url: IBERCAJA, tipo: 'fundacion' });
     altaFuente(db, { nombre: 'Premios Biodiversidad Fundación BBVA', url: PREMIOS, tipo: 'premio' });
     const fetch = fetchPaginas(new Map([[IBERCAJA, paginaGrabada(IBERCAJA)], [PREMIOS, paginaGrabada(PREMIOS)]]));
+    criba.length = 0;
     const r = await ejecutarRadar(
-      { db, fetch, reloj: relojFijo(AHORA), fuentes: [FUENTE], llm: llmFalso(), configLlm: { maxAnalisis: 0 }, ganadores: false, parecidas: false }, { diasAtras: 7 },
+      { db, fetch, reloj: relojFijo(AHORA), fuentes: [FUENTE], llm: llmFalso(), configLlm: { maxAnalisis: 5 }, ganadores: false, parecidas: false }, { diasAtras: 7 },
     );
     assert.equal(r.conErrores, false, JSON.stringify(r.fuentes));
 
     const filas = db.prepare("SELECT id, titulo, tipo, datos FROM convocatorias WHERE fuente = 'fundacion' ORDER BY titulo").all() as { id: string; titulo: string; tipo: string | null; datos: string }[];
-    assert.equal(filas.length, 2);
+    assert.equal(filas.length, 3);
     const ibercaja = filas.find((f) => /colaboración económica/.test(f.titulo))!;
     const premio = filas.find((f) => f.titulo === 'Premio Biodiversidad España')!;
     assert.match(ibercaja.id, /^fund:fundacionibercaja\.es:/);
@@ -71,13 +89,29 @@ describe('fundación y premio nuevos con páginas grabadas', () => {
     assert.equal(dp.tipo, 'premio');
     assert.equal(dp.importe, 'dotado con 250.000 euros');
 
+    // La criba recibe la condición de territorio del perfil también para fundaciones y premios, y el campo estructurado decide.
+    assert.ok(criba.length >= 3 && criba.every((m) => /^Condición de ámbito: el proyecto debe poder ejecutarse en .*Madrid/m.test(m)), criba[0]);
+    const latam = filas.find((f) => f.titulo === 'Premio Biodiversidad Latinoamérica')!;
+    const veredicto = (id: string) => db.prepare("SELECT descarta, motivo FROM convocatoria_fases WHERE convocatoria_id = ? AND fase = 'criba_llm'").get(id) as { descarta: number; motivo: string };
+    assert.equal(veredicto(latam.id).descarta, 1);
+    assert.match(veredicto(latam.id).motivo, /Limita el proyecto a territorios fuera del ámbito: Solo actuaciones en Latinoamérica/);
+    assert.equal(veredicto(premio.id).descarta, 0);
+
     const api = crearApi({ db, reloj: relojFijo(AHORA), fuentes: [FUENTE] });
     const semana = await (await api.request('/semana')).json() as { convocatorias: { id: string; tarjeta: { tipo: string | null } }[] };
     assert.equal(semana.convocatorias.find((c) => c.id === premio.id)?.tarjeta.tipo, 'premio');
     assert.equal(semana.convocatorias.find((c) => c.id === ibercaja.id)?.tarjeta.tipo, null);
+    assert.ok(!semana.convocatorias.some((c) => c.id === latam.id), 'la restringida a Latinoamérica no está en el ranking');
     const ficha = await (await api.request(`/convocatorias/${encodeURIComponent(premio.id)}`)).json() as { tipo: string | null; fuente: string };
     assert.equal(ficha.tipo, 'premio');
     assert.equal(ficha.fuente, 'fundacion');
+
+    // Puntuada en el pipeline como premio: dotación como importe y sin cofinanciación.
+    const puntuada = await (await api.request(`/convocatorias/${encodeURIComponent(premio.id)}`)).json() as { analisis: unknown; puntuacion: { factores: { id: string; explicacion: string }[] } | null };
+    assert.ok(puntuada.analisis, 'analizada');
+    const fx = (id: string) => puntuada.puntuacion!.factores.find((f) => f.id === id)!.explicacion;
+    assert.match(fx('importe'), /^premio de 250\.000/);
+    assert.match(fx('esfuerzo'), /premio: sin cofinanciación/);
   });
 });
 
@@ -148,5 +182,19 @@ describe('siembra de fuentes nuevas en una BD ya sembrada', () => {
     assert.deepEqual([editada.url, editada.activa, editada.notas], ['https://editada.example.org/', false, 'del equipo']);
     sembrarSiVacia(db, RUTA_SEMILLA, new Date()); // idempotente
     assert.equal(n(), total - 1);
+  });
+});
+
+describe('condición de territorio para fundaciones', () => {
+  test('una convocatoria de fundación lleva la condición del perfil; BDNS estatal no', async () => {
+    const { condicionAmbito } = await import('../src/rules.ts');
+    const { leerPerfil } = await import('../src/db/repo.ts');
+    const perfil = leerPerfil(bdSembrada())!;
+    const base: Convocatoria = {
+      id: 'fund:x:1', fuente: 'fundacion', fuenteId: 'x:1', titulo: 'Premio', organo: { nivel1: 'FUNDACIÓN', nivel2: 'X', nivel3: null },
+      fechaPublicacion: '2026-11-14', url: 'https://example.org', tipo: 'premio', finalidad: null, regiones: [], abierto: null, datos: {},
+    };
+    assert.match(condicionAmbito(base, perfil)!, /el proyecto debe poder ejecutarse en .*Madrid.*otro país, continente o región/);
+    assert.equal(condicionAmbito({ ...base, fuente: 'bdns', organo: { nivel1: 'ESTADO', nivel2: null, nivel3: null } }, perfil), null);
   });
 });
