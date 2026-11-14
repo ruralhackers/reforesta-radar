@@ -76,12 +76,14 @@ export function Empresas() {
   const [lista, setLista] = useState<Empresa[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<EstadoEmpresa | 'todas'>('todas');
+  const [ocultas, setOcultas] = useState(0);
+  const [verBaja, setVerBaja] = useState(false);
 
-  // Con sesión de equipo se lee la versión con notas; sin ella, la pública.
+  // Con sesión de equipo se lee la versión con notas; sin ella, la pública. Las de baja confianza solo si se piden.
   useEffect(() => {
     if (!cargada) return;
-    leerEmpresas(puedeEditar).then(setLista, (e: Error) => setError(e.message));
-  }, [cargada, puedeEditar]);
+    leerEmpresas(puedeEditar, verBaja).then((r) => { setLista(r.empresas); setOcultas(r.ocultas); }, (e: Error) => setError(e.message));
+  }, [cargada, puedeEditar, verBaja]);
 
   const visibles = (lista ?? []).filter((e) => filtro === 'todas' || e.estado === filtro);
   const cambiar = (n: Empresa) => setLista((l) => l && l.map((e) => (e.id === n.id ? n : e)));
@@ -92,7 +94,7 @@ export function Empresas() {
         <p className="text-sm font-medium uppercase tracking-wide text-emerald-700"><a href="/" className="hover:underline">Radar de convocatorias</a></p>
         <h1 className="text-2xl font-bold sm:text-3xl">Empresas</h1>
         <p className="mt-1 text-sm text-stone-600">
-          Empresas que una declaración de impacto ambiental del BOE obliga a restaurar o compensar (hábitat, reforestación, aves…) o que compensan su huella de carbono en el registro del MITECO:
+          Por orden de prioridad: primero las que una declaración de impacto ambiental del BOE obliga a restaurar o compensar (hábitat, reforestación, aves…), luego las que compensan su huella de carbono con proyectos de absorción en el registro del MITECO;
           posibles patrocinadoras de proyectos de restauración. Solo datos públicos de la empresa y de la fuente; no se guardan personas de contacto.
         </p>
       </header>
@@ -112,8 +114,20 @@ export function Empresas() {
       {!lista && !error && <p className="text-stone-500">Cargando…</p>}
       {lista && visibles.length === 0 && <p className="rounded-md bg-white p-4 text-stone-600 shadow-sm">{lista.length === 0 ? 'Todavía no se ha encontrado ninguna empresa.' : 'No hay empresas con ese estado.'}</p>}
       <ul className="space-y-3">
-        {visibles.map((e) => <Tarjeta key={e.id} e={e} puedeEditar={puedeEditar} alCambiar={cambiar} />)}
+        {visibles.filter((e) => e.prioridad >= 2).map((e) => <Tarjeta key={e.id} e={e} puedeEditar={puedeEditar} alCambiar={cambiar} />)}
       </ul>
+      {ocultas > 0 && !verBaja && (
+        <p className="mt-4 text-sm"><button type="button" onClick={() => setVerBaja(true)} className="text-emerald-800 hover:underline">Ver más: {ocultas} empresas de baja confianza (grandes del sector y la zona, sin compensación conocida)</button></p>
+      )}
+      {verBaja && visibles.some((e) => e.prioridad < 2) && (
+        <section className="mt-6">
+          <h2 className="mb-1 text-lg font-semibold">Baja confianza</h2>
+          <p className="mb-3 text-sm text-stone-600">Solo por tamaño, sector y zona; el registro no dice que compensen. Útiles si las de arriba no bastan.</p>
+          <ul className="space-y-3">
+            {visibles.filter((e) => e.prioridad < 2).map((e) => <Tarjeta key={e.id} e={e} puedeEditar={puedeEditar} alCambiar={cambiar} />)}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }

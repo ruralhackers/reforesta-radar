@@ -167,7 +167,7 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
       const h = huella;
       log(h.sinCambios
         ? 'empresas (huella de carbono): el registro no ha cambiado desde que se recorrió entero'
-        : `empresas (huella de carbono): ${h.filasLeidas} filas leídas, ${h.organizaciones} organizaciones, ${h.preFiltradas} pasan el pre-filtro (${h.yaCribadas} ya cribadas), ${h.cribadas} cribadas con LLM, ${h.financiadoras} financiadoras (${h.empresasNuevas.length} empresas nuevas, ${h.empresasUnidas.length} unidas a una existente), ${h.descartadas} descartadas, ${h.omitidasPorTope} sin hacer por el tope, ${h.fase.costeUsd.toFixed(4)} USD, ${h.errores.length} errores`);
+        : `empresas (huella de carbono): ${h.filasLeidas} filas leídas, ${h.organizaciones} organizaciones, ${h.preFiltradas} pasan el pre-filtro (${h.bajaConfianza} de baja confianza sin LLM; ${h.yaCribadas} ya cribadas), ${h.cribadas} cribadas con LLM, ${h.financiadoras} financiadoras (${h.empresasNuevas.length} empresas nuevas, ${h.empresasUnidas.length} unidas a una existente), ${h.descartadas} descartadas, ${h.omitidasPorTope} sin hacer por el tope, ${h.fase.costeUsd.toFixed(4)} USD, ${h.errores.length} errores`);
       for (const a of h.fase.avisos) log(`  · ${a}`);
       for (const x of h.errores) log(`  ! ${x}`);
     }

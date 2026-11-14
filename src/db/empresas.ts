@@ -18,6 +18,13 @@ export class ErrorEmpresa extends Error {
 
 export interface MedidaDia { tipo: string; cita: string }
 
+/** Prioridad de una empresa: cuanto mayor, antes se muestra. */
+export const PRIORIDAD_DIA = 3;
+export const PRIORIDAD_REGISTRO_COMPENSA = 2;
+export const PRIORIDAD_REGISTRO_ZONA = 1;
+/** Por debajo de esta prioridad (solo zona y sector, sin compensación) la empresa es de baja confianza: se guarda pero no se muestra por defecto ni va al correo. */
+export const PRIORIDAD_MINIMA_VISIBLE = PRIORIDAD_REGISTRO_COMPENSA;
+
 export type OrigenEmpresa = 'dia_boe' | 'huella_carbono';
 
 export interface SenalEmpresa {
@@ -44,6 +51,7 @@ export interface Empresa {
   enlace: string;
   provincia: string | null;
   paginaRsc: string | null;
+  prioridad: number;
   primeraVezVista: string;
   estado: EstadoEmpresa;
   /** Solo en la lectura del equipo; la pública no la trae. */
@@ -87,12 +95,15 @@ export interface NuevaSenal {
   motivo: string;
   cita: string;
   provincia: string | null;
+  /** Por defecto: DIA → 3, registro → 2. El registro solo por zona y sector es 1. Nunca baja la de una empresa que ya la tiene mayor. */
+  prioridad?: number;
   senal: Omit<SenalEmpresa, 'tipo' | 'vistaEn' | 'motivo'>;
 }
 
 /** Guarda la señal y la empresa (la crea o la une a la existente). `nueva` = la empresa se ve por primera vez. */
 export function registrarSenal(db: DatabaseSync, n: NuevaSenal, ahora: Date): { empresaId: number; nueva: boolean } {
   const clave = claveEmpresa(n.nombre);
+  const prioridad = n.prioridad ?? (n.origen === 'dia_boe' ? PRIORIDAD_DIA : PRIORIDAD_REGISTRO_COMPENSA);
   if (!clave) throw new Error('Nombre de empresa vacío');
   return transaccion(db, () => {
     const porCif = n.cif ? (db.prepare('SELECT id, cif FROM empresas WHERE cif = ?').get(n.cif) as { id: number; cif: string | null } | undefined) : undefined;
@@ -108,10 +119,11 @@ export function registrarSenal(db: DatabaseSync, n: NuevaSenal, ahora: Date): { 
     } else {
       nueva = true;
       empresaId = Number(db.prepare(`
-        INSERT INTO empresas (clave, nombre, cif, origen, motivo, cita, enlace, provincia, primera_vez_vista, actualizada_en)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(porClave && n.cif ? `${clave} ${n.cif.toLowerCase()}` : clave, n.nombre, n.cif, n.origen, n.motivo, n.cita, n.senal.enlace, n.provincia, ahora.toISOString(), ahora.toISOString()).lastInsertRowid);
+        INSERT INTO empresas (clave, nombre, cif, origen, motivo, cita, enlace, provincia, prioridad, primera_vez_vista, actualizada_en)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(porClave && n.cif ? `${clave} ${n.cif.toLowerCase()}` : clave, n.nombre, n.cif, n.origen, n.motivo, n.cita, n.senal.enlace, n.provincia, prioridad, ahora.toISOString(), ahora.toISOString()).lastInsertRowid);
     }
+    db.prepare('UPDATE empresas SET prioridad = MAX(prioridad, ?) WHERE id = ?').run(prioridad, empresaId);
     db.prepare(`
       INSERT OR IGNORE INTO empresa_senales (empresa_id, tipo, boe_id, titulo, proyecto, provincia, motivo, medidas, enlace, fecha_publicacion, vista_en)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -128,21 +140,26 @@ function aSenal(f: Record<string, unknown>): SenalEmpresa {
 }
 
 /**
- * Empresas, las vistas por primera vez más recientemente primero. `conNota`: incluir la nota del equipo (lectura privada).
- * `estado` filtra. Cada una con sus señales (la DIA más reciente primero).
+ * Empresas por prioridad (DIA del BOE, luego registro con compensación, luego registro solo por zona y sector) y, dentro de cada una, las vistas por
+ * primera vez más recientemente primero. Las de baja confianza (prioridad 1) solo con `incluirBaja`. `conNota`: incluir la nota del equipo (lectura
+ * privada). `estado` filtra. Cada una con sus señales (la más reciente primero).
  */
-export function leerEmpresas(db: DatabaseSync, opciones: { estado?: EstadoEmpresa | null; conNota?: boolean } = {}): Empresa[] {
-  const filas = (opciones.estado
-    ? db.prepare('SELECT * FROM empresas WHERE estado = ? ORDER BY primera_vez_vista DESC, id DESC').all(opciones.estado)
-    : db.prepare('SELECT * FROM empresas ORDER BY primera_vez_vista DESC, id DESC').all()) as Record<string, unknown>[];
+export function leerEmpresas(db: DatabaseSync, opciones: { estado?: EstadoEmpresa | null; conNota?: boolean; incluirBaja?: boolean } = {}): Empresa[] {
+  const filas = db.prepare(`SELECT * FROM empresas WHERE (? IS NULL OR estado = ?) AND (? = 1 OR prioridad >= ?) ORDER BY prioridad DESC, primera_vez_vista DESC, id DESC`)
+    .all(opciones.estado ?? null, opciones.estado ?? null, opciones.incluirBaja ? 1 : 0, PRIORIDAD_MINIMA_VISIBLE) as Record<string, unknown>[];
   const senales = db.prepare('SELECT * FROM empresa_senales WHERE empresa_id = ? ORDER BY fecha_publicacion DESC, id DESC');
   return filas.map((f) => ({
     id: Number(f.id), nombre: String(f.nombre), cif: (f.cif as string | null) ?? null, origen: String(f.origen), motivo: String(f.motivo), cita: String(f.cita),
-    enlace: String(f.enlace), provincia: (f.provincia as string | null) ?? null, paginaRsc: (f.pagina_rsc as string | null) ?? null,
+    enlace: String(f.enlace), provincia: (f.provincia as string | null) ?? null, paginaRsc: (f.pagina_rsc as string | null) ?? null, prioridad: Number(f.prioridad),
     primeraVezVista: String(f.primera_vez_vista), estado: f.estado as EstadoEmpresa,
     ...(opciones.conNota ? { nota: (f.nota as string | null) ?? null } : {}),
     senales: (senales.all(Number(f.id)) as Record<string, unknown>[]).map(aSenal),
   }));
+}
+
+/** Cuántas empresas de baja confianza hay (las que `leerEmpresas` no devuelve por defecto). */
+export function contarEmpresasBaja(db: DatabaseSync, estado?: EstadoEmpresa | null): number {
+  return Number((db.prepare('SELECT COUNT(*) AS n FROM empresas WHERE prioridad < ? AND (? IS NULL OR estado = ?)').get(PRIORIDAD_MINIMA_VISIBLE, estado ?? null, estado ?? null) as { n: number }).n);
 }
 
 /** Estado y/o nota del equipo. `nota` vacía la borra. Lanza ErrorEmpresa (400/404). */
@@ -163,7 +180,7 @@ export function actualizarEmpresa(db: DatabaseSync, id: number, cuerpo: unknown,
   return { id, estado: f.estado, nota: f.nota };
 }
 
-/** Empresas vistas por primera vez entre dos días locales (incluidos), las más recientes primero: lo que cuenta el correo del lunes. */
+/** Empresas (sin las de baja confianza) vistas por primera vez entre dos días locales (incluidos), por prioridad y luego las más recientes: lo que cuenta el correo del lunes. */
 export function empresasNuevasEntre(db: DatabaseSync, desde: string, hasta: string): Empresa[] {
   return leerEmpresas(db).filter((e) => {
     const d = diaLocal(new Date(e.primeraVezVista));

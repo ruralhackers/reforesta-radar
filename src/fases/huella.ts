@@ -3,14 +3,17 @@
 //   1. Baja los listados del registro (src/sources/huella.ts): huellas inscritas y compensaciones con proyectos de absorción. Si ninguno ha cambiado
 //      desde que se recorrieron enteros, no se hace nada más.
 //   2. Agrupa las filas por organización (NIF o nombre) y aplica un pre-filtro DETERMINISTA, sin LLM: solo personas jurídicas, medianas o grandes,
-//      con huella reciente y que no sean administración, y que (a) compensen (sello COMPENSO o compensaciones con proyectos de absorción) o
-//      (b) sean grandes de la zona de Madrid y alrededores en energía, infraestructuras, transporte o consumo.
-//   3. Las que pasan se ordenan por prioridad y, de las que el registro no ha cambiado desde la última criba (hash de lo que dice de ellas),
-//      solo `maxCribadas` por ejecución llegan a Haiku (el resto queda para la siguiente).
-//   4. Haiku decide si es posible financiadora con un motivo de una línea; el código compone el motivo con los datos del registro, la cita es el
-//      texto literal de la fila y la empresa se guarda con `registrarSenal` (se une a las que ya vienen de una DIA por CIF o nombre).
+//      con huella reciente y que no sean administración. Dos niveles:
+//        A (prioridad 2): compensa con proyectos de absorción (listado de compensaciones) o tiene el sello COMPENSO. Es el motivo concreto.
+//        B (prioridad 1, baja confianza): gran empresa de un sector afín (config) en la zona del perfil (ámbito), sin compensación. Se guarda sin LLM
+//        y no se muestra por defecto.
+//   3. Solo las de nivel A llegan a Haiku: por prioridad y, de las que el registro no ha cambiado desde la última criba (hash de lo que dice de
+//      ellas), solo `maxCribadas` por ejecución (el resto queda para la siguiente).
+//   4. Haiku decide si es posible financiadora con un motivo de una línea (y puede degradarla: si cumple el nivel B pasa a B, si no se descarta);
+//      el código compone el motivo con los datos del registro, la cita es el texto literal de la fila y la empresa se guarda con `registrarSenal`
+//      (se une a las que ya vienen de una DIA por CIF o nombre).
 import type { DatabaseSync } from 'node:sqlite';
-import { claveEmpresa, esEntidadJuridica, registrarSenal } from '../db/empresas.ts';
+import { claveEmpresa, esEntidadJuridica, PRIORIDAD_REGISTRO_COMPENSA, PRIORIDAD_REGISTRO_ZONA, registrarSenal } from '../db/empresas.ts';
 import { type RegistroFase, registroFaseVacio } from '../db/repo.ts';
 import type { Llm } from '../llm/llm.ts';
 import { ESQUEMA_HUELLA, promptHuella } from '../llm/prompts.ts';
@@ -28,9 +31,15 @@ export interface ConfigHuella {
   aniosAtras: number;
   timeoutMs: number;
   maxBytes: number;
+  /**
+   * Letras CNAE de los sectores del registro que cuentan como afines para el nivel B (zona + sector sin compensación). Por defecto, las que más
+   * impacto tienen sobre el medio natural: B industrias extractivas, D energía, E agua y residuos, F construcción, G comercio, H transporte.
+   * Es un ajuste de la organización (RADAR_SECTORES_HUELLA, p. ej. "B,D,F"), no del código.
+   */
+  sectores: string[];
 }
 
-export const CONFIG_HUELLA_POR_DEFECTO: ConfigHuella = { maxCribadas: 50, aniosAtras: 3, timeoutMs: 60_000, maxBytes: 60 * 1024 * 1024 };
+export const CONFIG_HUELLA_POR_DEFECTO: ConfigHuella = { maxCribadas: 50, aniosAtras: 3, timeoutMs: 60_000, maxBytes: 60 * 1024 * 1024, sectores: ['B', 'D', 'E', 'F', 'G', 'H'] };
 
 export interface ResumenHuella {
   /** true = ningún fichero ha cambiado desde que se recorrieron enteros: no se ha hecho nada. */
@@ -40,6 +49,8 @@ export interface ResumenHuella {
   organizaciones: number;
   /** Organizaciones que pasan el pre-filtro de código. */
   preFiltradas: number;
+  /** De ellas, nivel B (solo zona y sector): se guardan sin LLM y quedan ocultas por defecto. */
+  bajaConfianza: number;
   /** Pasan el pre-filtro pero el registro no ha cambiado desde su última criba. */
   yaCribadas: number;
   cribadas: number;
@@ -64,15 +75,18 @@ export interface ContextoHuella {
 const CIF = /^[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J]$/;
 const MAX_MOTIVO_LLM = 200;
 const MAX_MOTIVO = 260;
-/** Madrid y las comunidades que la rodean. */
-const ZONA = ['madrid', 'castilla y leon', 'castilla la mancha'];
-/** Letra CNAE del sector del registro: energía, industrias extractivas, agua y residuos, construcción, comercio, transporte. */
-const SECTORES_AFINES = new Set(['B', 'D', 'E', 'F', 'G', 'H']);
 /** Administración, educación, hogares y organismos extraterritoriales: no son empresas a las que pedir patrocinio. */
 const SECTORES_EXCLUIDOS = new Set(['O', 'P', 'T', 'U']);
 const TAMANOS = new Set(['gran empresa', 'mediana']);
 
 const sinAcentos = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const PALABRAS_VACIAS = new Set(['comunidad', 'de', 'del', 'la', 'el', 'region', 'principado', 'foral', 'autonoma']);
+const palabrasZona = (s: string) => sinAcentos(s).split(' ').filter((p) => p && !PALABRAS_VACIAS.has(p)).sort().join(' ');
+
+/** Comunidades autónomas de la zona de la organización, tal como las escribe el registro del MITECO ("Madrid, Comunidad de") y el perfil ("COMUNIDAD DE MADRID"): se comparan sin acentos ni palabras vacías. */
+export type Zona = string[];
+export const zonaDePerfil = (perfil: Perfil): Zona => perfil.ambito.comunidades.map(palabrasZona).filter(Boolean);
+const enZona = (ccaa: string, zona: Zona) => zona.includes(palabrasZona(ccaa));
 const letraSector = (s: string) => /^([A-Z])\./.exec(s.trim())?.[1] ?? '';
 const limpio = (t: string) => t.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
 /** Sin la forma societaria final: para casar nombres de organizaciones entre los dos listados (el de compensaciones no trae NIF). */
@@ -115,31 +129,38 @@ export function agruparOrganizaciones(filas: FilaHuella[], compensaciones: FilaC
 
 export interface Evaluacion {
   pasa: boolean;
+  /** A = compensa con proyectos de absorción o sello COMPENSO; B = solo zona y sector (baja confianza); null = no pasa. */
+  nivel: 'A' | 'B' | null;
+  /** Cumple los requisitos del nivel B (zona + sector + gran empresa), compense o no: a donde baja una A si el LLM la degrada. */
+  cumpleB: boolean;
   /** Mayor = antes. Solo ordena; no decide. */
   prioridad: number;
   motivos: string[];
 }
 
-/** Pre-filtro determinista (sin LLM). `anioMax` = último año con huellas en el registro. */
-export function evaluarOrganizacion(o: Organizacion, anioMax: number, cfg: Pick<ConfigHuella, 'aniosAtras'>): Evaluacion {
+/** Pre-filtro determinista (sin LLM). `anioMax` = último año con huellas en el registro; `zona` = comunidades del perfil. */
+export function evaluarOrganizacion(o: Organizacion, anioMax: number, cfg: Pick<ConfigHuella, 'aniosAtras'> & Partial<Pick<ConfigHuella, 'sectores'>>, zona: Zona): Evaluacion {
   const f = o.filas[0];
-  const no = (m: string): Evaluacion => ({ pasa: false, prioridad: 0, motivos: [m] });
+  const no = (m: string): Evaluacion => ({ pasa: false, nivel: null, cumpleB: false, prioridad: 0, motivos: [m] });
   if (f.anio < anioMax - cfg.aniosAtras) return no('huella antigua');
   if (!TAMANOS.has(sinAcentos(f.tamano))) return no('tamaño');
   if (SECTORES_EXCLUIDOS.has(letraSector(f.sector))) return no('sector');
   if (!esEntidadJuridica(o.nombre, o.cif)) return no('no es persona jurídica');
+  const sectores = new Set(cfg.sectores ?? CONFIG_HUELLA_POR_DEFECTO.sectores);
   const compensaPorSello = o.filas.some((x) => /COMPENSO/i.test(x.sello));
   const compensaConProyecto = o.compensaciones.length > 0;
-  const enZona = ZONA.some((z) => sinAcentos(f.ccaa).startsWith(z));
-  const sectorAfin = SECTORES_AFINES.has(letraSector(f.sector));
+  const zonaOk = enZona(f.ccaa, zona);
+  const sectorAfin = sectores.has(letraSector(f.sector));
   const grande = sinAcentos(f.tamano) === 'gran empresa';
+  const cumpleB = zonaOk && sectorAfin && grande;
   const motivos: string[] = [];
   if (compensaConProyecto) motivos.push('compensa con proyectos de absorción');
   if (compensaPorSello) motivos.push('sello COMPENSO');
-  if (enZona && sectorAfin && grande) motivos.push('gran empresa de sector afín en la zona de Madrid');
-  if (motivos.length === 0) return no('sin señal de compensación ni de zona y sector');
-  const prioridad = (compensaConProyecto ? 4 : 0) + (compensaPorSello ? 2 : 0) + (grande ? 1 : 0) + (enZona ? 1 : 0) + (sectorAfin ? 1 : 0) + (o.filas.length > 1 ? 1 : 0);
-  return { pasa: true, prioridad, motivos };
+  if (motivos.length === 0 && !cumpleB) return no('sin compensación y fuera de zona o sector');
+  if (motivos.length === 0) motivos.push('gran empresa de sector afín en la zona de la organización, sin compensación');
+  const nivel = compensaConProyecto || compensaPorSello ? 'A' : 'B';
+  const prioridad = (compensaConProyecto ? 4 : 0) + (compensaPorSello ? 2 : 0) + (grande ? 1 : 0) + (zonaOk ? 1 : 0) + (sectorAfin ? 1 : 0) + (o.filas.length > 1 ? 1 : 0);
+  return { pasa: true, nivel, cumpleB, prioridad, motivos };
 }
 
 /** Lo que se muestra al LLM (y se hashea): la fila más reciente, la última con sello COMPENSO si es otra, y las últimas compensaciones. Texto literal del registro. */
@@ -166,6 +187,12 @@ export function motivoHuella(o: Organizacion, motivoLlm: string): string {
   return limpio(`Registro de huella de carbono (MITECO), ${o.filas[0].anio}: ${motivoLlm}`).slice(0, MAX_MOTIVO);
 }
 
+/** Motivo de una de nivel B: lo dicen los datos, no el modelo. */
+export const motivoBajaConfianza = (o: Organizacion) => limpio(`Registro de huella de carbono (MITECO), ${o.filas[0].anio}: ${o.filas[0].tamano.toLowerCase()} del sector ${o.filas[0].sector.replace(/^[A-Z]\.\s*/, '')} en ${o.filas[0].ccaa}; no consta compensación (baja confianza)`).slice(0, MAX_MOTIVO);
+
+/** Versión de los criterios y del prompt de la criba: si cambia, lo ya cribado se vuelve a mirar. */
+const VERSION_CRIBA = 'v2';
+
 function firmaGuardada(db: DatabaseSync, url: string): { firma: string; completo: boolean } | null {
   const r = db.prepare('SELECT firma, completo FROM huella_ficheros WHERE url = ?').get(url) as { firma: string; completo: number } | undefined;
   return r ? { firma: r.firma, completo: r.completo === 1 } : null;
@@ -180,7 +207,7 @@ export async function recogerEmpresasHuella(ctx: ContextoHuella, cfg: ConfigHuel
   const ahora = ctx.reloj.now();
   const fase = registroFaseVacio(FASE_HUELLA, ctx.modelo);
   const r: ResumenHuella = {
-    sinCambios: false, filasLeidas: 0, compensacionesLeidas: 0, organizaciones: 0, preFiltradas: 0, yaCribadas: 0, cribadas: 0, financiadoras: 0, descartadas: 0, omitidasPorTope: 0,
+    sinCambios: false, filasLeidas: 0, compensacionesLeidas: 0, organizaciones: 0, preFiltradas: 0, bajaConfianza: 0, yaCribadas: 0, cribadas: 0, financiadoras: 0, descartadas: 0, omitidasPorTope: 0,
     empresasNuevas: [], empresasUnidas: [], fase, errores: [],
   };
   if (!ctx.llm) {
@@ -218,11 +245,14 @@ export async function recogerEmpresasHuella(ctx: ContextoHuella, cfg: ConfigHuel
   r.organizaciones = organizaciones.length;
   const anioMax = filas.reduce((m, f) => Math.max(m, f.anio), 0);
 
-  const candidatas = organizaciones
-    .map((o) => ({ o, ev: evaluarOrganizacion(o, anioMax, cfg) }))
+  const zona = zonaDePerfil(ctx.perfil);
+  const evaluadas = organizaciones
+    .map((o) => ({ o, ev: evaluarOrganizacion(o, anioMax, cfg, zona) }))
     .filter((x) => x.ev.pasa)
     .sort((a, b) => b.ev.prioridad - a.ev.prioridad || b.o.filas[0].anio - a.o.filas[0].anio || a.o.clave.localeCompare(b.o.clave));
-  r.preFiltradas = candidatas.length;
+  const candidatas = evaluadas.filter((x) => x.ev.nivel === 'A');
+  const bajas = evaluadas.filter((x) => x.ev.nivel === 'B');
+  r.preFiltradas = evaluadas.length;
 
   const hoy = diaLocal(ahora);
   const yaVista = db.prepare('SELECT 1 FROM huella_cribadas WHERE hash = ?');
@@ -231,10 +261,23 @@ export async function recogerEmpresasHuella(ctx: ContextoHuella, cfg: ConfigHuel
   let pendientes = false;
   let intentos = 0; // llamadas al LLM (también las que acaban en error): el tope cuenta intentos, no aciertos
 
-  for (const { o } of candidatas) {
+  /** Nivel B: sin LLM, motivo de los datos, prioridad 1 (no se muestra por defecto). Idempotente. */
+  const guardarBaja = (o: Organizacion) => {
+    const f = o.filas[0];
+    const { cita } = evidenciaOrganizacion(o);
+    const motivo = motivoBajaConfianza(o);
+    registrarSenal(db, {
+      nombre: o.nombre, cif: o.cif, origen: 'huella_carbono', prioridad: PRIORIDAD_REGISTRO_ZONA, motivo, cita, provincia: f.ccaa || null,
+      senal: { boeId: `huella:${o.clave}`, titulo: `Registro de huella de carbono (MITECO): ${o.nombre}`, proyecto: null, provincia: f.ccaa || null, medidas: [{ tipo: 'registro_huella', cita }], enlace: URL_HUELLA, fechaPublicacion: f.inscrita || hoy },
+    }, ahora);
+    r.bajaConfianza++;
+  };
+  for (const { o } of bajas) guardarBaja(o);
+
+  for (const { o, ev } of candidatas) {
     const { lineas, cita } = evidenciaOrganizacion(o);
     const evidencia = lineas.join('\n');
-    const h = hash(evidencia);
+    const h = hash(`${VERSION_CRIBA}|${evidencia}`);
     if (yaVista.get(h)) { r.yaCribadas++; continue; }
     if (intentos >= cfg.maxCribadas) { r.omitidasPorTope++; pendientes = true; continue; }
     intentos++;
@@ -248,13 +291,15 @@ export async function recogerEmpresasHuella(ctx: ContextoHuella, cfg: ConfigHuel
       aCache(fctx, clave, resp);
       r.cribadas++;
       if (!v.financiador) {
+        // Degradada por el modelo: si además cumple zona y sector queda como baja confianza; si no, fuera.
+        if (ev.cumpleB) guardarBaja(o);
         guardarCribada.run(h, o.clave, o.nombre, 'descartada', ahora.toISOString());
         r.descartadas++;
         continue;
       }
       const f = o.filas[0];
       const { nueva } = registrarSenal(db, {
-        nombre: o.nombre, cif: o.cif, origen: 'huella_carbono', motivo: motivoHuella(o, v.motivo), cita, provincia: f.ccaa || null,
+        nombre: o.nombre, cif: o.cif, origen: 'huella_carbono', prioridad: PRIORIDAD_REGISTRO_COMPENSA, motivo: motivoHuella(o, v.motivo), cita, provincia: f.ccaa || null,
         senal: {
           boeId: `huella:${o.clave}`, titulo: `Registro de huella de carbono (MITECO): ${o.nombre}`, proyecto: null, provincia: f.ccaa || null,
           medidas: [{ tipo: 'registro_huella', cita }], enlace: URL_HUELLA, fechaPublicacion: f.inscrita || hoy,

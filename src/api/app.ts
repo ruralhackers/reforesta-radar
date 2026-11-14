@@ -14,7 +14,7 @@ import { calcularRanking } from '../semana.ts';
 import { infoParecidas } from '../parecidas.ts';
 import { activarParecida, altaParecidaManual, leerParecidasConAportes, NIF_ENTIDAD_VALIDO, quitarParecidaManual } from '../db/ganadores.ts';
 import { anadirNota, borrarNota, decidir, deshacerDecision, ErrorDecision, leerDecision, leerDecisiones, leerNotas, MOTIVOS_DESCARTE, nosInteresa } from '../db/decisiones.ts';
-import { actualizarEmpresa, ErrorEmpresa, ESTADOS_EMPRESA, type EstadoEmpresa, leerEmpresas } from '../db/empresas.ts';
+import { actualizarEmpresa, contarEmpresasBaja, ErrorEmpresa, ESTADOS_EMPRESA, type EstadoEmpresa, leerEmpresas } from '../db/empresas.ts';
 import { activarFuente, altaFuente, ErrorFundacion, leerFuentesVigiladas, quitarFuente } from '../db/fundaciones.ts';
 import { config } from '../config.ts';
 import { crearAcceso, type OpcionesEquipo } from './equipo.ts';
@@ -187,7 +187,8 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
   equipo.get('/empresas', (c) => {
     const estado = filtroEstado(c);
     if (estado === 'invalido') return c.json({ error: `"estado" debe ser uno de: ${ESTADOS_EMPRESA.join(', ')}` }, 400);
-    return c.json({ empresas: leerEmpresas(db, { estado, conNota: true }) });
+    const incluirBaja = c.req.query('baja') === '1';
+    return c.json({ empresas: leerEmpresas(db, { estado, conNota: true, incluirBaja }), ocultas: incluirBaja ? 0 : contarEmpresasBaja(db, estado) });
   });
   api.route('/equipo', equipo);
 
@@ -216,11 +217,12 @@ export function crearApi({ db, reloj, fuentes, puntuacion, probabilidad: probabi
 
   // --- Empresas (canal de empresas: DIA del BOE con medidas de restauración) ---
   // GET público (empresa, motivo, cita, enlace al BOE, provincia, estado y señales; SIN la nota del equipo). La nota va solo en la lectura del equipo
-  // (/api/equipo/empresas). Estado y nota se escriben en `privadaEmpresas` (cuerpo { estado?, nota? }). `?estado=` filtra.
+  // (/api/equipo/empresas). Estado y nota se escriben en `privadaEmpresas` (cuerpo { estado?, nota? }). `?estado=` filtra. Orden: DIA, registro con compensación, y (solo con `?baja=1`) registro de baja confianza; `ocultas` = cuántas de baja confianza no se devuelven.
   api.get('/empresas', (c) => {
     const estado = filtroEstado(c);
     if (estado === 'invalido') return c.json({ error: `"estado" debe ser uno de: ${ESTADOS_EMPRESA.join(', ')}` }, 400);
-    return c.json({ empresas: leerEmpresas(db, { estado }) });
+    const incluirBaja = c.req.query('baja') === '1';
+    return c.json({ empresas: leerEmpresas(db, { estado, incluirBaja }), ocultas: incluirBaja ? 0 : contarEmpresasBaja(db, estado) });
   });
   const privadaEmpresas = new Hono();
   privadaEmpresas.use('*', acceso.requiereEquipo);

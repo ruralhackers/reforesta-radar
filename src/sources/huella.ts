@@ -28,6 +28,7 @@ export async function descargarFichero(f: typeof fetch, url: string, o: { timeou
   let pos = 0;
   let total = Infinity;
   let firma = '';
+  let etagVisto = '';
   while (pos < total) {
     const r = await f(url, { headers: { 'User-Agent': USER_AGENT, Range: `bytes=${pos}-${pos + TROZO - 1}` }, signal: AbortSignal.timeout(o.timeoutMs), redirect: 'manual' });
     if (r.status === 200 && pos === 0) {
@@ -41,14 +42,30 @@ export async function descargarFichero(f: typeof fetch, url: string, o: { timeou
     if (r.status !== 206) throw new Error(`HTTP ${r.status}`);
     const m = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(r.headers.get('content-range') ?? '');
     if (!m || Number(m[1]) !== pos) throw new Error('Respuesta de rango inesperada');
-    total = Number(m[3]);
-    if (total > o.maxBytes) throw new Error(`El fichero pesa ${total} bytes (tope ${o.maxBytes})`);
+    const fin = Number(m[2]);
+    const totalTrozo = Number(m[3]);
+    const version = `${r.headers.get('etag') ?? ''}|${r.headers.get('last-modified') ?? ''}`;
+    const etag = r.headers.get('etag') ?? '';
+    if (fin < pos || fin >= totalTrozo || fin - pos + 1 > TROZO) throw new Error('Respuesta de rango inesperada');
+    if (totalTrozo > o.maxBytes) throw new Error(`El fichero pesa ${totalTrozo} bytes (tope ${o.maxBytes})`);
     if (pos === 0) {
-      firma = `${r.headers.get('etag') ?? ''}|${r.headers.get('last-modified') ?? ''}|${total}`;
+      total = totalTrozo;
+      firma = `${version}|${total}`;
       if (o.saltarSiFirma && o.saltarSiFirma === firma) { await r.body?.cancel(); return null; }
+    } else if (totalTrozo !== total) {
+      throw new Error('El fichero cambió durante la descarga'); // el tamaño total anunciado debe ser el mismo en todos los trozos
+    }
+    // El ETag, cuando viene, debe ser el mismo en todos los trozos. Solo ETag: la CDN del MITECO sirve los primeros 16 MiB (la parte que corta) sin ETag y con otra
+    // Last-Modified que el resto, y la comparación estricta de cabeceras haría imposible bajar el listado real.
+    if (etag) {
+      if (etagVisto && etag !== etagVisto) throw new Error('El fichero cambió durante la descarga');
+      etagVisto = etag;
     }
     const trozo = Buffer.from(await r.arrayBuffer());
     if (trozo.length === 0) throw new Error('Trozo vacío');
+    // Lo recibido tiene que ser justo lo anunciado: ni más de lo pedido ni más del tope en total.
+    if (trozo.length !== fin - pos + 1) throw new Error('Trozo de tamaño distinto al anunciado');
+    if (pos + trozo.length > o.maxBytes || pos + trozo.length > total) throw new Error(`La descarga supera el tope de ${o.maxBytes} bytes`);
     partes.push(trozo);
     pos += trozo.length;
   }

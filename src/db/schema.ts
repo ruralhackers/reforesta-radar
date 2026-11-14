@@ -350,6 +350,23 @@ const MIGRACIONES: string[] = [
     revisado_en TEXT NOT NULL
   );
   `,
+  // 15: prioridad de las empresas (3 = DIA del BOE, 2 = registro con compensación, 1 = registro solo por zona y sector, baja confianza)
+  `
+  ALTER TABLE empresas ADD COLUMN prioridad INTEGER NOT NULL DEFAULT 0;
+  -- Recalculada con lo guardado: con señal de DIA → 3; con compensación o sello COMPENSO en la cita → 2; el resto del registro → 1.
+  UPDATE empresas SET prioridad = CASE
+    WHEN origen = 'dia_boe' OR EXISTS (SELECT 1 FROM empresa_senales s WHERE s.empresa_id = empresas.id AND s.tipo = 'dia_boe') THEN 3
+    WHEN cita LIKE '%COMPENSACIÓN:%' OR cita LIKE '%SELLO: %COMPENSO%' THEN 2
+    ELSE 1 END;
+  CREATE INDEX empresas_por_prioridad ON empresas (prioridad DESC, primera_vez_vista DESC);
+  -- Motivos del registro demasiado largos (de antes de acortarlos): se quedan con la primera frase, o con 200 caracteres.
+  UPDATE empresas SET motivo = CASE WHEN instr(motivo, '. ') BETWEEN 1 AND 200 THEN substr(motivo, 1, instr(motivo, '. ')) ELSE substr(motivo, 1, 199) || '…' END
+    WHERE origen = 'huella_carbono' AND length(motivo) > 200;
+  UPDATE empresa_senales SET motivo = CASE WHEN instr(motivo, '. ') BETWEEN 1 AND 200 THEN substr(motivo, 1, instr(motivo, '. ')) ELSE substr(motivo, 1, 199) || '…' END
+    WHERE tipo = 'huella_carbono' AND length(motivo) > 200;
+  -- Que la próxima ejecución recorra el registro entero con los criterios nuevos (la cola de la criba se rehace por hash).
+  DELETE FROM huella_ficheros;
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

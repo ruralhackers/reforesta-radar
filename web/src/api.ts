@@ -312,11 +312,14 @@ export interface Empresa {
   enlace: string;
   provincia: string | null;
   paginaRsc: string | null;
+  /** 3 = DIA del BOE, 2 = registro con compensación, 1 = registro solo por zona y sector (baja confianza). */
+  prioridad: number;
   primeraVezVista: string;
   estado: EstadoEmpresa;
   /** Solo si se lee como equipo. */
   nota?: string | null;
   senales: SenalEmpresa[];
 }
-export const leerEmpresas = async (equipo: boolean) => (await pedir<{ empresas: Empresa[] }>(equipo ? '/api/equipo/empresas' : '/api/empresas')).empresas;
+/** Ordenadas por prioridad (DIA, registro con compensación, y con `baja` también el registro de baja confianza). `ocultas` = las de baja confianza que no vienen. */
+export const leerEmpresas = async (equipo: boolean, baja = false) => pedir<{ empresas: Empresa[]; ocultas: number }>(`${equipo ? '/api/equipo/empresas' : '/api/empresas'}${baja ? '?baja=1' : ''}`);
 export const actualizarEmpresa = (id: number, cambios: { estado?: EstadoEmpresa; nota?: string }) => pedir<{ id: number; estado: EstadoEmpresa; nota: string | null }>(`/api/empresas/${id}`, 'PATCH', cambios);

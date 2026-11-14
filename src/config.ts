@@ -52,6 +52,8 @@ export const config = {
     maxCribadas: Number(process.env.RADAR_MAX_HUELLA ?? 50),
     aniosAtras: Number(process.env.RADAR_ANIOS_HUELLA ?? 3),
     timeoutMs: Number(process.env.RADAR_TIMEOUT_HUELLA_MS ?? 60_000),
+    /** Letras CNAE de los sectores afines para el nivel B (zona + sector sin compensación). Por defecto B,D,E,F,G,H: extractivas, energía, agua y residuos, construcción, comercio, transporte. La zona sale del ámbito del perfil. */
+    sectores: (process.env.RADAR_SECTORES_HUELLA ?? 'B,D,E,F,G,H').split(',').map((x) => x.trim().toUpperCase()).filter(Boolean),
   },
   /** Aprendizaje ligero: cuántas de las últimas decisiones del equipo se pasan como ejemplos a la criba y el análisis de lo nuevo. */
   decisiones: {

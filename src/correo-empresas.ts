@@ -1,6 +1,7 @@
 // Sección "Empresas nuevas de la semana" del correo del lunes (punto de extensión `seccionesExtra` de src/resumen.ts).
 // Solo empresas vistas por primera vez en los últimos 7 días (hoy incluido, como "Esta semana"); una ya vista antes, aunque una DIA nueva la
-// vuelva a señalar, no repite. Con motivo y enlace a la DIA en el BOE; nada de personas de contacto.
+// vuelva a señalar, no repite. Como máximo 5, por prioridad (DIA primero, luego registro con compensación); las de baja confianza no entran.
+// Con motivo y enlace a la fuente; nada de personas de contacto.
 import type { DatabaseSync } from 'node:sqlite';
 import { acortar, type SeccionCorreo } from './correo.ts';
 import { sumarDias } from './dates.ts';
@@ -14,7 +15,7 @@ export function seccionEmpresasNuevas({ db, hoy }: { db: DatabaseSync; hoy: stri
   const mostradas = nuevas.slice(0, MAX_EMPRESAS_CORREO);
   return [{
     titulo: 'Empresas nuevas de la semana',
-    intro: `Empresas obligadas por una declaración de impacto ambiental a restaurar o compensar${nuevas.length > mostradas.length ? ` (${mostradas.length} de ${nuevas.length}; el resto, en la web)` : ''}.`,
+    intro: `Las más claras: obligadas por una declaración de impacto ambiental a restaurar o compensar, o que ya compensan emisiones con proyectos de absorción${nuevas.length > mostradas.length ? ` (${mostradas.length} de ${nuevas.length}; el resto, en la web)` : ''}.`,
     items: mostradas.map((e) => ({
       titulo: acortar(e.nombre, 140),
       url: e.enlace,
