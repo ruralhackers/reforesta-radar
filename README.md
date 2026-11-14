@@ -28,7 +28,7 @@ El flujo de un lunes:
 
 - **BDNS**, la Base de Datos Nacional de Subvenciones.
 - **EU Funding & Tenders** (LIFE, Erasmus+…). Horizon Europe va en una sección aparte, «UE como socio de consorcio»: una ONG de 7 personas solo puede ir de socia.
-- **UE · en cascada** (FSTP): convocatorias que abren proyectos europeos (Horizon, LIFE, Digital Europe…) para dar subvenciones pequeñas a terceros. Una entidad sola puede presentarse, sin consorcio, y van en el ranking principal con el chip «UE · en cascada».
+- **UE · en cascada** (FSTP): convocatorias que abren proyectos europeos (Horizon, LIFE, Digital Europe…) para dar subvenciones pequeñas a terceros. Una entidad sola puede presentarse, sin consorcio, y van en el ranking principal con el chip «UE · en cascada». El pre-filtro de tema (palabras clave, amplio a propósito) está en `seed/cascada.json`, ampliable con `RADAR_TERMINOS_CASCADA`.
 - **Fundaciones vigiladas** (Montemadrid, Repsol…): páginas que se editan desde la web; solo se llama al modelo cuando la página cambia.
 - **Descubrimiento por organizaciones parecidas** (GREFA, Grupo Brinzal, SEO/BirdLife…): si lo que ganaron desde 2022 tiene una edición nueva, entra como candidata.
 

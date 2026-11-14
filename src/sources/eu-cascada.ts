@@ -12,18 +12,30 @@
 //     se deduce del texto (ver `paisesRestringidos`). El importe por tercero también va en el texto: lo extrae el análisis, con cita.
 //   · El índice repite resultados entre páginas: se deduplica por `callccm2Id`. Con `text=***` la búsqueda devuelve todo (el filtro es el de la consulta).
 // Pausa entre páginas (RADAR_PAUSA_CASCADA_MS) y tope de peticiones (RADAR_MAX_PETICIONES_CASCADA), como `eu_ft`.
+import { readFileSync } from 'node:fs';
 import { diaLocal } from '../dates.ts';
 import { config } from '../config.ts';
 import { htmlATexto } from '../texto.ts';
 import type { DatosPlazo } from '../plazos.ts';
 import type { Convocatoria, Cribada, Descarte } from '../types.ts';
-import { dormirReal, ESTADO_ABIERTA, ESTADO_PROXIMA, PROGRAMAS, RELEVANTE, SEDIA_API, TAM_PAGINA, TIMEOUT_MS } from './eu-ft.ts';
+import { dormirReal, ESTADO_ABIERTA, ESTADO_PROXIMA, PROGRAMAS, SEDIA_API, TAM_PAGINA, TIMEOUT_MS } from './eu-ft.ts';
 import type { ContextoFuente, DocumentoFuente, Enlace, Fuente, ResultadoFuente } from './source.ts';
 
-/** Temas del perfil vistos en una convocatoria en cascada (los de `eu_ft` más agroecología y soluciones basadas en la naturaleza). */
-const TEMA = new RegExp(`${RELEVANTE.source}|agroecolog|nature[- ]based solution|ecological restoration|ecosystem restoration|regenerative agricultur|soil health|biosphere|marine protected|coastal ecosystem|blue carbon|pollinator`, 'i');
-/** Una convocatoria en cascada es corta y específica: con 3 menciones en el cuerpo basta. */
-const MENCIONES_CUERPO = 3;
+/** Pre-filtro de tema: raíces de palabra y umbral de menciones en el cuerpo (seed/cascada.json; ver ahí). */
+export interface TemasCascada { raices: string[]; mencionesCuerpo: number }
+
+const escapar = (t: string) => t.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[\s-]+/g, '[\\s-]?');
+
+/** Lee seed/cascada.json y le suma las raíces y el umbral del entorno (`config.euCascada`). */
+export function leerTemasCascada(cfg: { rutaTemas: string; terminosExtra: string[]; mencionesCuerpo: number | null } = config.euCascada): TemasCascada {
+  const j = JSON.parse(readFileSync(cfg.rutaTemas, 'utf8')) as { raices?: unknown; mencionesCuerpo?: unknown };
+  const raices = Array.isArray(j.raices) ? j.raices.filter((x): x is string => typeof x === 'string' && x.trim() !== '') : [];
+  if (raices.length === 0) throw new Error(`${cfg.rutaTemas}: falta la lista "raices"`);
+  const menciones = cfg.mencionesCuerpo ?? (typeof j.mencionesCuerpo === 'number' && j.mencionesCuerpo >= 1 ? j.mencionesCuerpo : 1);
+  return { raices: [...raices, ...cfg.terminosExtra], mencionesCuerpo: menciones };
+}
+
+const regexTemas = (t: TemasCascada) => new RegExp(`\\b(?:${t.raices.map(escapar).join('|')})`, 'gi');
 
 export interface Cascada {
   /** `callccm2Id`: id estable de la convocatoria. */
@@ -109,13 +121,14 @@ const paisesEn = (texto: string): string[] => Object.entries(PAISES).filter(([, 
 
 /**
  * Países a los que se limita una convocatoria, o [] si es de toda España/UE o el texto no limita. Dos señales:
- * (1) el título (convocatoria, topic o proyecto) nombra un país («Slovenian seas», «National Coordination Centre - Hungary»): es de ese país;
+ * (1) el título (convocatoria, topic o proyecto) nombra un país («Estonian SMEs», «National Coordination Centre - Hungary»): es de ese país, salvo que la elegibilidad diga «Estados miembros»/UE;
  * (2) la condición de dónde debe estar el solicitante nombra países y ninguno es España, sin decir «Estados miembros»/«UE». Si España aparece, no restringe.
  */
 export function paisesRestringidos(c: Pick<Cascada, 'titulo' | 'tituloConvocatoria' | 'proyecto' | 'quienPuede' | 'descripcion' | 'masInformacion'>): string[] {
   const nombres = [c.titulo, c.tituloConvocatoria ?? '', c.proyecto].join(' | ');
   const enTitulo = paisesEn(nombres);
-  if (enTitulo.length > 0 && !ESPANA.test(nombres)) return enTitulo;
+  // Un título que nombra un país es de ese país, salvo que la elegibilidad diga que está abierta a toda la UE (entonces decide la criba LLM con la condición de ámbito).
+  if (enTitulo.length > 0 && !ESPANA.test(nombres) && !UE_ABIERTA.test(c.quienPuede)) return enTitulo;
   const textos = [c.quienPuede, c.descripcion, c.masInformacion].join('\n');
   const colas = [...textos.matchAll(DONDE)].map((x) => x[1]);
   const cola = colas.join(' | ');
@@ -125,16 +138,18 @@ export function paisesRestringidos(c: Pick<Cascada, 'titulo' | 'tituloConvocator
   return hits;
 }
 
-/** ¿Trata de los temas del perfil? Título, convocatoria o proyecto; o el cuerpo con insistencia (3 menciones). */
-export function esRelevante(c: Cascada): boolean {
-  if (TEMA.test([c.titulo, c.tituloConvocatoria ?? '', c.proyecto].join(' | '))) return true;
+/** ¿Toca algún tema del pre-filtro? Título, convocatoria o proyecto; o el cuerpo con `mencionesCuerpo` menciones. */
+export function esRelevante(c: Cascada, temas: TemasCascada): boolean {
+  const re = regexTemas(temas);
+  if (re.test([c.titulo, c.tituloConvocatoria ?? '', c.proyecto].join(' | '))) return true;
   const cuerpo = [c.descripcion, c.quienPuede, c.masInformacion].join('\n');
-  return (cuerpo.match(new RegExp(TEMA.source, 'gi')) ?? []).length >= MENCIONES_CUERPO;
+  return (cuerpo.match(re) ?? []).length >= temas.mencionesCuerpo;
 }
 
-export function descarteCascada(c: Cascada): Descarte | null {
-  if (!esRelevante(c)) {
-    return { regla: 'tema', motivo: 'Fuera de los temas del perfil (restauración, biodiversidad, soluciones basadas en la naturaleza, bosque, rewilding, adaptación, educación ambiental, ciencia ciudadana, agroecología)' };
+/** `lineas`: nombres de las líneas de trabajo del perfil, para el motivo del descarte por tema. */
+export function descarteCascada(c: Cascada, temas: TemasCascada, lineas: string[]): Descarte | null {
+  if (!esRelevante(c, temas)) {
+    return { regla: 'tema', motivo: `Fuera de los temas del perfil${lineas.length ? ` (${lineas.join('; ')})` : ''}: ninguna palabra clave de seed/cascada.json en la ficha` };
   }
   const paises = paisesRestringidos(c);
   if (paises.length > 0) return { regla: 'pais', motivo: `Convocatoria limitada a ${paises.join(', ')}: no incluye España ni está abierta a toda la UE` };
@@ -171,11 +186,12 @@ async function pagina(f: typeof fetch, numero: number, hoy: string): Promise<Res
   return (await res.json()) as RespuestaSedia;
 }
 
-export interface OpcionesFuenteCascada { pausaMs: number; maxPeticiones: number }
+export interface OpcionesFuenteCascada { pausaMs: number; maxPeticiones: number; temas?: TemasCascada }
 
 export function crearFuenteEuCascada(opciones: () => OpcionesFuenteCascada = () => config.euCascada): Fuente {
   async function recoger(ctx: ContextoFuente): Promise<ResultadoFuente> {
-    const { pausaMs, maxPeticiones } = opciones();
+    const { pausaMs, maxPeticiones, temas = leerTemasCascada() } = opciones();
+    const lineas = ctx.perfil.lineas.map((l) => l.nombre);
     const dormir = ctx.dormir ?? dormirReal;
     const hoy = diaLocal(ctx.ahora);
     const cascadas = new Map<string, Cascada>();
@@ -204,7 +220,7 @@ export function crearFuenteEuCascada(opciones: () => OpcionesFuenteCascada = () 
     }
     const cribadas: Cribada[] = [];
     for (const c of cascadas.values()) {
-      const d = descarteCascada(c);
+      const d = descarteCascada(c, temas, lineas);
       // Se guarda todo con su motivo (auditable); de lo ajeno al tema sin los textos largos.
       const guardada = d?.regla === 'tema' ? { ...c, descripcion: '', quienPuede: '', masInformacion: '' } : c;
       const conv = aConvocatoria(guardada, ctx.ahora);

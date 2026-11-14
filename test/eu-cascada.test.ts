@@ -8,7 +8,8 @@ import { leerFases, leerPlazo } from '../src/db/repo.ts';
 import { ejecutarRadar } from '../src/engine.ts';
 import type { Llm, PeticionLlm } from '../src/llm/llm.ts';
 import { bdns } from '../src/sources/bdns.ts';
-import { aCascada, crearFuenteEuCascada, paisesRestringidos } from '../src/sources/eu-cascada.ts';
+import { config } from '../src/config.ts';
+import { aCascada, crearFuenteEuCascada, descarteCascada, esRelevante, leerTemasCascada, paisesRestringidos } from '../src/sources/eu-cascada.ts';
 import { euFt } from '../src/sources/eu-ft.ts';
 import type { Fuente } from '../src/sources/source.ts';
 import { bdSembrada, darPorCribadas, relojFijo } from './support/bd.ts';
@@ -16,7 +17,8 @@ import { AHORA_EU_FT, ESCENARIOS, esSedia, fetchGrabado } from './support/grabac
 
 const cascada = crearFuenteEuCascada(() => ({ pausaMs: 0, maxPeticiones: 4 }));
 const RELEVANTE = 'cascada:13903'; // WoodStock: grants de hasta 50.000 € para soluciones de madera infrautilizada del bosque, ONG admitidas, UE + asociados
-const OTRO_PAIS = 'cascada:15882'; // RISTANC: restauración de ecosistemas marinos, pero «Slovenian seas» (Eslovenia)
+const OTRO_PAIS = 'cascada:10941'; // NCC Estonia: ayudas a start-ups registradas en Estonia
+const TITULO_PAIS_UE = 'cascada:15882'; // RISTANC: «Slovenian seas», pero abierta a entidades de cualquier Estado miembro: pasa a la criba, que decide por el territorio
 const AJENO = 'cascada:12902'; // Phortify: becas de prácticas en fotónica
 
 async function pasada(db: DatabaseSync, fuentes: Fuente[], fetch: typeof globalThis.fetch, extra: Record<string, unknown> = {}) {
@@ -33,7 +35,7 @@ describe('fuente EU en cascada (FSTP)', () => {
     assert.equal(f.fuente, 'eu_cascada');
     assert.equal(f.recibidas, 109);
     assert.equal(f.candidatas + f.descartadas, f.recibidas);
-    assert.ok(f.candidatas >= 3 && f.candidatas < 15, `candidatas: ${f.candidatas}`);
+    assert.ok(f.candidatas >= 40 && f.candidatas < 70, `candidatas: ${f.candidatas}`);
 
     const c = fila(db, RELEVANTE)!;
     assert.equal(c.fuente, 'eu_cascada');
@@ -46,7 +48,8 @@ describe('fuente EU en cascada (FSTP)', () => {
 
     const otro = fila(db, OTRO_PAIS)!;
     assert.equal(otro.descarte_regla, 'pais');
-    assert.match(String(otro.descarte_motivo), /Eslovenia/);
+    assert.match(String(otro.descarte_motivo), /Estonia/);
+    assert.equal(fila(db, TITULO_PAIS_UE)!.descarte_regla, null);
     const ajeno = fila(db, AJENO)!;
     assert.equal(ajeno.descarte_regla, 'tema');
     assert.match(String(ajeno.descarte_motivo), /Fuera de los temas del perfil/);
@@ -96,7 +99,7 @@ describe('fuente EU en cascada (FSTP)', () => {
     const bdnsCaido = ((url: string, init?: RequestInit) => (esSedia(String(url)) ? bueno(url, init) : Promise.reject(new Error('red caída')))) as typeof fetch;
     const r2 = await ejecutarRadar({ db: db2, fetch: bdnsCaido, reloj: relojFijo(AHORA_EU_FT), fuentes: [bdns, cascada], ganadores: false, parecidas: false }, { diasAtras: 7 });
     assert.match(r2.fuentes[0].errores.join(' '), /Fallo de la fuente/);
-    assert.ok(r2.fuentes[1].candidatas >= 3);
+    assert.ok(r2.fuentes[1].candidatas >= 40);
     assert.ok(fila(db2, RELEVANTE));
   });
 
@@ -162,5 +165,26 @@ describe('aCascada y país', () => {
     assert.deepEqual(paisesRestringidos(c('Applicants must be based in an EU Member State, e.g. Germany.')), []);
     assert.deepEqual(paisesRestringidos(c('Open to all.', 'Funding for Estonian SMEs')), ['Estonia']);
     assert.deepEqual(paisesRestringidos(c('Open to all.', 'Nature call')), []);
+    // Título con país, pero abierta a todos los Estados miembros: no se descarta en código (decide la criba con la condición de ámbito).
+    assert.deepEqual(paisesRestringidos(c('Applicants must be established in an EU Member State or an associated country.', 'Restoration in Slovenian seas')), []);
+  });
+
+  test('recall del tema: una mención en el cuerpo basta; lo claramente ajeno (ciber, becas) sigue fuera; las raíces y el umbral salen de la configuración', () => {
+    const temas = leerTemasCascada();
+    const x = (titulo: string, cuerpo = '') => ({ id: '1', titulo, tituloConvocatoria: null, proyecto: 'P', descripcion: cuerpo, quienPuede: '', masInformacion: '' }) as Parameters<typeof esRelevante>[0];
+    assert.equal(temas.mencionesCuerpo, 1);
+    assert.ok(esRelevante(x('Open Call for NBS pilots in cities', 'We fund nature-based solutions for urban heat.'), temas));
+    assert.ok(esRelevante(x('Open Call for local pilots', 'Pilots must contribute to the green transition.'), temas), 'una sola mención en el cuerpo');
+    assert.ok(esRelevante(x('Citizen labs', 'Water quality monitoring by volunteers.'), temas));
+    assert.ok(!esRelevante(x('Cybersecurity boost for SMEs', 'Funding for penetration testing and SOC services.'), temas));
+    assert.ok(!esRelevante(x('Master scholarship in photonics', 'Tuition fee waiver for students.'), temas));
+    // Configuración: raíces extra por entorno y umbral propio.
+    const extra = leerTemasCascada({ ...config.euCascada, terminosExtra: ['photonic'], mencionesCuerpo: 2 });
+    assert.ok(esRelevante(x('Master scholarship in photonics'), extra));
+    assert.ok(!esRelevante(x('Local pilots', 'One green mention.'), extra));
+    // El motivo del descarte sale de las líneas del perfil.
+    const d = descarteCascada(x('Cybersecurity boost for SMEs'), temas, ['Restauración forestal', 'Educación ambiental']);
+    assert.equal(d?.regla, 'tema');
+    assert.match(d!.motivo, /Restauración forestal; Educación ambiental/);
   });
 });

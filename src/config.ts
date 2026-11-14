@@ -77,6 +77,10 @@ export function leerConfig(env: Entorno) {
     },
     /** Fuente de convocatorias en cascada de la UE (FSTP): pausa entre páginas y tope de peticiones por ejecución (50 resultados por página). */
     euCascada: {
+      rutaTemas: env.CASCADA_FILE || fileURLToPath(new URL('../seed/cascada.json', import.meta.url)),
+      /** Raíces extra del pre-filtro de tema (se suman a las de seed/cascada.json) y umbral de menciones en el cuerpo (vacío = el del fichero). */
+      terminosExtra: (env.RADAR_TERMINOS_CASCADA ?? '').split(',').map((t) => t.trim()).filter(Boolean),
+      mencionesCuerpo: env.RADAR_MENCIONES_CASCADA ? num('RADAR_MENCIONES_CASCADA', 1, { min: 1 }) : null,
       pausaMs: num('RADAR_PAUSA_CASCADA_MS', 500),
       maxPeticiones: num('RADAR_MAX_PETICIONES_CASCADA', 4),
     },

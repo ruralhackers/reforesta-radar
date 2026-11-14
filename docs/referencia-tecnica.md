@@ -413,10 +413,13 @@ trae `callccm2Id` (id de la convocatoria), `ccm2Id` (página del proyecto, es la
 (varios cortes) y los textos `description`, `beneficiaryAdministration` (quién puede) y `furtherInformation` (importes). No hay campo de países ni importe por
 tercero: el análisis extrae el importe con cita y los países se deducen del texto. El índice repite resultados entre páginas: se deduplica.
 
-Ids `cascada:<callccm2Id>` (fuente `eu_cascada`, órgano «UE · acrónimo del proyecto · programa»). Pre-filtro en código: temas del perfil (los de `eu_ft` más
-agroecología y soluciones basadas en la naturaleza; en el cuerpo, 3 menciones) → si no, descartada con regla `tema`; y países (`paisesRestringidos`): si el título,
-la convocatoria o el proyecto nombran un país («Slovenian seas») o la condición «establecido/registrado en…» nombra países sin España ni «Estados miembros»/UE →
-regla `pais`. Ambas reglas las pone la fuente y `reaplicarReglas` no las toca. Las que pasan llevan SIEMPRE la condición de ámbito del perfil (como las
+Ids `cascada:<callccm2Id>` (fuente `eu_cascada`, órgano «UE · acrónimo del proyecto · programa»). Pre-filtro en código, deliberadamente amplio (la criba Haiku, ~0,0008 USD por llamada, decide el tema central, si una ONG puede pedirla y el territorio): **tema** con la
+lista de raíces de palabra de `seed/cascada.json` (biodiv, restor, forest, nature, ecolog, soil, water, climat, environment, green, sustainab, circular, carbon…; fichero
+alternativo con `CASCADA_FILE`, raíces extra con `RADAR_TERMINOS_CASCADA` separadas por comas, umbral con `RADAR_MENCIONES_CASCADA`): pasa si una raíz está en el título, la
+convocatoria o el proyecto, o `mencionesCuerpo` (1) veces en el cuerpo; si no, descartada con regla `tema` y un motivo construido con los nombres de `perfil.lineas`.
+**País** (`paisesRestringidos`): si el título, la convocatoria o el proyecto nombran un país («Estonian SMEs») o la condición «establecido/registrado en…» nombra países sin
+España, y la elegibilidad no dice «Estados miembros»/UE → regla `pais` (un título con país pero abierta a todos los Estados miembros pasa y decide la criba por el territorio).
+Ambas reglas las pone la fuente y `reaplicarReglas` no las toca. Las que pasan llevan SIEMPRE la condición de ámbito del perfil (como las
 fundaciones: la criba Haiku descarta las limitadas a otra región), con un criterio propio en la criba: tema central en las líneas, receptora posible una ONG
 (no solo pymes, universidades o estudiantes) y sin consorcio. Textos en inglés, respuesta en castellano con citas literales en inglés.
 

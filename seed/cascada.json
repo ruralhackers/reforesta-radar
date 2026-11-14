@@ -1,0 +1,9 @@
+{
+  "_": "Pre-filtro de TEMA de la fuente eu_cascada (convocatorias en cascada de la UE). `raices`: comienzos de palabra (sin distinguir mayúsculas; una raíz con espacio exige las dos palabras seguidas, 'nature-based' vale como 'nature based'). Una convocatoria pasa a la criba LLM si alguna raíz aparece en el título (convocatoria, topic o proyecto) o en el cuerpo al menos `mencionesCuerpo` veces; si no, se guarda descartada con regla 'tema' y un motivo construido con las líneas del perfil. Deliberadamente amplio: la criba (Haiku, ~0,0008 USD por llamada) decide el tema central, si una ONG puede pedirla y el territorio; aquí solo se descarta lo claramente ajeno. Se pueden añadir raíces sin tocar el fichero con RADAR_TERMINOS_CASCADA (lista separada por comas) y cambiar el umbral con RADAR_MENCIONES_CASCADA. Fichero alternativo: CASCADA_FILE.",
+  "mencionesCuerpo": 1,
+  "raices": [
+    "biodiv", "restor", "rewild", "re-forest", "reforest", "afforest", "forest", "woodland", "agroforest", "wildfire", "nature", "habitat", "wildlife",
+    "species", "invasive alien", "natura 2000", "ecolog", "ecosystem", "agroecolog", "regenerat", "soil", "land", "rural", "agri", "water", "river", "marine",
+    "coastal", "pollinator", "climat", "environment", "green", "sustainab", "circular", "carbon", "citizen science"
+  ]
+}
