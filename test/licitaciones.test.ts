@@ -5,17 +5,18 @@ import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
 import type { DatabaseSync } from 'node:sqlite';
 import { crearApi } from '../src/api/app.ts';
-import { guardarEstadoFuente, leerEstadoFuente, leerFases, leerPlazo } from '../src/db/repo.ts';
+import { versionCriba, versionLineas } from '../src/perfil.ts';
+import { guardarEstadoFuente, guardarFase, leerEstadoFuente, leerFases, leerPerfil, leerPlazo } from '../src/db/repo.ts';
 import { ejecutarRadar } from '../src/engine.ts';
 import { leerDocumentos } from '../src/documentos.ts';
 import type { Llm, PeticionLlm } from '../src/llm/llm.ts';
 import { type ConfigPuntuacion, leerConfigPuntuacion, parsearImporteEuros, puntuar } from '../src/puntuacion.ts';
 import { ubicacionEnAmbito } from '../src/rules.ts';
-import { aLicitacion, crearFuentePlacsp, fichaLicitacion, leerFiltroPlacsp, type Licitacion, type OpcionesFuentePlacsp, parsearXml, temaDeLicitacion, trocearFeed } from '../src/sources/placsp.ts';
+import { aLicitacion, type Cobertura, crearFuentePlacsp, leerCobertura, fichaLicitacion, leerFiltroPlacsp, type Licitacion, type OpcionesFuentePlacsp, parsearXml, temaDeLicitacion, trocearFeed } from '../src/sources/placsp.ts';
 import type { Fuente } from '../src/sources/source.ts';
 import type { Convocatoria } from '../src/types.ts';
 import { bdSembrada, RUTA_PUNTUACION, relojFijo } from './support/bd.ts';
-import { AHORA_PLACSP, DIR_PLACSP, fetchPlacsp, RECHAZO_PLACSP, URL_FEED_PLACSP } from './support/grabaciones.ts';
+import { AHORA_PLACSP, DIR_PLACSP, fetchPlacsp, RECHAZO_PLACSP, URL_FEED_PLACSP, URL_PAGINA_2_PLACSP } from './support/grabaciones.ts';
 
 const OPCIONES: OpcionesFuentePlacsp = { urlFeed: URL_FEED_PLACSP, maxPaginas: 5, maxBytesPagina: 5_000_000, maxBytesTotal: 20_000_000, pausaMs: 0, timeoutMs: 10_000 };
 const placsp = (o: Partial<OpcionesFuentePlacsp> = {}) => crearFuentePlacsp(() => ({ ...OPCIONES, ...o }));
@@ -88,7 +89,7 @@ describe('fuente PLACSP (licitaciones)', () => {
     const p1: string[] = [];
     await pasada(db, [placsp()], fetchPlacsp(p1));
     assert.equal(p1.length, 2, 'primera vez: lee las dos páginas hasta el final del feed');
-    assert.ok(leerEstadoFuente(db, 'placsp', 'cursor'), 'el cursor queda guardado');
+    assert.ok(leerEstadoFuente(db, 'placsp', 'cobertura'), 'la cobertura queda guardada');
 
     const p2: string[] = [];
     const r2 = await pasada(db, [placsp()], fetchPlacsp(p2));
@@ -117,7 +118,7 @@ describe('fuente PLACSP (licitaciones)', () => {
     const r = await pasada(db, [placsp()], fetchPlacsp(p), {}, new Date('2026-12-30T09:00:00Z'));
     assert.equal(p.length, 1);
     assert.match(r.fuentes[0].avisos.join(' '), /parada: llegó a 7 días atrás/);
-    guardarEstadoFuente(db, 'placsp', 'cursor', '2030-01-01T00:00:00.000Z', new Date());
+    guardarEstadoFuente(db, 'placsp', 'cobertura', JSON.stringify({ hasta: '2030-01-01T00:00:00.000Z', huecos: [] }), new Date());
     const q: string[] = [];
     await pasada(db, [placsp({ ignorarCursor: true })], fetchPlacsp(q));
     assert.equal(q.length, 2, 'el relleno lee las dos páginas aunque el cursor diga que ya está todo');
@@ -131,7 +132,7 @@ describe('fuente PLACSP (licitaciones)', () => {
     assert.equal(p.length, 1);
     assert.deepEqual(pausas, []);
     assert.match(r.fuentes[0].avisos.join(' '), /parada: tope de 1 páginas/);
-    assert.match(r.fuentes[0].avisos.join(' '), /quedan entradas sin leer/);
+    assert.match(r.fuentes[0].avisos.join(' '), /quedó sin leer en 1 tramo/);
     const db2 = bdSembrada();
     const pausas2: number[] = [];
     await pasada(db2, [placsp({ pausaMs: 1500 })], fetchPlacsp(), { dormir: async (ms: number) => { pausas2.push(ms); } });
@@ -416,5 +417,146 @@ describe('puntuación de licitaciones', () => {
     assert.equal(factor(puntuar_(sol('según el art. 87.3 a) LCSP, 1,5 veces el valor anual medio')), 'viabilidad').conocido, false, 'sin cifra en euros no se inventa');
     assert.equal(parsearImporteEuros('art. 87.3 a) del 70 % de 94.948,53 €/15 = 44.309,31 €'), 94_948.53);
     assert.equal(parsearImporteEuros('un millón'), null);
+  });
+});
+
+describe('cobertura del feed: continua, sin huecos perdidos', () => {
+  const cobertura = (db: DatabaseSync) => leerCobertura(db) as Cobertura;
+  const sinSegunda = (): typeof fetch => {
+    const bueno = fetchPlacsp();
+    return (async (u: string, i?: RequestInit) => (u === URL_FEED_PLACSP ? bueno(u, i) : new Response('Service Unavailable', { status: 503 }))) as typeof fetch;
+  };
+
+  test('un error en la página 2 deja un hueco con la URL por la que seguir y no avanza más allá de lo leído; la siguiente pasada lo cierra', async () => {
+    const db = bdSembrada();
+    const r = await pasada(db, [placsp()], sinSegunda());
+    assert.match(r.fuentes[0].errores.join(' '), /HTTP 503/);
+    const c1 = cobertura(db);
+    assert.ok(c1.hasta);
+    assert.deepEqual(c1.huecos.map((h) => h.url), [URL_PAGINA_2_PLACSP], 'el hueco empieza en la página que falló');
+    assert.ok(!ids(db).includes(RELEVANTE));
+
+    const p: string[] = [];
+    const r2 = await pasada(db, [placsp()], fetchPlacsp(p));
+    assert.deepEqual(p, [URL_FEED_PLACSP, URL_PAGINA_2_PLACSP], 'arriba para en lo leído y retoma el hueco desde donde se quedó');
+    assert.ok(ids(db).includes(RELEVANTE), 'lo que había en el hueco se recupera');
+    assert.deepEqual(cobertura(db).huecos, [], 'el hueco se cierra: una sola ventana');
+    assert.equal(r2.conErrores, false);
+    assert.deepEqual(ids(db), [PODA, OBRA_PARQUE, GRANDE, RELEVANTE].sort());
+  });
+
+  test('un tope de páginas deja el hueco y se retoma en pasadas sucesivas aunque cada una lea poco', async () => {
+    const db = bdSembrada();
+    await pasada(db, [placsp({ maxPaginas: 1 })], fetchPlacsp());
+    assert.deepEqual(cobertura(db).huecos.map((h) => h.url), [URL_PAGINA_2_PLACSP]);
+    // Otra pasada igual de corta: lee la página de arriba (ya cubierta, consume el tope) y el hueco sigue intacto.
+    const p: string[] = [];
+    await pasada(db, [placsp({ maxPaginas: 1 })], fetchPlacsp(p));
+    assert.deepEqual(p, [URL_FEED_PLACSP]);
+    assert.deepEqual(cobertura(db).huecos.map((h) => h.url), [URL_PAGINA_2_PLACSP], 'no se pierde ni se da por leído');
+    const q: string[] = [];
+    await pasada(db, [placsp()], fetchPlacsp(q));
+    assert.deepEqual(q, [URL_FEED_PLACSP, URL_PAGINA_2_PLACSP]);
+    assert.deepEqual(cobertura(db).huecos, []);
+    assert.ok(ids(db).includes(RELEVANTE));
+  });
+
+  test('si el motor no guarda todo lo recogido, la cobertura no avanza', async () => {
+    const db = bdSembrada();
+    const real = placsp();
+    const roto: Fuente = { ...real, recoger: async (ctx) => { const r = await real.recoger(ctx); return { ...r, cribadas: [...r.cribadas, { ...r.cribadas[0], convocatoria: { ...r.cribadas[0].convocatoria, id: 'licitacion:roto', datos: { x: 1n } } }] }; } };
+    const r = await pasada(db, [roto], fetchPlacsp());
+    assert.match(r.fuentes[0].errores.join(' '), /Registro licitacion:roto/);
+    assert.match(r.fuentes[0].errores.join(' '), /no se avanza su estado/);
+    assert.equal(leerEstadoFuente(db, 'placsp', 'cobertura'), null);
+    // Y la cobertura solo la escribe el motor: la fuente sola (sin motor) no toca la BD.
+    const db2 = bdSembrada();
+    await real.recoger({ fetch: fetchPlacsp(), ahora: AHORA_PLACSP, perfil: JSON.parse(readFileSync(new URL('../seed/perfil.json', import.meta.url), 'utf8')).perfil, diasAtras: 7, cribar: () => null, db: db2 });
+    assert.equal(leerEstadoFuente(db2, 'placsp', 'cobertura'), null);
+  });
+
+  test('una versión posterior anulada o adjudicada de una licitación guardada la retira; una versión vieja no la reabre', async () => {
+    const db = bdSembrada();
+    await pasada(db, [placsp()], fetchPlacsp());
+    const pagina1 = readFileSync(`${DIR_PLACSP}/pagina_1.atom`, 'utf8');
+    const pagina2 = readFileSync(`${DIR_PLACSP}/pagina_2.atom`, 'utf8');
+    const entrada = pagina2.match(/<entry>[\s\S]*?<\/entry>/g)!.find((e) => e.includes('licitacionesPerfilContratante/20797834'))!;
+    const anulada = entrada.replace(/<updated>[^<]+<\/updated>/, '<updated>2026-11-13T21:30:00.000+01:00</updated>').replace(/(ContractFolderStatusCode[^>]*>)PUB</, '$1ANUL<');
+    assert.notEqual(anulada, entrada);
+    const r = await pasada(db, [placsp()], fetchPlacsp([], { 1: pagina1.replace('<entry>', `${anulada}\n<entry>`) }));
+    assert.match(r.fuentes[0].avisos.join(' '), /1 actualizaciones de estado/);
+    const f = fila(db, RELEVANTE)!;
+    assert.equal(f.descarte_regla, 'estado');
+    assert.match(String(f.descarte_motivo), /anulada/);
+    assert.equal(f.abierto, 0);
+    const api = crearApi({ db, reloj: { now: () => AHORA_PLACSP }, fuentes: [placsp()] });
+    db.prepare("INSERT OR IGNORE INTO convocatoria_fases (convocatoria_id, fase, descarta, motivo, datos, actualizado_en) VALUES (?, 'criba_llm', 0, 'test', '{}', ?)").run(RELEVANTE, new Date().toISOString());
+    assert.ok(!((await (await api.request('/licitaciones')).json()) as { licitaciones: { id: string }[] }).licitaciones.some((l) => l.id === RELEVANTE));
+    // Relleno que vuelve a leer la versión PUB antigua: no pisa la anulada (lo guardado es más reciente).
+    await pasada(db, [placsp({ ignorarCursor: true })], fetchPlacsp());
+    assert.equal(fila(db, RELEVANTE)!.descarte_regla, 'estado');
+    // Reaplicar las reglas (cambio de perfil) tampoco la reabre.
+    await pasada(db, [placsp()], fetchPlacsp());
+    assert.equal(fila(db, RELEVANTE)!.descarte_regla, 'estado');
+  });
+
+  test('una licitación re-publicada con otro presupuesto marca sus veredictos como obsoletos (y siguen así) para volver a cribarla', async () => {
+    const db = bdSembrada();
+    await pasada(db, [placsp()], fetchPlacsp());
+    const ahora = new Date();
+    guardarFase(db, { convocatoriaId: GRANDE, fase: 'criba_llm', descarta: false, motivo: 'ok', datos: { versionPerfil: versionCriba(leerPerfil(db)!) } }, ahora);
+    guardarFase(db, { convocatoriaId: GRANDE, fase: 'analisis', descarta: false, motivo: null, datos: { versionLineas: versionLineas(leerPerfil(db)!), analisis: {} } }, ahora);
+    const pagina1 = readFileSync(`${DIR_PLACSP}/pagina_1.atom`, 'utf8');
+    const entrada = pagina1.match(/<entry>[\s\S]*?<\/entry>/g)!.find((e) => e.includes('licitacionesPerfilContratante/20906461'))!;
+    const mismo = entrada.replace(/<updated>[^<]+<\/updated>/, '<updated>2026-11-13T21:00:00.000+01:00</updated>'); // misma licitación, sin cambios materiales
+    await pasada(db, [placsp()], fetchPlacsp([], { 1: pagina1.replace('<entry>', `${mismo}\n<entry>`) }));
+    const obsoleta = () => leerFases(db, GRANDE).map((f) => (f.datos as { obsoleta?: boolean }).obsoleta === true);
+    assert.deepEqual(obsoleta(), [false, false], 'sin cambios materiales los veredictos valen');
+    const cambiada = entrada.replace(/<updated>[^<]+<\/updated>/, '<updated>2026-11-13T22:00:00.000+01:00</updated>').replace(/(<cbc:TaxExclusiveAmount currencyID="EUR">)[\d.]+</, '$1250000<');
+    await pasada(db, [placsp()], fetchPlacsp([], { 1: pagina1.replace('<entry>', `${cambiada}\n<entry>`) }));
+    assert.deepEqual(obsoleta(), [true, true]);
+    await pasada(db, [placsp()], fetchPlacsp()); // otra pasada: reconsiderarVeredictos no quita la marca
+    assert.deepEqual(obsoleta(), [true, true]);
+  });
+
+  test('entidades XML inválidas no tumban nada: se convierten en U+FFFD', async () => {
+    assert.equal(parsearXml('<a>x&#99999999;y&#xD800;z&#abc;</a>').h[0].t, 'x\uFFFDy\uFFFDz&#abc;');
+    const pagina = trocearFeed('<feed><link href="https://contrataciondelestado.es/sindicacion/x&#99999999;.atom" rel="next"/><entry><id>1</id></entry></feed>');
+    assert.match(pagina.siguiente!, /x\uFFFD\.atom/);
+    // Una entrada real con una entidad rota en el título: se lee y la fuente sigue.
+    const db = bdSembrada();
+    const pagina1 = readFileSync(`${DIR_PLACSP}/pagina_1.atom`, 'utf8').replace(/(<cbc:Name>)(Servicios de limpieza integral)/, '$1$2 &#99999999; ').replace(/rel="next"/, 'rel="next"');
+    const r = await pasada(db, [placsp()], fetchPlacsp([], { 1: pagina1 }));
+    assert.equal(r.conErrores, false);
+    assert.match(String(fila(db, GRANDE)!.titulo), /\uFFFD/);
+  });
+});
+
+describe('criba de licitaciones: el texto sale del perfil', () => {
+  const base = JSON.parse(readFileSync(new URL('../seed/perfil.json', import.meta.url), 'utf8')).perfil;
+  const c: Convocatoria = { id: 'licitacion:1', fuente: 'placsp', fuenteId: '1', titulo: 'T', organo: { nivel1: 'LOCAL', nivel2: 'X', nivel3: null }, fechaPublicacion: '2026-11-13', url: 'https://x', tipo: 'licitacion', finalidad: null, regiones: [], abierto: true, datos: {} };
+
+  test('la entidad, el equipo y el umbral vienen del perfil; sin umbral no hay cláusula de escala', async () => {
+    const { promptCriba } = await import('../src/llm/prompts.ts');
+    const con = promptCriba({ ...base, entidad: { equipo: '3 personas', formaJuridica: 'fundación cultural' }, licitaciones: { presupuestoMaximo: 80_000, ingresosAnuales: 40_000 } }, c, null, []).sistema;
+    assert.match(con, /una entidad fundación cultural de 3 personas, con unos 40\.000 € anuales/);
+    assert.match(con, /no pasa de 80\.000 €/);
+    assert.doesNotMatch(con, /6-7 personas|ecologista|300\.000|105\.000/);
+    const sin = promptCriba({ ...base, entidad: undefined, licitaciones: undefined }, c, null, []).sistema;
+    assert.match(sin, /las dos cosas/);
+    assert.doesNotMatch(sin, /Probablemente fuera de escala:» con el importe|no pasa de/);
+  });
+
+  test('un perfil guardado sin esos campos los recibe de la semilla sin pisar lo que ya tenga', async () => {
+    const { migrarLicitaciones } = await import('../src/perfil.ts');
+    const db = bdSembrada();
+    const sinCampos = { ...leerPerfil(db)!, licitaciones: undefined, entidad: undefined };
+    db.prepare('UPDATE perfil SET datos = ? WHERE id = 1').run(JSON.stringify(sinCampos));
+    assert.equal(migrarLicitaciones(db, base, new Date()), true);
+    assert.deepEqual(leerPerfil(db)!.licitaciones, { presupuestoMaximo: 300_000, ingresosAnuales: 105_000 });
+    assert.equal(leerPerfil(db)!.entidad!.equipo, '6-7 personas');
+    db.prepare('UPDATE perfil SET datos = ? WHERE id = 1').run(JSON.stringify({ ...leerPerfil(db)!, licitaciones: { presupuestoMaximo: 1, ingresosAnuales: 2 } }));
+    assert.equal(migrarLicitaciones(db, base, new Date()), false);
+    assert.equal(leerPerfil(db)!.licitaciones!.presupuestoMaximo, 1);
   });
 });

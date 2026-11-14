@@ -48,13 +48,18 @@ export interface Perfil {
   /** Finalidades (descripcionFinalidad de BDNS) claramente ajenas a la organización. */
   finalidadesExcluidas: string[];
   /**
-   * Licitaciones públicas (fuente PLACSP): lo que la entidad puede ejecutar. Ausente en perfiles guardados antes de este campo: se usan
-   * `PRESUPUESTO_MAXIMO_LICITACION` e `INGRESOS_ANUALES_POR_DEFECTO` (src/perfil.ts).
+   * Quién es la entidad, en palabras, para los prompts de las licitaciones (p. ej. equipo «6-7 personas», forma jurídica «asociación ecologista sin ánimo de lucro»).
+   * Ausente = los prompts no dicen nada del tamaño ni de la forma jurídica.
+   */
+  entidad?: { equipo: string | null; formaJuridica: string | null };
+  /**
+   * Licitaciones públicas (fuente PLACSP): lo que la entidad puede ejecutar. Ausente = sin umbral de escala ni de solvencia (la criba no juzga la escala y la
+   * puntuación no penaliza el tamaño). Los perfiles guardados antes de este campo lo reciben de la semilla (`migrarLicitaciones`).
    */
   licitaciones?: {
-    /** Presupuesto base de licitación (sin IVA) por encima del cual un contrato es «probablemente fuera de escala». */
+    /** Presupuesto base de licitación (sin IVA), en euros, por encima del cual un contrato es «probablemente fuera de escala»; null = sin límite. */
     presupuestoMaximo: number | null;
-    /** Ingresos anuales por servicios, para juzgar la solvencia económica exigida (volumen anual de negocio). */
+    /** Ingresos anuales por servicios, en euros, con los que se compara el volumen anual de negocio que exigen los pliegos; null = no se juzga. */
     ingresosAnuales: number | null;
   };
 }
@@ -104,7 +109,7 @@ export interface Convocatoria {
   datos: unknown;
 }
 
-export type ReglaDescarte = 'nominativa' | 'ambito' | 'finalidad' | 'tema' | 'pais';
+export type ReglaDescarte = 'nominativa' | 'ambito' | 'finalidad' | 'tema' | 'pais' | 'estado';
 
 export interface Descarte {
   regla: ReglaDescarte;

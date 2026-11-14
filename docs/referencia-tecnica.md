@@ -143,7 +143,7 @@ claro (código 1), en vez de quitar un tope sin avisar.
 | `RADAR_DIAS_CACHE_GANADORES`, `RADAR_MAX_PETICIONES_GANADORES`, `RADAR_PAUSA_BDNS_MS` | no | `7`, `200`, `250` | Concesiones de BDNS: caché, tope de peticiones y pausa |
 | `RADAR_MAX_PETICIONES_PARECIDAS`, `RADAR_DESDE_ANIO_PARECIDAS`, `RADAR_DIAS_EDICION_PARECIDAS` | no | `100`, `2022`, `400` | Descubrimiento por parecidas |
 | `RADAR_PAUSA_FT_MS`, `RADAR_MAX_PETICIONES_FT` | no | `500`, `8` | EU Funding & Tenders |
-| `RADAR_LICITACIONES`, `RADAR_MAX_PAGINAS_PLACSP`, `RADAR_MAX_BYTES_PLACSP`, `RADAR_MAX_BYTES_TOTAL_PLACSP`, `RADAR_PAUSA_PLACSP_MS`, `RADAR_TIMEOUT_PLACSP_MS` | no | `1` (`0` apaga la fuente), `12`, `41943040`, `314572800`, `2000`, `120000` | Licitaciones (PLACSP): tope de páginas del feed por pasada (~500 entradas y ~14 MB cada una), de bytes por página y totales, pausa y tiempo máximo |
+| `RADAR_LICITACIONES`, `RADAR_MAX_PAGINAS_PLACSP`, `RADAR_MAX_BYTES_PLACSP`, `RADAR_MAX_BYTES_TOTAL_PLACSP`, `RADAR_PAUSA_PLACSP_MS`, `RADAR_TIMEOUT_PLACSP_MS` | no | `1` (`0` apaga la fuente), `12`, `20971520`, `314572800`, `2000`, `120000` | Licitaciones (PLACSP): tope de páginas del feed por pasada (~500 entradas y ~14 MB cada una), de bytes por página y totales, pausa y tiempo máximo |
 | `RADAR_CPV_PLACSP`, `RADAR_TERMINOS_PLACSP`, `PLACSP_FILE`, `PLACSP_URL` | no | vacío, vacío, `seed/licitaciones.json`, el feed 643 | CPV y palabras extra del pre-filtro de licitaciones (separados por comas), fichero del pre-filtro y URL del feed |
 | `RADAR_PAUSA_FUNDACIONES_MS`, `RADAR_TIMEOUT_FUNDACIONES_MS`, `RADAR_MAX_BYTES_FUNDACIONES`, `RADAR_MAX_FUNDACIONES`, `RADAR_MAX_CARACTERES_FUNDACIONES` | no | `1000`, `30000`, `3145728`, `60`, `60000` | Fundaciones vigiladas |
 | `RADAR_DIAS_DIA_BOE`, `RADAR_MAX_DIA_BOE`, `RADAR_PAUSA_BOE_MS`, `RADAR_MAX_CARACTERES_DIA_BOE` | no | `60`, `40`, `300`, `150000` | Empresas desde las DIA del BOE |
@@ -223,7 +223,7 @@ Todo lo específico de Reforesta está en `seed/`, no en el código:
   en: …» con esa lista, que se edita en la página Perfil. Los perfiles guardados antes (sin `territorios`) los reciben de la semilla al arrancar,
   y las reglas se reaplican a todo lo guardado en cada pasada, así que un cambio de ámbito alcanza también a lo que las fuentes ya no devuelven.
 - `seed/puntuacion.json`: pesos y umbrales de la puntuación (el campo `_` lo documenta), `consorcio` (ver «Puntuación y ranking») y `licitaciones` (puntuación de los contratos públicos).
-- `seed/licitaciones.json`: CPV y palabras del título del pre-filtro de licitaciones; `perfil.licitaciones` (`presupuestoMaximo` e `ingresosAnuales`) fija lo que la entidad puede asumir como contrato.
+- `seed/licitaciones.json`: CPV y palabras del título del pre-filtro de licitaciones; `perfil.licitaciones` (`presupuestoMaximo`: presupuesto base sin IVA por encima del cual es «probablemente fuera de escala»; `ingresosAnuales`: con lo que se compara el volumen de negocio que piden los pliegos) y `perfil.entidad` (`equipo`, `formaJuridica`: cómo se describe a la entidad en los prompts) fijan lo que puede asumir. Sin esos campos no hay umbral de escala ni de solvencia (no hay valores por defecto en código); los perfiles ya guardados los reciben de la semilla.
 - `seed/festivos.json`: festivos nacionales y autonómicos para contar días hábiles (añade el año o la región que falte).
 - `seed/backtest.json`: se regenera con `npm run backtest`. Las convocatorias conocidas del conjunto (a) están en `src/backtest/conjuntos.ts`:
   sustitúyelas por las vuestras.
@@ -450,13 +450,17 @@ CPV (también los de los lotes), lugar de ejecución (NUTS), presupuesto (`TaxEx
 (`TenderSubmissionDeadlinePeriod`), procedimiento, lotes, solvencia económica y técnica, criterios de adjudicación con su peso y los enlaces a los pliegos (`GetDocumentByIdServlet`). Se parsea con un lector XML mínimo
 (`parsearXml`, sin dependencias nuevas) entrada a entrada: solo se parsean las que están en estado PUB.
 
-**Paginación, cursor y topes** (`RADAR_MAX_PAGINAS_PLACSP` 12, `RADAR_MAX_BYTES_PLACSP` 40 MB por página, `RADAR_MAX_BYTES_TOTAL_PLACSP` 300 MB, `RADAR_PAUSA_PLACSP_MS` 2000, `RADAR_TIMEOUT_PLACSP_MS` 120000).
-La pasada diaria pagina hacia atrás **solo hasta la última entrada ya leída**: el cursor (la actualización más reciente leída, tabla `fuente_estado`) se guarda al terminar, y la pasada siguiente para en la página donde aparece
-algo ya visto (y no pide más). Sin cursor (primera vez), para a los `LOOKBACK_DAYS` días. Con 12 páginas la primera carga cubre unas 2 jornadas laborables; si se queda corta, avisa («quedan entradas sin leer»).
-Los bytes se leen por streaming con la descarga segura (`fetchSeguro`, sin DNS propio salvo el real) y se aborta al pasar el tope; el enlace `next` sale de datos y solo se sigue si es de `contrataciondelestado.es`
-y de `/sindicacion/`. Un fallo de la primera página falla la fuente (aislado de las demás); uno posterior deja lo ya leído y queda en los errores. **Nunca se bajan los ZIP mensuales** (cientos de MB):
-para rellenar hacia atrás una vez, `npm run licitaciones -- --paginas N` (por defecto 40, ~560 MB, tope 150; sin cursor, sin LLM: guarda lo que pasa el pre-filtro y luego `npm run radar` lo criba).
-`RADAR_LICITACIONES=0` apaga la fuente. Las entradas de `at:deleted-entry` (anuladas) se ignoran: una licitación que ya no se puede ofertar sale del ranking al pasar su plazo.
+**Paginación, cobertura continua y topes** (`RADAR_MAX_PAGINAS_PLACSP` 12, `RADAR_MAX_BYTES_PLACSP` 20 MB por página, `RADAR_MAX_BYTES_TOTAL_PLACSP` 300 MB, `RADAR_PAUSA_PLACSP_MS` 2000, `RADAR_TIMEOUT_PLACSP_MS` 120000).
+El feed solo se recorre hacia atrás, así que no se puede «reanudar» lo que se saltó: la **cobertura** (tabla `fuente_estado`, clave `cobertura`) es una ventana continua: `hasta` (lo más reciente ya leído) más los **huecos**
+de las pasadas que pararon antes de tiempo (error de red, 503/WAF, tope de páginas o de bytes), cada uno con la URL de la página `next` por la que seguir y el límite inferior hasta el que hay que leer. Cada pasada lee desde arriba hasta
+`hasta`, y después cada hueco desde su URL hasta su límite; solo cuando llega, el hueco se cierra y todo vuelve a ser una ventana. Nunca se da por leído lo que no se leyó. Sin cobertura (primera vez), cubre los `LOOKBACK_DAYS` días
+(y si el tope de páginas lo corta antes, el resto queda como hueco). La cobertura nueva **la guarda el motor en la misma transacción que las licitaciones** (la fuente la devuelve en `ResultadoFuente.estado`); si algún registro no se
+guarda, no avanza. Los bytes se leen por streaming con la descarga segura (`fetchSeguro`), se pide gzip (`Accept-Encoding`; el servidor de la Plataforma hoy no comprime) y se aborta al pasar el tope; solo queda una copia de la página
+(las entradas se recorren una a una). El enlace `next` sale de datos y solo se sigue si es de `contrataciondelestado.es` y de `/sindicacion/`. Un fallo de la primera página falla la fuente (aislado de las demás); uno posterior deja lo ya leído
+y un hueco. **Nunca se bajan los ZIP mensuales**: para rellenar hacia atrás una vez, `npm run licitaciones -- --paginas N` (por defecto 40, ~560 MB, tope 150; no toca la cobertura ni usa LLM: guarda lo que pasa el pre-filtro y luego
+`npm run radar` lo criba). `RADAR_LICITACIONES=0` apaga la fuente. **Versiones posteriores:** una versión anulada, adjudicada, resuelta o en evaluación de una licitación ya guardada la descarta con la regla `estado` (sale de «Licitaciones»;
+las reglas no la reabren) y una versión más antigua que la guardada se ignora; una versión PUB re-publicada con cambios materiales (presupuestos, plazo de ofertas, lotes, CPV, lugar, criterios) marca como obsoletos sus veredictos de
+criba y análisis (mecanismo de «Obsoleto»: se rehacen en la ventana de pendientes). Las entradas de `at:deleted-entry` no son `<entry>` y se ignoran.
 
 **Pre-filtro en código** (`seed/licitaciones.json`, documentado dentro; `RADAR_CPV_PLACSP` y `RADAR_TERMINOS_PLACSP` añaden CPV y palabras separados por comas). Lo que no pasa **no se guarda**; el recuento
 (entradas leídas, en plazo, con plazo vigente, que pasan el tema, en territorio) queda en los avisos de la fuente (`/api/ejecuciones` y el log). Pasa si: (1) estado **PUB** y plazo de ofertas de hoy o posterior;

@@ -96,7 +96,7 @@ export function leerConfig(env: Entorno) {
       cpvExtra: (env.RADAR_CPV_PLACSP ?? '').split(',').map((t) => t.trim()).filter(Boolean),
       palabrasExtra: (env.RADAR_TERMINOS_PLACSP ?? '').split(',').map((t) => t.trim()).filter(Boolean),
       maxPaginas: num('RADAR_MAX_PAGINAS_PLACSP', 12, { min: 1, max: 200 }),
-      maxBytesPagina: num('RADAR_MAX_BYTES_PLACSP', 40 * 1024 * 1024, { min: 1024 }),
+      maxBytesPagina: num('RADAR_MAX_BYTES_PLACSP', 20 * 1024 * 1024, { min: 1024 }),
       maxBytesTotal: num('RADAR_MAX_BYTES_TOTAL_PLACSP', 300 * 1024 * 1024, { min: 1024 }),
       pausaMs: num('RADAR_PAUSA_PLACSP_MS', 2000),
       timeoutMs: num('RADAR_TIMEOUT_PLACSP_MS', 120_000, { min: 1 }),

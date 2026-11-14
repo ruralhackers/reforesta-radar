@@ -110,7 +110,7 @@ export interface EntradaPuntuacion {
   /** null = aún sin analizar. Para una licitación (fuente placsp), el análisis propio (`AnalisisLicitacion`). */
   analisis: Analisis | AnalisisLicitacion | null;
   /** Solo licitaciones: lo que el perfil dice de la escala de la entidad (presupuesto máximo y volumen anual). */
-  escalaLicitaciones?: { presupuestoMaximo: number; ingresosAnuales: number };
+  escalaLicitaciones?: { presupuestoMaximo: number | null; ingresosAnuales: number | null };
   plazo: { fechaCierre: string | null; tipo: 'literal' | 'calculada' | 'desconocida'; diasHastaCierre: number | null } | null;
   /** Importe mínimo del perfil, en euros. */
   importeMinimo: number | null;
@@ -349,7 +349,7 @@ function puntuarLicitacion(e: EntradaPuntuacion, config: ConfigPuntuacion): Punt
   const cfg = config.licitaciones ?? CONFIG_LICITACIONES_POR_DEFECTO;
   const l = licitacionDe(e.convocatoria);
   const a = esAnalisisLicitacion(e.analisis) ? e.analisis : null;
-  const escalaPerfil = e.escalaLicitaciones ?? { presupuestoMaximo: 300_000, ingresosAnuales: 105_000 };
+  const escalaPerfil = e.escalaLicitaciones ?? { presupuestoMaximo: null, ingresosAnuales: null };
   const dias = e.plazo?.diasHastaCierre ?? null;
   const parciales: Record<(typeof FACTORES_LICITACION)[number], Parcial> = {
     encaje: ((): Parcial => {
@@ -364,8 +364,9 @@ function puntuarLicitacion(e: EntradaPuntuacion, config: ConfigPuntuacion): Punt
       if (p === null) return { subpuntuacion: c.valorDesconocido, conocido: false, explicacion: 'desconocida: presupuesto no indicado o por precios unitarios' };
       const que = `${deLote ? 'el lote más pequeño' : 'presupuesto'} ${euros(p)} sin IVA`;
       const max = escalaPerfil.presupuestoMaximo;
-      if (p > max) return { subpuntuacion: 0, conocido: true, explicacion: `${que}: probablemente fuera de escala (más de ${euros(max)}, ${(p / escalaPerfil.ingresosAnuales).toFixed(1).replace('.', ',')} veces los ingresos anuales)` };
+      if (max !== null && p > max) return { subpuntuacion: 0, conocido: true, explicacion: `${que}: probablemente fuera de escala (más de ${euros(max)}${escalaPerfil.ingresosAnuales ? `, ${(p / escalaPerfil.ingresosAnuales).toFixed(1).replace('.', ',')} veces los ingresos anuales` : ''})` };
       if (p <= c.optimo) return { subpuntuacion: p < 3000 ? c.valorMinimo : 1, conocido: true, explicacion: p < 3000 ? `${que}: muy poco para el esfuerzo de una oferta` : `${que}: a la medida de la entidad` };
+      if (max === null) return { subpuntuacion: c.valorEnElMaximo, conocido: true, explicacion: `${que}: por encima de lo habitual para la entidad (el perfil no fija un máximo)` };
       const t = (p - c.optimo) / Math.max(1, max - c.optimo);
       return { subpuntuacion: redondear(1 - t * (1 - c.valorEnElMaximo)), conocido: true, explicacion: `${que}: grande para la entidad (el máximo asumible es ${euros(max)})` };
     })(),
@@ -385,7 +386,7 @@ function puntuarLicitacion(e: EntradaPuntuacion, config: ConfigPuntuacion): Punt
       const delAnuncio = !a?.solvenciaEconomica.valor;
       const partes: string[] = [];
       let v: number | null = null;
-      if (exigido !== null) {
+      if (exigido !== null && escalaPerfil.ingresosAnuales) {
         const veces = exigido / escalaPerfil.ingresosAnuales;
         v = veces <= c.holgado ? 1 : veces <= c.justo ? c.valorJusto : c.valorExcesivo;
         partes.push(`${delAnuncio ? 'el anuncio' : 'los pliegos'} pide un volumen de negocio de ${euros(exigido)} (${veces.toFixed(1).replace('.', ',')} veces los ingresos anuales de la entidad)`);

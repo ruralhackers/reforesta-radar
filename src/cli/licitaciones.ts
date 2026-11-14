@@ -1,6 +1,6 @@
 // npm run licitaciones -- [--paginas N] — relleno PUNTUAL de licitaciones (PLACSP): lee hasta N páginas del feed hacia atrás sin pararse en lo ya leído (por defecto 40,
 // ~una semana laborable; tope 150) y guarda las que pasan el pre-filtro de seed/licitaciones.json (tema, plazo vigente, territorio). Cada página pesa ~14 MB y se pide con
-// pausa (RADAR_PAUSA_PLACSP_MS): no es para ejecutarlo a diario; el radar diario ya lee lo nuevo con su cursor. No usa el LLM: la criba y el análisis de lo guardado
+// pausa (RADAR_PAUSA_PLACSP_MS): no es para ejecutarlo a diario; el radar diario ya lee lo nuevo con su cobertura. No usa el LLM: la criba y el análisis de lo guardado
 // las hace luego `npm run radar` (RADAR_MAX_ANALISIS y RADAR_PRESUPUESTO_USD). Los ZIP mensuales de la Plataforma (cientos de MB) no se bajan nunca.
 import { config } from '../config.ts';
 import { abrirBd } from '../db/schema.ts';

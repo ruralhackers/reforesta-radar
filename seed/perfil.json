@@ -40,6 +40,7 @@
       "DESEMPLEO",
       "SUBVENCIONES AL TRANSPORTE"
     ],
+    "entidad": { "equipo": "6-7 personas", "formaJuridica": "asociación ecologista sin ánimo de lucro" },
     "licitaciones": { "presupuestoMaximo": 300000, "ingresosAnuales": 105000 }
   },
   "organizacionesParecidas": [

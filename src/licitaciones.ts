@@ -69,7 +69,7 @@ export function resumenTarjetaLicitacion(db: DatabaseSync, c: Convocatoria): Res
     tituloCorto: tituloParaMostrar(a?.tituloCorto, c.titulo),
     presupuesto: importe, presupuestoDeLote: deLote,
     valorEstimado: l?.valorEstimado != null && l.valorEstimado > 0 && l.valorEstimado !== l.presupuestoSinIva ? l.valorEstimado : null,
-    fueraDeEscala: importe !== null && importe > maximo,
+    fueraDeEscala: importe !== null && maximo !== null && importe > maximo,
     lotes: textoLotes(l), procedimiento: l?.procedimiento ?? null, tipoContrato: l?.tipoContrato ?? null, duracion: a?.duracion.valor ?? l?.duracion ?? null,
     solvencia: textoSolvencia ? { texto: corto(textoSolvencia, 160), origen: 'analisis' } : solvenciaAnuncio ? { texto: corto(solvenciaAnuncio, 160), origen: 'anuncio' } : null,
     ponderacionPrecio: ponderacionDelPrecio(l, a).puntos,

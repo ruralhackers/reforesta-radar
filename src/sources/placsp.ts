@@ -9,13 +9,15 @@
 //     CPV, lugar de ejecución (NUTS), presupuesto (TaxExclusiveAmount = sin IVA; EstimatedOverallContractAmount = valor estimado), plazo de ofertas
 //     (TenderSubmissionDeadlinePeriod), procedimiento, lotes, solvencia, criterios de adjudicación y enlaces a los pliegos (GetDocumentByIdServlet).
 //   · `at:deleted-entry` marca las anuladas (se ignoran: una licitación anulada deja de aparecer, y la vigente sale del ranking al pasar su plazo).
-// Las páginas son enormes: se pagina hacia atrás solo hasta la última entrada ya leída (cursor guardado en `fuente_estado`), con tope de páginas, de bytes por
+// Las páginas son enormes: se pagina hacia atrás solo hasta la última entrada ya leída (cobertura guardada por el motor en `fuente_estado`, con los huecos de las pasadas interrumpidas), con tope de páginas, de bytes por
 // página y totales y pausa entre ellas. No se bajan los ZIP mensuales en cada pasada: para rellenar atrás una vez, `npm run licitaciones`.
 // Los PDF de los pliegos (PCAP/PPT) los lee el análisis con la descarga segura; la plataforma los rechaza a veces con una página «Request Rejected» (ver documentos.ts).
+import { createHash } from 'node:crypto';
+import type { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { config } from '../config.ts';
 import { diaLocal, sumarDias } from '../dates.ts';
-import { guardarEstadoFuente, leerEstadoFuente } from '../db/repo.ts';
+import { leerEstadoFuente } from '../db/repo.ts';
 import { fetchSeguro } from '../fetch-seguro.ts';
 import type { DatosPlazo } from '../plazos.ts';
 import { ubicacionEnAmbito } from '../rules.ts';
@@ -35,10 +37,11 @@ const HOST_PLACSP = /^(?:www\.)?contrataciondelestado\.es$/i;
 export interface Nodo { n: string; a: Record<string, string>; h: Nodo[]; t: string }
 
 const ENTIDADES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+/** Entidades XML: total, nunca lanza. Un código numérico inválido (fuera de rango, sustituto UTF-16, no número) se convierte en U+FFFD. */
 const decodificar = (t: string) => t.replace(/&(#x[0-9a-f]+|#\d+|\w+);/gi, (m, e: string) => {
   if (e[0] === '#') {
     const n = e[1].toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
-    return Number.isFinite(n) ? String.fromCodePoint(n) : m;
+    return Number.isInteger(n) && n >= 0 && n <= 0x10ffff && !(n >= 0xd800 && n <= 0xdfff) ? String.fromCodePoint(n) : '\uFFFD';
   }
   return ENTIDADES[e.toLowerCase()] ?? m;
 });
@@ -139,6 +142,8 @@ export interface Licitacion {
   documentos: DocumentoLicitacion[];
   /** Dónde se ejecuta frente al ámbito del perfil cuando se leyó: 'dentro' o 'parcial' (la criba LLM lo comprueba). */
   ambito: 'dentro' | 'parcial';
+  /** Resumen de lo que, si cambia en una versión posterior (presupuestos, plazo, lotes, CPV, lugar), obliga a volver a cribar y analizar. */
+  huella: string;
 }
 
 const ISO_DIA = /^\d{4}-\d{2}-\d{2}/;
@@ -216,7 +221,15 @@ export function aLicitacion(entrada: Nodo): Licitacion | null {
     plazoOfertas: fechaFin && ISO_DIA.test(fechaFin) ? { fecha: fechaFin.slice(0, 10), hora: textoDe(fin, 'EndTime')?.slice(0, 5) ?? null } : null,
     lotes, solvenciaEconomica: descripciones('FinancialEvaluationCriteria'), solvenciaTecnica: descripciones('TechnicalEvaluationCriteria'), criterios, documentos,
     ambito: 'dentro',
+    huella: '',
   };
+}
+
+/** Huella de lo material de una licitación (ver `Licitacion.huella`): no incluye el estado ni la fecha de actualización. */
+export function huellaLicitacion(l: Licitacion): string {
+  return createHash('sha1').update(JSON.stringify([
+    l.titulo, l.presupuestoSinIva, l.valorEstimado, l.plazoOfertas, l.cpv, l.nuts, l.lotes.map((x) => [x.id, x.nombre, x.presupuestoSinIva]), l.criterios.map((k) => [k.tipo, k.peso]),
+  ])).digest('hex').slice(0, 16);
 }
 
 // --- Pre-filtro: CPV y palabras del título (seed/licitaciones.json). Pasa con un CPV de la lista o con una palabra en el título (o en el de un lote). ---
@@ -254,7 +267,7 @@ export function temaDeLicitacion(l: Pick<Licitacion, 'cpv' | 'titulo' | 'lotes'>
 
 export interface OpcionesFuentePlacsp {
   urlFeed: string; maxPaginas: number; maxBytesPagina: number; maxBytesTotal: number; pausaMs: number; timeoutMs: number;
-  /** Pagina hasta el tope sin parar en el cursor (relleno puntual: `npm run licitaciones`). */
+  /** Pagina hasta el tope sin parar en lo ya cubierto ni guardar cobertura (relleno puntual: `npm run licitaciones`). */
   ignorarCursor?: boolean;
   filtro?: FiltroPlacsp;
 }
@@ -263,15 +276,33 @@ export interface PaginaFeed { entradas: string[]; siguiente: string | null; actu
 
 const ENTRADA = /<entry>[\s\S]*?<\/entry>/g;
 
-/** Trocea una página del feed en entradas (sin parsearlas) y saca su enlace `next`. Las entradas de ~500 licitaciones no se parsean enteras. */
-export function trocearFeed(xml: string): PaginaFeed {
+/** Las entradas de una página, una a una (sin construir el array entero: una página son ~14 MB). */
+export function* iterarEntradas(xml: string): Generator<string> {
+  let i = 0;
+  for (;;) {
+    const a = xml.indexOf('<entry>', i);
+    if (a < 0) return;
+    const b = xml.indexOf('</entry>', a);
+    if (b < 0) return;
+    i = b + '</entry>'.length;
+    yield xml.slice(a, i);
+  }
+}
+
+/** El enlace `rel="next"` de la cabecera de la página (antes de la primera entrada). */
+export function enlaceSiguiente(xml: string): string | null {
   const cabecera = xml.slice(0, Math.max(0, xml.indexOf('<entry>')) || 20_000);
-  const siguiente = [...cabecera.matchAll(/<link\b[^>]*>/g)].map((m) => m[0]).find((l) => /rel="next"/.test(l));
-  const href = siguiente ? /href="([^"]+)"/.exec(siguiente)?.[1] ?? null : null;
+  const l = [...cabecera.matchAll(/<link\b[^>]*>/g)].map((m) => m[0]).find((x) => /rel="next"/.test(x));
+  const href = l ? /href="([^"]+)"/.exec(l)?.[1] ?? null : null;
+  return href ? decodificar(href) : null;
+}
+
+/** Trocea una página del feed en entradas (sin parsearlas) y saca su enlace `next`. */
+export function trocearFeed(xml: string): PaginaFeed {
   const entradas = xml.match(ENTRADA) ?? [];
   const fechas = entradas.map((e) => /<updated>([^<]+)<\/updated>/.exec(e)?.[1] ?? '').filter(Boolean).map((d) => Date.parse(d)).filter(Number.isFinite);
   return {
-    entradas, siguiente: href ? decodificar(href) : null,
+    entradas, siguiente: enlaceSiguiente(xml),
     actualizacionMasReciente: fechas.length ? new Date(Math.max(...fechas)).toISOString() : null,
     actualizacionMasAntigua: fechas.length ? new Date(Math.min(...fechas)).toISOString() : null,
   };
@@ -293,13 +324,39 @@ function aConvocatoria(l: Licitacion): Convocatoria {
   return {
     id: `${PREFIJO_ID}${l.id}`, fuente: FUENTE_PLACSP, fuenteId: l.id, titulo: l.titulo,
     organo: { nivel1: l.nivelOrgano, nivel2: l.organo, nivel3: null },
-    fechaPublicacion: l.publicada, url: l.url, tipo: 'licitacion', finalidad: null, regiones: l.nuts, abierto: true, datos: { licitacion: l },
+    fechaPublicacion: l.publicada, url: l.url, tipo: 'licitacion', finalidad: null, regiones: l.nuts, abierto: l.estado === 'PUB', datos: { licitacion: l },
   };
 }
 
 export interface ContadoresPlacsp {
-  paginas: number; bytes: number; entradas: number; publicadas: number; enPlazo: number; pasanTema: number; enTerritorio: number; yaLeidas: number;
+  paginas: number; bytes: number; entradas: number; publicadas: number; enPlazo: number; pasanTema: number; enTerritorio: number; yaLeidas: number; actualizadas: number;
 }
+
+/**
+ * Qué parte del feed está leída. El feed solo se puede recorrer hacia atrás, así que la cobertura es una ventana continua que llega hasta `hasta` (lo más
+ * reciente ya leído) más, si una pasada paró antes de tiempo (error, tope de páginas o de bytes), los HUECOS que quedaron sin leer: cada uno con la URL de la página
+ * por la que seguir (la `next` a la que se llegó) y el límite inferior hasta el que hay que leer (lo que ya estaba cubierto antes de esa pasada, o el horizonte de la
+ * primera carga). La siguiente pasada lee desde arriba hasta `hasta`, y después cada hueco desde su URL hasta su límite; solo así se cierran. Nunca se da por leído lo que no se leyó.
+ */
+export interface Cobertura { hasta: string | null; huecos: { url: string; hasta: string }[] }
+
+export const CLAVE_COBERTURA = 'cobertura';
+
+/** Cobertura guardada (o la del cursor antiguo, solo con `hasta`); sin nada, vacía. */
+export function leerCobertura(db: DatabaseSync | undefined): Cobertura {
+  if (!db) return { hasta: null, huecos: [] };
+  const crudo = leerEstadoFuente(db, FUENTE_PLACSP, CLAVE_COBERTURA);
+  if (crudo) {
+    try {
+      const c = JSON.parse(crudo) as Cobertura;
+      if ((c.hasta === null || typeof c.hasta === 'string') && Array.isArray(c.huecos)) return { hasta: c.hasta, huecos: c.huecos.filter((h) => typeof h.url === 'string' && typeof h.hasta === 'string') };
+    } catch { /* estado ilegible: se trata como primera carga */ }
+    return { hasta: null, huecos: [] };
+  }
+  return { hasta: leerEstadoFuente(db, FUENTE_PLACSP, 'cursor'), huecos: [] };
+}
+
+const ETIQUETA_ESTADO: Record<string, string> = { ANUL: 'anulada', ADJ: 'adjudicada', RES: 'resuelta', EV: 'en evaluación (ya no admite ofertas)', PRE: 'solo con anuncio previo' };
 
 export function crearFuentePlacsp(opciones: () => OpcionesFuentePlacsp = () => config.placsp): Fuente {
   async function recoger(ctx: ContextoFuente): Promise<ResultadoFuente> {
@@ -307,81 +364,123 @@ export function crearFuentePlacsp(opciones: () => OpcionesFuentePlacsp = () => c
     const filtro = o.filtro ?? leerFiltroPlacsp();
     const dormir = ctx.dormir ?? dormirReal;
     const hoy = diaLocal(ctx.ahora);
-    const cursor = ctx.db && !o.ignorarCursor ? leerEstadoFuente(ctx.db, FUENTE_PLACSP, 'cursor') : null;
-    const cursorMs = cursor ? Date.parse(cursor) : null;
-    // Sin cursor (primera vez o relleno): hasta `diasAtras` días hacia atrás (y como mucho `maxPaginas` páginas).
-    const horizonteMs = Date.parse(`${sumarDias(hoy, -ctx.diasAtras)}T00:00:00Z`);
+    const usaCobertura = !!ctx.db && !o.ignorarCursor;
+    const previa = usaCobertura ? leerCobertura(ctx.db) : { hasta: null, huecos: [] };
+    // Sin cobertura (primera vez o relleno): hasta `diasAtras` días hacia atrás. El límite inferior de la lectura desde arriba es lo ya cubierto o ese horizonte.
+    const horizonte = new Date(`${sumarDias(hoy, -ctx.diasAtras)}T00:00:00Z`).toISOString();
+    const tareas = [{ url: o.urlFeed, hasta: previa.hasta ?? horizonte, arriba: true }, ...previa.huecos.map((h) => ({ ...h, arriba: false }))];
     const licitaciones = new Map<string, Licitacion>();
+    const cierres = new Map<string, { l: Licitacion; estado: string }>();
     const errores: string[] = [];
     const avisos: string[] = [];
-    const n: ContadoresPlacsp = { paginas: 0, bytes: 0, entradas: 0, publicadas: 0, enPlazo: 0, pasanTema: 0, enTerritorio: 0, yaLeidas: 0 };
+    const n: ContadoresPlacsp = { paginas: 0, bytes: 0, entradas: 0, publicadas: 0, enPlazo: 0, pasanTema: 0, enTerritorio: 0, yaLeidas: 0, actualizadas: 0 };
+    const almacenada = ctx.db ? ctx.db.prepare(`SELECT json_extract(datos, '$.licitacion.actualizada') AS a FROM convocatorias WHERE id = ?`) : null;
+    const yaTieneAlgoMasReciente = (id: string, actualizada: number) => {
+      const f = almacenada?.get(`${PREFIJO_ID}${id}`) as { a: string | null } | undefined;
+      return f !== undefined && f.a !== null && Date.parse(f.a) >= actualizada;
+    };
+    const esta = (id: string) => almacenada?.get(`${PREFIJO_ID}${id}`) !== undefined;
     let masReciente: string | null = null;
-    let url: string | null = o.urlFeed;
     let motivoParada = '';
-    for (let p = 1; url; p++) {
-      if (p > o.maxPaginas) { motivoParada = `tope de ${o.maxPaginas} páginas`; break; }
-      if (n.bytes >= o.maxBytesTotal) { motivoParada = `tope de ${KB(o.maxBytesTotal)} descargados`; break; }
-      if (p > 1 && o.pausaMs > 0) await dormir(o.pausaMs);
-      let xml: string;
-      try {
-        if (!urlSindicacionValida(url)) throw new Error(`enlace "next" no permitido: ${url}`);
-        const r = await fetchSeguro(ctx.fetch, url, { timeoutMs: o.timeoutMs, maxBytes: o.maxBytesPagina, headers: { 'User-Agent': USER_AGENT, Accept: 'application/atom+xml, application/xml;q=0.9' }, resolver: ctx.resolver });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        n.bytes += r.bytes.byteLength;
-        xml = new TextDecoder().decode(r.bytes);
-        if (!xml.includes('<feed')) throw new Error('la respuesta no es un feed ATOM');
-      } catch (e) {
-        if (p === 1) throw new Error(`Feed de licitaciones: ${(e as Error).message}`); // sin la primera página no hay nada: fallo total (aislado de las demás fuentes)
-        errores.push(`Página ${p} del feed de licitaciones: ${(e as Error).message}`);
-        motivoParada = 'error';
-        break;
-      }
-      n.paginas++;
-      const pagina = trocearFeed(xml);
-      if (pagina.entradas.length === 0) { motivoParada = 'página sin entradas'; break; }
-      masReciente ??= pagina.actualizacionMasReciente;
-      for (const e of pagina.entradas) {
-        n.entradas++;
-        const actualizada = Date.parse(/<updated>([^<]+)<\/updated>/.exec(e)?.[1] ?? '');
-        if (cursorMs !== null && Number.isFinite(actualizada) && actualizada <= cursorMs) { n.yaLeidas++; continue; }
-        if (!/ContractFolderStatusCode[^>]*>\s*PUB\s*</.test(e)) continue; // solo en plazo; el resto (EV, ADJ, RES, ANUL, PRE) ya no se puede ofertar
-        n.publicadas++;
-        let l: Licitacion | null;
+    const huecosNuevos: Cobertura['huecos'] = [];
+    let paradaGlobal = false; // tope de páginas/bytes o error: las tareas que quedan se conservan tal cual
+
+    for (const [t, tarea] of tareas.entries()) {
+      if (paradaGlobal) { if (!tarea.arriba) huecosNuevos.push({ url: tarea.url, hasta: tarea.hasta }); continue; }
+      const limiteMs = Date.parse(tarea.hasta);
+      let url: string | null = tarea.url;
+      let llegoAlLimite = false;
+      while (url) {
+        if (n.paginas >= o.maxPaginas) { motivoParada = `tope de ${o.maxPaginas} páginas`; paradaGlobal = true; break; }
+        if (n.bytes >= o.maxBytesTotal) { motivoParada = `tope de ${KB(o.maxBytesTotal)} descargados`; paradaGlobal = true; break; }
+        if (n.paginas > 0 && o.pausaMs > 0) await dormir(o.pausaMs);
+        let xml: string;
         try {
-          l = aLicitacion(parsearXml(e).h[0]);
-        } catch (x) {
-          errores.push(`Entrada ilegible: ${(x as Error).message}`);
-          continue;
+          if (!urlSindicacionValida(url)) throw new Error(`enlace "next" no permitido: ${url}`);
+          const r = await fetchSeguro(ctx.fetch, url, { timeoutMs: o.timeoutMs, maxBytes: o.maxBytesPagina, headers: { 'User-Agent': USER_AGENT, Accept: 'application/atom+xml, application/xml;q=0.9', 'Accept-Encoding': 'gzip' }, resolver: ctx.resolver });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          n.bytes += r.bytes.byteLength;
+          xml = new TextDecoder().decode(r.bytes); // r (los bytes) sale de ámbito aquí: solo queda una copia de la página
+          if (!xml.includes('<feed')) throw new Error('la respuesta no es un feed ATOM');
+        } catch (e) {
+          if (t === 0 && n.paginas === 0) throw new Error(`Feed de licitaciones: ${(e as Error).message}`); // sin la primera página no hay nada: fallo total (aislado de las demás fuentes)
+          errores.push(`Página ${n.paginas + 1} del feed de licitaciones: ${(e as Error).message}`);
+          motivoParada = 'error';
+          paradaGlobal = true;
+          break;
         }
-        if (!l || licitaciones.has(l.id)) continue; // la primera vista es la más reciente: una versión anterior de la misma licitación no la pisa
-        if (l.plazoOfertas && l.plazoOfertas.fecha < hoy) continue;
-        n.enPlazo++;
-        // Suministros, concesiones y contratos privados o patrimoniales no son servicios ni obras que la entidad pueda ejecutar.
-        if (l.tipoContrato !== null && !TIPOS_EJECUTABLES.has(l.tipoContrato)) continue;
-        if (temaDeLicitacion(l, filtro) === null) continue;
-        n.pasanTema++;
-        const ubicacion = ubicacionEnAmbito(l.nuts, ctx.perfil);
-        if (ubicacion === 'fuera') continue;
-        n.enTerritorio++;
-        licitaciones.set(l.id, { ...l, ambito: ubicacion });
+        n.paginas++;
+        let masAntigua = Infinity;
+        let hubo = false;
+        for (const e of iterarEntradas(xml)) {
+          hubo = true;
+          n.entradas++;
+          const actualizada = Date.parse(/<updated>([^<]+)<\/updated>/.exec(e)?.[1] ?? '');
+          if (Number.isFinite(actualizada)) {
+            masAntigua = Math.min(masAntigua, actualizada);
+            if (tarea.arriba && n.paginas === 1 && (masReciente === null || actualizada > Date.parse(masReciente))) masReciente = new Date(actualizada).toISOString();
+            if (actualizada <= limiteMs) { n.yaLeidas++; continue; }
+          }
+          try {
+            const estado = /ContractFolderStatusCode[^>]*>\s*([A-Z]+)\s*</.exec(e)?.[1] ?? '';
+            if (estado !== 'PUB') {
+              // Una versión posterior (anulada, adjudicada, en evaluación) de una licitación ya guardada la retira de la lista de abiertas.
+              if (!ctx.db) continue;
+              const id = /licitacionesPerfilContratante\/(\d+)/.exec(e)?.[1];
+              if (!id || !esta(id) || cierres.has(id) || yaTieneAlgoMasReciente(id, actualizada)) continue;
+              const l = aLicitacion(parsearXml(e).h[0]);
+              if (l) { cierres.set(l.id, { l: { ...l, huella: huellaLicitacion(l) }, estado: l.estado || estado }); n.actualizadas++; }
+              continue;
+            }
+            n.publicadas++;
+            const l0 = aLicitacion(parsearXml(e).h[0]);
+            if (!l0 || licitaciones.has(l0.id) || cierres.has(l0.id)) continue; // la primera vista es la más reciente: una versión anterior no la pisa
+            if (yaTieneAlgoMasReciente(l0.id, actualizada)) continue; // lo guardado ya es esta versión o una posterior (p. ej. anulada)
+            const l = { ...l0, huella: huellaLicitacion(l0) };
+            if (l.plazoOfertas && l.plazoOfertas.fecha < hoy) continue;
+            n.enPlazo++;
+            // Suministros, concesiones y contratos privados o patrimoniales no son servicios ni obras que la entidad pueda ejecutar.
+            if (l.tipoContrato !== null && !TIPOS_EJECUTABLES.has(l.tipoContrato)) continue;
+            if (temaDeLicitacion(l, filtro) === null) continue;
+            n.pasanTema++;
+            const ubicacion = ubicacionEnAmbito(l.nuts, ctx.perfil);
+            if (ubicacion === 'fuera') continue;
+            n.enTerritorio++;
+            licitaciones.set(l.id, { ...l, ambito: ubicacion });
+          } catch (x) {
+            errores.push(`Entrada ilegible: ${(x as Error).message}`);
+          }
+        }
+        if (!hubo) { motivoParada = 'página sin entradas'; llegoAlLimite = true; break; }
+        if (masAntigua <= limiteMs) { llegoAlLimite = true; motivoParada = tarea.arriba ? (previa.hasta ? 'llegó a lo ya leído' : `llegó a ${ctx.diasAtras} días atrás`) : 'cerró un hueco'; break; }
+        url = enlaceSiguiente(xml);
+        if (!url) { llegoAlLimite = true; motivoParada = 'fin del feed'; }
+        else if (!urlSindicacionValida(url)) { errores.push(`Página ${n.paginas + 1} del feed de licitaciones: enlace "next" no permitido: ${url}`); motivoParada = 'error'; paradaGlobal = true; llegoAlLimite = true; break; } // no se puede seguir por un enlace así: el hueco no se podría retomar nunca
       }
-      if (cursorMs !== null && n.yaLeidas > 0 && pagina.actualizacionMasAntigua && Date.parse(pagina.actualizacionMasAntigua) <= cursorMs) { motivoParada = 'llegó a lo ya leído'; break; }
-      if (cursorMs === null && pagina.actualizacionMasAntigua && Date.parse(pagina.actualizacionMasAntigua) < horizonteMs) { motivoParada = `llegó a ${ctx.diasAtras} días atrás`; break; }
-      url = pagina.siguiente;
-      if (!url) motivoParada = 'fin del feed';
+      // Esta tarea no llegó a su límite: queda un hueco desde la página por la que seguir (la que no se pudo leer o no se llegó a pedir).
+      if (!llegoAlLimite && url) huecosNuevos.push({ url, hasta: tarea.hasta });
     }
-    const truncada = motivoParada.startsWith('tope');
+
     avisos.push(
       `Licitaciones (PLACSP): ${n.paginas} páginas (${KB(n.bytes)}), ${n.entradas} entradas leídas${n.yaLeidas ? ` (${n.yaLeidas} ya vistas)` : ''}, ${n.publicadas} en plazo (PUB), `
-      + `${n.enPlazo} con plazo de ofertas vigente, ${n.pasanTema} pasan el pre-filtro de tema (CPV o palabras), ${n.enTerritorio} en el territorio del perfil; parada: ${motivoParada || 'fin del feed'}`,
+      + `${n.enPlazo} con plazo de ofertas vigente, ${n.pasanTema} pasan el pre-filtro de tema (CPV o palabras), ${n.enTerritorio} en el territorio del perfil`
+      + `${n.actualizadas ? `, ${n.actualizadas} actualizaciones de estado de licitaciones guardadas` : ''}; parada: ${motivoParada || 'fin del feed'}`,
     );
-    if (truncada) avisos.push(`El feed de licitaciones no se leyó hasta ${cursorMs !== null ? 'lo ya visto' : `${ctx.diasAtras} días atrás`}: quedan entradas sin leer (sube RADAR_MAX_PAGINAS_PLACSP o rellena con npm run licitaciones)`);
-    if (ctx.db && !o.ignorarCursor && masReciente && n.paginas > 0 && (cursorMs === null || Date.parse(masReciente) > cursorMs)) guardarEstadoFuente(ctx.db, FUENTE_PLACSP, 'cursor', masReciente, ctx.ahora);
+    if (huecosNuevos.length > 0) avisos.push(`El feed de licitaciones quedó sin leer en ${huecosNuevos.length} ${huecosNuevos.length === 1 ? 'tramo' : 'tramos'} (${motivoParada}): la siguiente pasada los retoma desde donde se quedó (la cobertura es continua; sube RADAR_MAX_PAGINAS_PLACSP o usa npm run licitaciones si van acumulándose)`);
+
     const cribadas: Cribada[] = [...licitaciones.values()].map((l) => {
       const conv = aConvocatoria(l);
       return { convocatoria: conv, descarte: ctx.cribar(conv) };
     });
-    return { cribadas, errores, avisos };
+    for (const { l, estado } of cierres.values()) {
+      const conv = aConvocatoria(l);
+      cribadas.push({ convocatoria: conv, descarte: { regla: 'estado', motivo: `Licitación ${ETIQUETA_ESTADO[estado] ?? `con estado ${estado}`} (ya no se puede ofertar)` } });
+    }
+    // La cobertura nueva la guarda el motor en la misma transacción que las licitaciones; nunca se da por leído lo que no se leyó.
+    const estadoNuevo = usaCobertura && n.paginas > 0
+      ? [{ clave: CLAVE_COBERTURA, valor: JSON.stringify({ hasta: masReciente && (!previa.hasta || Date.parse(masReciente) > Date.parse(previa.hasta)) ? masReciente : previa.hasta ?? masReciente, huecos: huecosNuevos } satisfies Cobertura) }]
+      : undefined;
+    return { cribadas, errores, avisos, ...(estadoNuevo ? { estado: estadoNuevo } : {}) };
   }
   return { nombre: FUENTE_PLACSP, recoger, documentos, enlaces, datosPlazo };
 }

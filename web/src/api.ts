@@ -535,8 +535,8 @@ export interface Licitaciones {
   hasta: string;
   umbral: number;
   /** Presupuesto base sin IVA por encima del cual un contrato es «probablemente fuera de escala» (el del perfil). */
-  presupuestoMaximo: number;
-  ingresosAnuales: number;
+  presupuestoMaximo: number | null;
+  ingresosAnuales: number | null;
   licitaciones: LicitacionLista[];
   /** Ids de las analizadas con puntuación >= umbral. */
   paraPreparar: string[];

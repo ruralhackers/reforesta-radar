@@ -69,8 +69,13 @@ export function sembrarFuentesFaltantes(db: DatabaseSync, fundaciones: Fundacion
 export function guardarConvocatoria(
   db: DatabaseSync, { convocatoria: c, descarte, condicion = null }: Cribada & { condicion?: string | null }, ahora: Date,
 ): boolean {
-  const existe = db.prepare('SELECT 1 FROM convocatorias WHERE id = ?').get(c.id) !== undefined;
+  const previa = db.prepare('SELECT datos FROM convocatorias WHERE id = ?').get(c.id) as { datos: string } | undefined;
+  const existe = previa !== undefined;
   const t = ahora.toISOString();
+  // Licitación re-publicada con cambios materiales (presupuesto, plazo, lotes, CPV, lugar): los veredictos de criba y análisis ya no valen y se rehacen.
+  const huellaNueva = (c.datos as { licitacion?: { huella?: string } } | null)?.licitacion?.huella;
+  const huellaVieja = previa ? (JSON.parse(previa.datos) as { licitacion?: { huella?: string } }).licitacion?.huella : undefined;
+  if (huellaNueva && huellaVieja && huellaNueva !== huellaVieja) marcarVeredictosObsoletos(db, c.id);
   db.prepare(`
     INSERT INTO convocatorias (id, fuente, fuente_id, titulo, organo_nivel1, organo_nivel2, organo_nivel3, fecha_publicacion,
       url, tipo, finalidad, regiones, abierto, descarte_regla, descarte_motivo, condicion, datos, primera_vez, ultima_vez)
@@ -88,6 +93,17 @@ export function guardarConvocatoria(
     descarte?.regla ?? null, descarte?.motivo ?? null, descarte ? null : condicion, JSON.stringify(c.datos), t, t,
   );
   return !existe;
+}
+
+/**
+ * Marca como obsoletos (conservan su efecto hasta que la fase los rehaga) los veredictos de criba y análisis de una convocatoria. Además de `obsoleta` pone una versión
+ * de perfil que no puede coincidir con la actual, para que `reconsiderarVeredictos` (que quita la marca a los que coinciden con el perfil) no la borre en la siguiente pasada.
+ */
+export function marcarVeredictosObsoletos(db: DatabaseSync, convocatoriaId: string): void {
+  db.prepare(`
+    UPDATE convocatoria_fases SET datos = json_set(datos, '$.obsoleta', json('true'), '$.versionPerfil', 'cambio-de-anuncio', '$.versionLineas', 'cambio-de-anuncio')
+    WHERE convocatoria_id = ? AND fase IN ('criba_llm', 'analisis')
+  `).run(convocatoriaId);
 }
 
 // --- Fases posteriores (criba LLM, análisis, decisión del equipo…) ---
@@ -203,7 +219,7 @@ export function reaplicarReglas(
     const filas = db.prepare('SELECT * FROM convocatorias').all() as Record<string, unknown>[];
     const actualizar = db.prepare('UPDATE convocatorias SET descarte_regla = ?, descarte_motivo = ?, condicion = ? WHERE id = ?');
     for (const f of filas) {
-      if (f.descarte_regla === 'tema' || f.descarte_regla === 'pais') continue; // lo descarta la fuente (eu_ft, eu_cascada), no estas reglas
+      if (f.descarte_regla === 'tema' || f.descarte_regla === 'pais' || f.descarte_regla === 'estado') continue; // lo descarta la fuente (eu_ft, eu_cascada, placsp), no estas reglas
       const c = filaAConvocatoria(f);
       const d = regla(c, perfil);
       const cond = d ? null : condicion(c, perfil);

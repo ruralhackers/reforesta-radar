@@ -115,7 +115,7 @@ export function Licitaciones() {
           {pronto > 0 && ` ${pronto === 1 ? 'Una presenta' : `${pronto} presentan`} ofertas en menos de una semana.`}
         </p>
         <p className="mt-1 text-sm text-tinta-suave">
-          Presupuesto base sin IVA; por encima de {eurosEnteros(datos.presupuestoMaximo)} se marca como «probablemente fuera de escala» (unos {(datos.presupuestoMaximo / datos.ingresosAnuales).toFixed(0)} años de ingresos por servicios). Aparte de las convocatorias de <a href="/" className="text-marca-fuerte underline">Esta semana</a>.
+          Presupuesto base sin IVA{datos.presupuestoMaximo !== null && <>; por encima de {eurosEnteros(datos.presupuestoMaximo)} se marca como «probablemente fuera de escala»{datos.ingresosAnuales ? ` (unos ${(datos.presupuestoMaximo / datos.ingresosAnuales).toFixed(0)} años de ingresos por servicios)` : ''}</>}. Aparte de las convocatorias de <a href="/" className="text-marca-fuerte underline">Esta semana</a>.
         </p>
       </header>
 

@@ -30,6 +30,8 @@ export interface ResultadoFuente {
   errores: string[];
   /** Avisos que no son fallos (p. ej. sin LLM no se puede extraer): van al registro, no marcan la ejecución con errores. */
   avisos?: string[];
+  /** Estado propio de la fuente (clave → valor) que el motor guarda en la MISMA transacción que lo recogido: si esta falla, no avanza (p. ej. la cobertura del feed de licitaciones). */
+  estado?: { clave: string; valor: string }[];
   /** Registro de la llamada LLM propia de la fuente (extracción), para el coste de la ejecución. */
   fase?: RegistroFase | null;
 }
