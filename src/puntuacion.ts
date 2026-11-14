@@ -50,6 +50,7 @@ export function leerConfigPuntuacion(ruta: string): ConfigPuntuacion {
   }
   if (suma <= 0) throw new Error(`Configuración de puntuación: los pesos suman 0 (${ruta})`);
   if (!(c.cierranProntoDias >= 0) || !(c.nuevasDias >= 0)) throw new Error(`Configuración de puntuación: nuevasDias/cierranProntoDias inválidos (${ruta})`);
+  if (c.proximasDias !== undefined && !(Number.isFinite(c.proximasDias) && c.proximasDias >= 0)) throw new Error(`Configuración de puntuación: proximasDias inválido (${ruta})`);
   return c;
 }
 

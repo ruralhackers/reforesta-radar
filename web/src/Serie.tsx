@@ -8,7 +8,8 @@ const diaCorto = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateStrin
 function Reforesta({ e }: { e: EdicionSerie }) {
   if (e.reforesta === 'gano') return <span className="rounded bg-marca-suave px-2 py-0.5 text-xs font-medium text-marca-fuerte">Ganó{e.importeReforesta !== null ? ` · ${euros(e.importeReforesta)}` : ''}</span>;
   if (e.reforesta === 'no_figura') return <span className="text-xs text-tinta-suave">No figura</span>;
-  return <span className="text-xs text-tinta-suave">Sin concesiones</span>;
+  if (e.reforesta === 'sin_concesiones') return <span className="text-xs text-tinta-suave">BDNS aún no publica concesiones</span>;
+  return <span className="text-xs text-tinta-suave">Concesiones aún no consultadas</span>;
 }
 
 /** Línea de tiempo de la serie (una fila por edición, cada una enlazada a su ficha) y, debajo, qué se espera de la siguiente. */
@@ -38,7 +39,10 @@ export function SeccionSerie({ serie }: { serie: SerieFicha }) {
                     : e.propia ? <span>{e.anio} <span className="text-xs font-normal text-tinta-suave">(esta)</span></span>
                       : <a href={e.url} target="_blank" rel="noreferrer" className="text-marca-fuerte hover:underline" title="Ficha en BDNS">{e.anio} ↗</a>}
                 </td>
-                <td className="py-1.5 pr-3 whitespace-nowrap">{dia(e.apertura)}</td>
+                <td className="py-1.5 pr-3 whitespace-nowrap">
+                  {dia(e.apertura)}
+                  {e.aperturaTipo === 'registro' && <span className="block text-[11px] font-normal text-tinta-suave" title="BDNS no da el inicio de solicitudes: es la fecha en que se registró la convocatoria">registrada</span>}
+                </td>
                 <td className="py-1.5 pr-3 whitespace-nowrap">{dia(e.cierre)}</td>
                 <td className="py-1.5 pr-3 text-right whitespace-nowrap">{e.presupuesto !== null ? euros(e.presupuesto) : '—'}</td>
                 <td className="py-1.5 pr-3 text-right">{e.ganadores ?? '—'}</td>
@@ -52,7 +56,7 @@ export function SeccionSerie({ serie }: { serie: SerieFicha }) {
       {p ? (
         <div className="mt-3 rounded-md bg-marca-suave p-3 text-sm text-marca-fuerte">
           <p>
-            <strong>Edición {serie.anioSiguiente}:</strong> {p.texto}
+            <strong>Edición {serie.anioSiguiente}:</strong> {p.texto.charAt(0).toUpperCase() + p.texto.slice(1)}
             {p.duracionDias !== null && <>; el plazo de solicitud suele durar unos {p.duracionDias} días</>}.
           </p>
           <p className="mt-1 text-xs">

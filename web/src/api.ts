@@ -81,14 +81,16 @@ export interface EdicionSerie {
   /** Ficha en el radar; null si la edición solo se conoce por su historial. */
   convocatoriaId: string | null;
   propia: boolean;
+  /** Inicio de solicitudes o, si BDNS no lo da, registro en BDNS (ver aperturaTipo). */
   apertura: string | null;
+  aperturaTipo: 'inicio' | 'registro' | null;
   cierre: string | null;
   presupuesto: number | null;
   ganadores: number | null;
   importeTotal: number | null;
   importeMedio: number | null;
   /** BDNS solo publica ganadores: no_figura no significa que la perdiera. */
-  reforesta: 'gano' | 'no_figura' | 'sin_datos';
+  reforesta: 'gano' | 'no_figura' | 'sin_concesiones' | 'no_consultada';
   importeReforesta: number | null;
 }
 
@@ -97,6 +99,9 @@ export interface PrediccionApertura {
   desdeDia: number;
   hastaDia: number;
   duracionDias: number | null;
+  longitudDias: number;
+  /** Ventana muy ancha: no hay patrón claro y el texto no dice «suele». */
+  dispersa: boolean;
   /** «suele abrir entre mediados de mayo y principios de junio» */
   texto: string;
 }

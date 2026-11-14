@@ -172,17 +172,21 @@ export async function ejecutarRadar(depsEntrada: DependenciasMotor, opciones: Op
     // Los ganadores se piden tras la criba (solo de lo que sigue en juego) y antes del análisis (que los usa como contexto).
     const pedirGanadores = async () => {
       if (deps.ganadores === false || !(deps.fuentes ?? FUENTES).some((f) => f.nombre === 'bdns')) return;
-      const cfgG = { ...cfgGan, maxPeticiones: Math.max(0, cfgGan.maxPeticiones - (parecidas?.peticiones ?? 0)) };
+      const restantes = Math.max(0, cfgGan.maxPeticiones - (parecidas?.peticiones ?? 0));
+      // Una parte pequeña del tope queda reservada para el historial de series: los ganadores no pueden agotarlo.
+      const reservaSeries = Math.min(10, Math.floor(restantes / 5));
+      const cfgG = { ...cfgGan, maxPeticiones: restantes - reservaSeries };
       ganadores = await recogerGanadores({ db, fetch: deps.fetch, reloj, dormir: deps.dormir }, perfil, cfgG, opciones.incluirIds ?? []);
       log(`ganadores: ${ganadores.consultas} consultas, ${ganadores.peticiones} peticiones a BDNS (${ganadores.desdeCache} consultas en caché, ${ganadores.omitidasPorTope} sin hacer por el tope), ${ganadores.concesiones} concesiones, ${ganadores.parecidas} organizaciones parecidas, ${ganadores.errores.length} errores`);
       for (const e of ganadores.errores) log(`  ! ${e}`);
       // Historial de las series relevantes (ediciones pasadas): comparte con lo anterior el tope de peticiones a BDNS de la ejecución.
       series = await recogerHistorialSeries(
         { db, fetch: deps.fetch, reloj, dormir: deps.dormir }, perfil, deps.festivos ?? leerFestivos(config.rutaFestivos),
-        { maxPeticiones: Math.max(0, cfgG.maxPeticiones - ganadores.peticiones), pausaMs: cfgG.pausaMs }, opciones.incluirIds ?? [],
+        { maxPeticiones: Math.max(0, restantes - ganadores.peticiones), pausaMs: cfgG.pausaMs }, opciones.incluirIds ?? [],
       );
-      log(`series: ${series.series} series relevantes, ${series.detalles} ediciones pasadas traídas, ${series.peticiones} peticiones a BDNS, ${series.omitidasPorTope} sin hacer por el tope, ${series.errores.length} errores`);
+      log(`series: ${series.series} series relevantes, ${series.detalles} ediciones pasadas traídas, ${series.peticiones} peticiones a BDNS, ${series.omitidasPorTope} sin hacer por el tope, ${series.enEspera} en espera por fallos repetidos, ${series.errores.length} errores`);
       for (const e of series.errores) log(`  ! ${e}`);
+      for (const a of series.avisos) log(`  · ${a}`);
     };
     fases = [...fasesDeFuentes, ...(await fasesLlm(deps, ejecucionId, perfil, inicio, pedirGanadores, opciones.incluirIds, opciones.soloIncluidas))];
     if (deps.empresas || deps.huella) {

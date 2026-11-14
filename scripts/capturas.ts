@@ -89,10 +89,14 @@ try {
       await foto('/como-sabemos', 'como-sabemos');
       await pagina.context().close();
     }
-    // "Se espera que abran pronto": con los datos de hoy suele estar vacía (las series relevantes ya tienen la edición de este año), así que
-    // la captura es de DEMOSTRACIÓN: en la COPIA de la BD se oculta la edición actual de la serie de la CAM (sin año no cuenta como edición) para que parezca que aún no ha aparecido.
+    // "Se espera que abran pronto": con los datos de hoy suele estar vacía (las series relevantes ya tienen la edición de este ciclo), así que la captura
+    // es de DEMOSTRACIÓN y se hace sobre la COPIA de la BD: se oculta la edición actual de la serie de la CAM (sin año no cuenta) y la de 2025 se
+    // adelanta al 19 de junio de 2025 (con su fecha real, 7 de abril, ya pasaría de los ~18 meses y la serie se daría por abandonada).
     const copia = new DatabaseSync(bd);
-    try { copia.exec("UPDATE ediciones_serie SET anio = NULL WHERE numero_convocatoria = '904719'"); } finally { copia.close(); }
+    try {
+      copia.exec("UPDATE ediciones_serie SET anio = NULL WHERE numero_convocatoria = '904719'");
+      copia.exec("UPDATE ediciones_detalle SET fecha_publicacion = '2025-06-19' WHERE numero_convocatoria = '825309'");
+    } finally { copia.close(); }
     for (const v of VISTAS) {
       const pagina = await (await navegador.newContext({ viewport: { width: v.ancho, height: v.alto }, locale: 'es-ES', timezoneId: 'Europe/Madrid' })).newPage();
       await pagina.goto(`${BASE}/#proximas`, { waitUntil: 'networkidle' });

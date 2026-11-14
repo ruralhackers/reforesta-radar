@@ -443,6 +443,15 @@ const MIGRACIONES: string[] = [
     detalle_en TEXT NOT NULL  -- cuándo se trajo el detalle
   );
   `,
+  `
+  -- Detalles de ediciones de series que BDNS no pudo dar: tras 3 intentos fallidos se deja de pedirlos durante unos días (ver src/fases/series.ts).
+  CREATE TABLE IF NOT EXISTS ediciones_fallos (
+    numero_convocatoria TEXT PRIMARY KEY,
+    intentos INTEGER NOT NULL,
+    ultimo_error TEXT NOT NULL,
+    ultimo_en TEXT NOT NULL
+  );
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

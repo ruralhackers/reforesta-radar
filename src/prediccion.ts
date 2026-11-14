@@ -22,9 +22,16 @@ export interface PrediccionApertura {
   hastaDia: number;
   /** Duración típica del plazo de solicitud (mediana de las ediciones con cierre conocido), en días; null si ninguna lo tiene. */
   duracionDias: number | null;
-  /** "suele abrir entre mediados de mayo y principios de junio". */
+  /** Días que abarca la ventana. */
+  longitudDias: number;
+  /** Ventana muy ancha (más de `UMBRAL_DISPERSA` días): las aperturas pasadas no siguen un patrón claro y el texto no dice «suele». */
+  dispersa: boolean;
+  /** «suele abrir entre mediados de mayo y principios de junio» (o, si es dispersa, «ha abierto en fechas muy distintas (de abril a agosto)»). */
   texto: string;
 }
+
+/** Con una ventana más ancha que esto no se habla de «suele»: no hay patrón que anunciar. */
+export const UMBRAL_DISPERSA = 90;
 
 const ACUM = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
 const DIAS_MES = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
@@ -54,8 +61,11 @@ function tercio(doy: number): string {
   return `${dia <= 10 ? 'principios' : dia <= 20 ? 'mediados' : 'finales'} de ${MESES[mes]}`;
 }
 
-/** "suele abrir entre mediados de mayo y principios de junio" / "suele abrir a mediados de mayo". */
+export const longitudVentana = (desdeDia: number, hastaDia: number): number => ((hastaDia - desdeDia + 365) % 365) + 1;
+
+/** "suele abrir entre mediados de mayo y principios de junio" / "suele abrir a mediados de mayo"; con ventana dispersa, "ha abierto en fechas muy distintas (de abril a agosto)". */
 export function describirVentana(desdeDia: number, hastaDia: number): string {
+  if (longitudVentana(desdeDia, hastaDia) > UMBRAL_DISPERSA) return `ha abierto en fechas muy distintas (de ${MESES[mesYDia(desdeDia).mes]} a ${MESES[mesYDia(hastaDia).mes]})`;
   const a = tercio(desdeDia);
   const b = tercio(hastaDia);
   return a === b ? `suele abrir a ${a}` : `suele abrir entre ${a} y ${b}`;
@@ -88,7 +98,7 @@ export function predecirApertura(pasadas: AperturaPasada[]): PrediccionApertura 
   const duraciones = base.flatMap((e) => (e.cierre && diasEntre(e.apertura, e.cierre) >= 0 ? [diasEntre(e.apertura, e.cierre)] : []));
   return {
     basadaEn: base.map((e) => ({ numero: e.numero, anio: e.anio, apertura: e.apertura })),
-    desdeDia, hastaDia, duracionDias: medianaRedondeada(duraciones), texto: describirVentana(desdeDia, hastaDia),
+    desdeDia, hastaDia, duracionDias: medianaRedondeada(duraciones), longitudDias: longitudVentana(desdeDia, hastaDia), dispersa: longitudVentana(desdeDia, hastaDia) > UMBRAL_DISPERSA, texto: describirVentana(desdeDia, hastaDia),
   };
 }
 
@@ -98,14 +108,36 @@ export function ventanaEnAnio(p: Pick<PrediccionApertura, 'desdeDia' | 'hastaDia
   return { desde, hasta: sumarDias(desde, (p.hastaDia - p.desdeDia + 365) % 365) };
 }
 
-export type EstadoApertura = 'pronto' | 'retrasada' | 'lejos';
+/** Más de este tiempo desde la última apertura (≈ 1,5 ciclos): la serie ya no se considera viva. */
+export const DIAS_SIN_RECIENTES = 548;
+
+export type EstadoApertura = 'pronto' | 'retrasada' | 'lejos' | 'sin_recientes';
 
 /**
- * Estado de la ventana de este año respecto a `hoy`: `pronto` si ya está dentro o empieza en `dias` días o menos; `retrasada` si ya terminó
- * (y la edición de este año no ha aparecido: puede retrasarse o haberse suprimido); `lejos` si empieza más tarde.
+ * Estado de la serie respecto a `hoy`, evaluando las ventanas de los años -1, 0 y +1. El año se reparte en «ciclos» de 365 días centrados en cada
+ * ventana (el límite entre dos ciclos está a mitad del hueco entre ventanas). La edición del ciclo existe si `ultimaApertura` cae en él; se
+ * decide por la FECHA de apertura, no por el año del título. Se toma el primer ciclo sin edición cuyo final no ha pasado:
+ * - `pronto`: su ventana empieza en `dias` días o menos (o ya está dentro);
+ * - `retrasada`: su ventana ya terminó sin que haya aparecido la edición (puede retrasarse o haberse suprimido);
+ * - `lejos`: empieza más tarde.
+ * Si la última apertura es de hace más de `DIAS_SIN_RECIENTES` días, `sin_recientes` (serie aparentemente abandonada, no se anuncia).
+ * `ultimaApertura` null = no se sabe.
  */
-export function estadoApertura(p: Pick<PrediccionApertura, 'desdeDia' | 'hastaDia'>, hoy: string, dias: number): { estado: EstadoApertura; desde: string; hasta: string } {
-  const v = ventanaEnAnio(p, Number(hoy.slice(0, 4)));
-  if (hoy > v.hasta) return { estado: 'retrasada', ...v };
-  return { estado: v.desde <= sumarDias(hoy, dias) ? 'pronto' : 'lejos', ...v };
+export function estadoApertura(
+  p: Pick<PrediccionApertura, 'desdeDia' | 'hastaDia'>, hoy: string, dias: number, ultimaApertura: string | null = null,
+): { estado: EstadoApertura; desde: string; hasta: string } {
+  const anio = Number(hoy.slice(0, 4));
+  const mitadHueco = Math.floor((365 - longitudVentana(p.desdeDia, p.hastaDia)) / 2);
+  let elegida: { desde: string; hasta: string } | null = null;
+  for (const a of [anio - 1, anio, anio + 1]) {
+    const v = ventanaEnAnio(p, a);
+    if (hoy > sumarDias(v.hasta, mitadHueco)) continue; // su ciclo ya pasó
+    if (ultimaApertura !== null && ultimaApertura >= sumarDias(v.desde, -mitadHueco)) continue; // la edición de ese ciclo ya existe
+    elegida = v;
+    break;
+  }
+  const v = elegida ?? ventanaEnAnio(p, anio + 1);
+  const abandonada = ultimaApertura !== null && diasEntre(ultimaApertura, hoy) > DIAS_SIN_RECIENTES;
+  const estado: EstadoApertura = abandonada ? 'sin_recientes' : hoy > v.hasta ? 'retrasada' : v.desde <= sumarDias(hoy, dias) ? 'pronto' : 'lejos';
+  return { estado, ...v };
 }

@@ -111,8 +111,8 @@ function FilaProxima({ s }: { s: SerieProxima }) {
     <li className="border-b border-linea py-3 last:border-b-0">
       <p className="font-medium [overflow-wrap:anywhere]">{s.titulo}</p>
       <p className="text-sm text-tinta">
-        {s.prediccion.texto.replace(/^suele/, 'Suele')}
-        <span className="text-tinta-suave"> ({dia(s.ventana.desde)} – {dia(s.ventana.hasta)} de este año)</span>
+        {s.prediccion.texto.charAt(0).toUpperCase() + s.prediccion.texto.slice(1)}
+        <span className="text-tinta-suave"> ({dia(s.ventana.desde)} – {dia(s.ventana.hasta)})</span>
       </p>
       {s.estado === 'retrasada' && (
         <p className="mt-1 inline-block rounded bg-aviso-suave px-2 py-0.5 text-xs font-medium text-aviso ring-1 ring-aviso-borde">Debería haber abierto ya; puede retrasarse o haberse suprimido</p>

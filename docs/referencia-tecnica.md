@@ -322,12 +322,16 @@ ficha si la edición está guardada como convocatoria; si solo se conoce su hist
   presupuesto. Una petición por edición, una sola vez (tabla `ediciones_detalle`); comparte con los ganadores el tope `RADAR_MAX_PETICIONES_GANADORES` y la
   pausa `RADAR_PAUSA_BDNS_MS`. «Relevantes» = convocatorias guardadas que pasaron la criba, siguen en juego y no descartó el equipo, más las pedidas con
   `npm run cargar -- <num>`: esa orden carga también las ediciones pasadas de su serie (detalle y concesiones).
-- **Cálculo** (`predecirApertura`, pura): apertura = inicio de solicitudes si BDNS lo da, si no la publicación. Con ≥ 2 años distintos, la ventana es el arco circular más
-  corto del año que contiene todas las aperturas (una serie que abre en diciembre y enero da «de diciembre a enero», no «todo el año»); el 29 de febrero cuenta como el 28.
-  Duración típica del plazo = mediana de las ediciones con cierre conocido. Con < 2 ediciones: nada. La ficha enseña siempre en qué ediciones se basa.
-- **Se espera que abran pronto** (`/api/semana` → `proximas`, `seriesProximas`): series relevantes sin edición de este año (ni posterior) cuya ventana de este año
-  empieza en `proximasDias` (60, en `seed/puntuacion.json`) días o menos, o ya terminó (`retrasada`). Con el año del título como único criterio de «edición de este año»,
-  una ventana que cruza el fin de año solo se anuncia desde su inicio.
+- **Cálculo** (`predecirApertura`, pura): apertura = inicio de solicitudes si BDNS lo da; si no, el registro en BDNS (la ficha lo marca «registrada»). Con ≥ 2 años distintos,
+  la ventana es el arco circular más corto del año que contiene todas las aperturas (una serie que abre en diciembre y enero da «de diciembre a enero», no «todo el año»);
+  el 29 de febrero cuenta como el 28. Si la ventana pasa de 90 días no se dice «suele»: «ha abierto en fechas muy distintas (de abril a agosto)». Duración típica del
+  plazo = mediana de las ediciones con cierre conocido. Con < 2 ediciones: nada. La ficha enseña siempre en qué ediciones se basa. /semana y la ficha usan el mismo cálculo (`prediccionDeSerie`).
+- **Se espera que abran pronto** (`/api/semana` → `proximas`, `seriesProximas`, `estadoApertura`): el año se reparte en ciclos de 365 días centrados en la ventana. Una edición
+  «existe» en el ciclo si su fecha de apertura cae en él (se mira por fecha, no por el año del título; el año del título solo vale si no hay fecha). Se evalúan las ventanas de los
+  años −1, 0 y +1: `pronto` si la del ciclo vigente empieza en `proximasDias` (60, en `seed/puntuacion.json`) días o menos (o ya está dentro), `retrasada` si ya terminó sin edición. Si la última
+  apertura es de hace más de ~18 meses (548 días) la serie se da por abandonada y no sale.
+- **Fallos al traer un detalle**: se apuntan en `ediciones_fallos`; con 3 intentos fallidos la edición pasa a espera 14 días (aviso, no error de la ejecución). El historial de series tiene
+  reservada una parte del tope de peticiones (un 20 %, máximo 10) que los ganadores no pueden gastar.
 
 ### Descubrimiento por organizaciones parecidas
 

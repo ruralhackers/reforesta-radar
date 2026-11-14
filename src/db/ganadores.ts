@@ -300,3 +300,22 @@ export function edicionesSinDetalle(db: DatabaseSync, series: string[]): { numer
     WHERE serie IN (${marcas}) AND NOT EXISTS (SELECT 1 FROM ediciones_detalle d WHERE d.numero_convocatoria = es.numero_convocatoria) AND NOT EXISTS (SELECT 1 FROM convocatorias c WHERE c.id = 'bdns:' || es.numero_convocatoria)
     ORDER BY anio DESC, numero_convocatoria DESC`).all(...series) as { numero: string; serie: string; anio: number | null }[]);
 }
+
+export interface FalloEdicion { intentos: number; ultimoEn: string }
+
+/** Apunta un fallo al traer el detalle de una edición; devuelve cuántos intentos fallidos lleva. */
+export function apuntarFalloEdicion(db: DatabaseSync, numero: string, error: string, ahora: Date): number {
+  db.prepare(`INSERT INTO ediciones_fallos (numero_convocatoria, intentos, ultimo_error, ultimo_en) VALUES (?, 1, ?, ?)
+    ON CONFLICT (numero_convocatoria) DO UPDATE SET intentos = intentos + 1, ultimo_error = excluded.ultimo_error, ultimo_en = excluded.ultimo_en`)
+    .run(numero, error.slice(0, 300), ahora.toISOString());
+  return Number((db.prepare('SELECT intentos FROM ediciones_fallos WHERE numero_convocatoria = ?').get(numero) as { intentos: number }).intentos);
+}
+
+export function fallosDeEdiciones(db: DatabaseSync): Map<string, FalloEdicion> {
+  return new Map((db.prepare('SELECT numero_convocatoria AS n, intentos, ultimo_en FROM ediciones_fallos').all() as { n: string; intentos: number; ultimo_en: string }[])
+    .map((f) => [f.n, { intentos: f.intentos, ultimoEn: f.ultimo_en }]));
+}
+
+export function borrarFalloEdicion(db: DatabaseSync, numero: string): void {
+  db.prepare('DELETE FROM ediciones_fallos WHERE numero_convocatoria = ?').run(numero);
+}

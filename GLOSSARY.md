@@ -51,8 +51,8 @@ funciones y tablas usan estas mismas palabras.
   el arco más corto del año que contiene esas aperturas. Es un hábito pasado, no una fecha anunciada; con menos de dos ediciones no se predice.
   Función pura (`src/prediccion.ts`), sin LLM.
 - **Se espera que abran pronto**: sección plegada de «Esta semana» con las series relevantes (alguna edición pasó la criba, la última no la
-  descartó el equipo) cuya ventana empieza en los próximos 60 días (`proximasDias`). Si la ventana de este año ya pasó y la edición no ha
-  aparecido, se marca «debería haber abierto ya; puede retrasarse o haberse suprimido». Las series con la edición de este año no salen.
+  descartó el equipo) cuya ventana empieza en los próximos 60 días (`proximasDias`). Si la ventana del ciclo vigente ya pasó y la edición no ha
+  aparecido, se marca «debería haber abierto ya; puede retrasarse o haberse suprimido». Las series con la edición de este ciclo (por fecha de apertura) o abandonadas (última apertura de hace más de ~18 meses) no salen.
 - **Organización parecida**: entidad que ganó las mismas convocatorias que Reforesta (calculada) o añadida a mano. Sirve para la
   probabilidad y para **descubrir** convocatorias (origen "parecidas").
 
