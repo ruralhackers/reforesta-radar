@@ -218,6 +218,12 @@ describe('piezas', () => {
     const t = acortar('palabra '.repeat(40), 140);
     assert.ok(t.length <= 140 && t.endsWith('palabra...'));
   });
+  test('importe: con máximo por proyecto y total, manda el máximo; el total solo si no hay máximo', () => {
+    const a = (max: string | null, total: string) => ({ importeMaximoProyecto: { valor: max }, importeTotal: { valor: total } }) as never;
+    assert.equal(textoImporte(a('1.500 euros', '21.500,00 €')), 'Hasta 1.500 euros por proyecto');
+    assert.equal(textoImporte(a(null, '21.500,00 €')), '21.500,00 € en total');
+    assert.equal(textoImporte(a(null, '')), 'Importe por confirmar');
+  });
   test('semana ISO', () => {
     assert.equal(semanaIso('2026-11-16'), '2026-W47');
     assert.equal(semanaIso('2026-11-22'), '2026-W47');
