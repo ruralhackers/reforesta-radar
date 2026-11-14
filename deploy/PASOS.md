@@ -1,6 +1,6 @@
 # Pasos del despliegue en anceu-vps (los ejecuta el dueño)
 
-Destino: `/opt/apps/reforesta-radar`, `127.0.0.1:8116`, `https://radar-reforesta.ruralhackers.com` por el túnel `anceu-vps`. Modo demo (sin `TEAM_PASSWORD`).
+Destino: `/opt/apps/reforesta-radar`, `127.0.0.1:8116`, `https://reforesta.ruralhackers.com` por el túnel `anceu-vps`. Acceso con Cloudflare Access (app "Radar Reforesta", código por email; los correos permitidos se gestionan en su política), sin `TEAM_PASSWORD`.
 Datos: bind mount `./data` (SQLite, uid 1000 = usuario `node` del contenedor), cubierto por el restic general de `/opt/apps`.
 
 ## 1. Primer despliegue (desde tu máquina, en el repo)
@@ -40,7 +40,7 @@ docker compose run --rm -T radar npm run radar 2>&1 | tee -a logs/radar.log
 
 ## 6. Ruta en el túnel Cloudflare `anceu-vps`
 Dashboard: Zero Trust > Networks > Tunnels > `anceu-vps` > Published application routes > Add:
-hostname `radar-reforesta.ruralhackers.com`, servicio `HTTP` → `localhost:8116`. (El DNS CNAME proxied se crea con la ruta si la zona ruralhackers.com está en la misma cuenta; si no, crear a mano CNAME → `<id-del-túnel>.cfargotunnel.com`.) Si el túnel se gestiona por fichero, añadir antes de la regla final: `- hostname: radar-reforesta.ruralhackers.com` / `service: http://localhost:8116` y reiniciar `cloudflared`.
+hostname `reforesta.ruralhackers.com`, servicio `HTTP` → `localhost:8116`. (El DNS CNAME proxied se crea con la ruta si la zona ruralhackers.com está en la misma cuenta; si no, crear a mano CNAME → `<id-del-túnel>.cfargotunnel.com`.) Si el túnel se gestiona por fichero, añadir antes de la regla final: `- hostname: reforesta.ruralhackers.com` / `service: http://localhost:8116` y reiniciar `cloudflared`.
 
 ## 7. Cron (usuario anceu)
 ```bash
@@ -53,8 +53,8 @@ Probar la línea de cron a mano: copiar el comando del radar de `crontab -l` y e
 
 ## 8. Verificación pública
 ```bash
-curl -fsS https://radar-reforesta.ruralhackers.com/api/salud
-curl -fsSI https://radar-reforesta.ruralhackers.com/ | head -3
+curl -fsS https://reforesta.ruralhackers.com/api/salud
+curl -fsSI https://reforesta.ruralhackers.com/ | head -3
 ```
 
 ## 9. apps.md

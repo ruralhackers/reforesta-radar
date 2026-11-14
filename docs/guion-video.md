@@ -5,7 +5,7 @@ Este documento es la fuente de los subtítulos: `scripts/video/grabar.ts` (`npm 
 
 Solo hay lo que se ve en pantalla hoy: dos convocatorias para preparar (El Boalo y Fundación Endesa), barra lateral, fichas a dos columnas y la tabla de Empresas. La convocatoria de Usera ya no aparece en «Esta semana»: se muestra solo como ejemplo de lo que el radar descarta (exige sede en Usera).
 
-Preparar antes: instancia en marcha (por defecto `http://localhost:8116`, variable `RADAR_URL`), `npm run build`, y `RADAR_URL_PUBLICA=https://radar-reforesta.ruralhackers.com npm run digest -- --vista-previa` para regenerar `data/digest-preview.html`.
+Preparar antes: instancia en marcha (por defecto `http://localhost:8116`, variable `RADAR_URL`), `npm run build`, y `RADAR_URL_PUBLICA=https://reforesta.ruralhackers.com npm run digest -- --vista-previa` para regenerar `data/digest-preview.html`.
 
 ## 1. Título y problema (tarjeta)
 
@@ -63,7 +63,7 @@ Tarjeta: «Radar para Reforesta», 6–7 personas, 4–5 solicitudes al año, ~9
 
 ## 9. Cierre (tarjeta)
 
-Tarjeta: repositorio https://github.com/ruralhackers/reforesta-radar, demo https://radar-reforesta.ruralhackers.com, «Hecho por Rural Hackers para Common Seeds · 1hack A Coruña». Sin subtítulos (6,5 s).
+Tarjeta: repositorio https://github.com/ruralhackers/reforesta-radar, demo https://reforesta.ruralhackers.com, «Hecho por Rural Hackers para Common Seeds · 1hack A Coruña». Sin subtítulos (6,5 s).
 
 
 ## Notas
