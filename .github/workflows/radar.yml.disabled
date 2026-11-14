@@ -1,0 +1,22 @@
+# DESACTIVADO (la extension .disabled hace que GitHub lo ignore). Para hosting distinto del VPS:
+# renombrar a radar.yml. Ejecuta el radar a diario sobre un runner; la BD no persiste entre
+# ejecuciones, asi que solo sirve si se sube/baja a un almacen (aqui: artefacto) o se usa otra BD.
+name: radar
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "0 5 * * *" # UTC
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: npm ci
+      - run: npm run radar
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DB_PATH: ${{ runner.temp }}/radar.sqlite
+      - uses: actions/upload-artifact@v4
+        with: { name: radar-sqlite, path: "${{ runner.temp }}/radar.sqlite" }

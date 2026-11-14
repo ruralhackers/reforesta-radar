@@ -1,0 +1,9 @@
+# Crontab del usuario anceu en anceu-vps para Radar Reforesta. Instalar con deploy/PASOS.md (paso 7).
+# Hora de Madrid: CRON_TZ lo soporta el cron de Ubuntu/Debian. Si `timedatectl` ya dice Europe/Madrid sobra.
+CRON_TZ=Europe/Madrid
+# radar cada dia 07:00
+0 7 * * * cd /opt/apps/reforesta-radar && echo "== $(date -Is) radar" >> logs/radar.log && docker compose run --rm -T radar npm run radar >> logs/radar.log 2>&1
+# digest los lunes 08:00
+0 8 * * 1 cd /opt/apps/reforesta-radar && echo "== $(date -Is) digest" >> logs/radar.log && docker compose run --rm -T radar npm run digest >> logs/radar.log 2>&1
+# rotacion semanal del log (logrotate de usuario, sin sudo)
+30 6 * * 1 /usr/sbin/logrotate -s /opt/apps/reforesta-radar/logs/.logrotate.estado /opt/apps/reforesta-radar/deploy/logrotate.conf

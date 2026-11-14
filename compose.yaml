@@ -1,18 +1,31 @@
 # docker compose up -d                        → web + API en http://127.0.0.1:${PORT:-8116}
 # docker compose run --rm radar npm run radar → una pasada del radar (para cron)
+# Los datos viven en ./data (bind mount, no volumen con nombre) para que el backup de /opt/apps los incluya.
+# El contenedor corre como uid 1000 (usuario node): ./data debe ser suyo (deploy/desplegar.sh lo arregla).
+# En local, RADAR_DATOS=/otra/ruta cambia la carpeta de datos.
 services:
   radar:
     build: .
+    image: reforesta-radar:local
     restart: unless-stopped
     env_file:
       - path: .env
         required: false
     environment:
       PORT: 8116 # dentro del contenedor siempre 8116; PORT de .env solo elige el puerto del host
+      TZ: Europe/Madrid
     ports:
       - "127.0.0.1:${PORT:-8116}:8116"
     volumes:
-      - datos:/app/data
-
-volumes:
-  datos:
+      - ${RADAR_DATOS:-./data}:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8116/api/salud').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
