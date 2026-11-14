@@ -3,7 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { diasEntre } from '../dates.ts';
 import type { Plazo } from '../plazos.ts';
 import type { Puntuacion } from '../puntuacion.ts';
-import type { Convocatoria, Cribada, Perfil, Semilla } from '../types.ts';
+import type { Convocatoria, Cribada, Fundacion, Perfil, Semilla } from '../types.ts';
 
 export function transaccion<T>(db: DatabaseSync, fn: () => T): T {
   db.exec('BEGIN');
@@ -30,8 +30,34 @@ export function guardarSemilla(db: DatabaseSync, s: Semilla, ahora: Date): void 
     const org = db.prepare("INSERT OR IGNORE INTO organizaciones_parecidas (nif, nombre, origen) VALUES (?, ?, 'semilla')");
     for (const o of s.organizacionesParecidas) org.run(o.nif, o.nombre);
     const fun = db.prepare('INSERT OR IGNORE INTO fundaciones (nombre, url, notas, tipo, activa) VALUES (?, ?, ?, ?, ?)');
-    for (const f of s.fundaciones) fun.run(f.nombre, f.url, f.notas, f.tipo ?? 'fundacion', f.activa === false || !f.url ? 0 : 1);
+    const vista = db.prepare('INSERT OR IGNORE INTO fundaciones_sembradas (nombre) VALUES (?)');
+    for (const f of s.fundaciones) {
+      fun.run(f.nombre, f.url, f.notas, f.tipo ?? 'fundacion', f.activa === false || !f.url ? 0 : 1);
+      vista.run(f.nombre);
+    }
   });
+}
+
+/**
+ * Añade a una BD ya sembrada las fuentes vigiladas de la semilla que aún no se le habían ofrecido (por nombre). Nunca toca las que existen
+ * (ni su URL, nota o activación editadas por el equipo) ni resucita las que el equipo quitó. Devuelve cuántas añadió.
+ */
+export function sembrarFuentesFaltantes(db: DatabaseSync, fundaciones: Fundacion[]): number {
+  let n = 0;
+  transaccion(db, () => {
+    const vista = db.prepare('SELECT 1 FROM fundaciones_sembradas WHERE nombre = ?');
+    const marca = db.prepare('INSERT OR IGNORE INTO fundaciones_sembradas (nombre) VALUES (?)');
+    const existe = db.prepare('SELECT 1 FROM fundaciones WHERE nombre = ? OR (url IS NOT NULL AND url = ?)');
+    const alta = db.prepare('INSERT INTO fundaciones (nombre, url, notas, tipo, activa) VALUES (?, ?, ?, ?, ?)');
+    for (const f of fundaciones) {
+      if (vista.get(f.nombre)) continue;
+      marca.run(f.nombre);
+      if (existe.get(f.nombre, f.url)) continue;
+      alta.run(f.nombre, f.url, f.notas, f.tipo ?? 'fundacion', f.activa === false || !f.url ? 0 : 1);
+      n++;
+    }
+  });
+  return n;
 }
 
 // --- Convocatorias ---

@@ -15,7 +15,7 @@
 import { createHash } from 'node:crypto';
 import { config } from '../config.ts';
 import { diaLocal } from '../dates.ts';
-import { apuntarPresencia, apuntarRevision, type FuenteVigilada, fuentesActivas, type ResultadoRevision } from '../db/fundaciones.ts';
+import { apuntarPresencia, apuntarRevision, type FuenteVigilada, fuentesActivas, type ResultadoRevision, type TipoFundacion } from '../db/fundaciones.ts';
 import { type RegistroFase, registroFaseVacio } from '../db/repo.ts';
 import { aCache, claveCache, desdeCache, esPresupuestoAgotado, llamar } from '../fases/comun.ts';
 import { ESQUEMA_EXTRACCION, promptExtraccion } from '../llm/prompts.ts';
@@ -42,7 +42,7 @@ export interface OpcionesFundaciones {
 /** Lo que se guarda en `datos.fundacion` de cada convocatoria: de dónde salió y lo que dice la página. */
 export interface DatosFundacion {
   fuenteNombre: string;
-  tipo: 'fundacion' | 'agregador';
+  tipo: TipoFundacion;
   paginaUrl: string;
   /** Fragmentos literales de la página (o null si no constan). */
   plazo: string | null;
@@ -111,7 +111,7 @@ function aConvocatoria(c: Candidata, f: FuenteVigilada, paginaUrl: string, fecha
   return {
     id, fuente: 'fundacion', fuenteId: id.slice('fund:'.length), titulo: c.titulo,
     organo: { nivel1: 'FUNDACIÓN', nivel2: f.nombre, nivel3: f.tipo === 'agregador' ? 'Agregador' : null },
-    fechaPublicacion, url: enlacePropio ?? paginaUrl, tipo: null, finalidad: null, regiones: [], abierto: null, datos: { fundacion: datos },
+    fechaPublicacion, url: enlacePropio ?? paginaUrl, tipo: f.tipo === 'premio' ? 'premio' : null, finalidad: null, regiones: [], abierto: null, datos: { fundacion: datos },
   };
 }
 
@@ -208,7 +208,9 @@ const limpio = (t: string) => t.replace(/[<>]/g, '');
 function ficha(c: Convocatoria, d: DatosFundacion): string {
   return [
     `Título: ${limpio(c.titulo)}`,
-    `Convocatoria de una fundación privada o programa de RSC (no es una subvención pública). Fuente vigilada: ${d.fuenteNombre}${d.tipo === 'agregador' ? ' (agregador de convocatorias)' : ''}`,
+    d.tipo === 'premio'
+      ? `PREMIO (no es una subvención ni exige cofinanciación: el importe es dotación del premio). Fuente vigilada: ${d.fuenteNombre}`
+      : `Convocatoria de una fundación privada o programa de RSC (no es una subvención pública). Fuente vigilada: ${d.fuenteNombre}${d.tipo === 'agregador' ? ' (agregador de convocatorias)' : ''}`,
     `Página donde se ha visto: ${d.paginaUrl}`,
     d.enlacePropio && `Enlace de la convocatoria: ${d.enlacePropio}`,
     d.plazo && `Plazo (literal de la página): ${limpio(d.plazo)}`,

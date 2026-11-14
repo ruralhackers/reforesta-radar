@@ -10,6 +10,8 @@ const PAGINAS = [
   'https://www.fundacionmontemadrid.es/convocatorias/',
   'https://www.fundacionmapfre.org/premios-ayudas/convocatorias/',
   'https://www.fbbva.es/convocatorias/',
+  'https://www.fundacionibercaja.es/convocatorias/',
+  'https://www.biophilia-fbbva.es/premios/xxi-premios-biodiversidad/',
 ];
 
 mkdirSync(DIR, { recursive: true });

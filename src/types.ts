@@ -60,7 +60,7 @@ export interface Fundacion {
   url: string | null;
   notas: string | null;
   /** Fundación con convocatorias propias o agregador de convocatorias del tercer sector. Por defecto, fundación. */
-  tipo?: 'fundacion' | 'agregador';
+  tipo?: 'fundacion' | 'agregador' | 'premio';
   /** false = no se vigila (p. ej. la web bloquea clientes automáticos). Por defecto, activa. */
   activa?: boolean;
 }

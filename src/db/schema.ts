@@ -452,6 +452,33 @@ const MIGRACIONES: string[] = [
     ultimo_en TEXT NOT NULL
   );
   `,
+  `
+  -- Nuevo tipo de fuente vigilada, "premio" (premios medioambientales). SQLite no cambia un CHECK: se reconstruye la tabla conservando todo.
+  -- fundaciones_sembradas: nombres de la semilla ya ofrecidos a esta BD; así sembrarFuentesFaltantes añade las fuentes nuevas de la semilla
+  -- sin resucitar las que el equipo quitó (se rellena con las 14 fuentes de la primera semilla).
+  DROP TABLE IF EXISTS fundaciones_nueva;
+  CREATE TABLE fundaciones_nueva (
+    id INTEGER PRIMARY KEY,
+    nombre TEXT NOT NULL UNIQUE,
+    url TEXT,
+    notas TEXT,
+    activa INTEGER NOT NULL DEFAULT 1,
+    tipo TEXT NOT NULL DEFAULT 'fundacion' CHECK (tipo IN ('fundacion', 'agregador', 'premio')),
+    huella TEXT,
+    ultimo_cambio TEXT,
+    ultima_revision TEXT,
+    ultimo_error TEXT
+  );
+  INSERT INTO fundaciones_nueva (id, nombre, url, notas, activa, tipo, huella, ultimo_cambio, ultima_revision, ultimo_error)
+    SELECT id, nombre, url, notas, activa, tipo, huella, ultimo_cambio, ultima_revision, ultimo_error FROM fundaciones;
+  DROP TABLE fundaciones;
+  ALTER TABLE fundaciones_nueva RENAME TO fundaciones;
+  CREATE TABLE IF NOT EXISTS fundaciones_sembradas (nombre TEXT PRIMARY KEY);
+  INSERT OR IGNORE INTO fundaciones_sembradas (nombre) VALUES
+    ('Fundación Montemadrid'), ('Fundación "la Caixa"'), ('Fundación Repsol'), ('Fundación Iberdrola España'), ('Fundación Endesa'),
+    ('Fundación BBVA'), ('Fundación Mapfre'), ('Fundación Banco Santander'), ('Fundación Biodiversidad (MITECO)'), ('Ecoembes'),
+    ('Caterpillar Foundation'), ('Alstom Foundation'), ('Corresponsables · ayudas'), ('MITECO · ayudas y subvenciones de biodiversidad');
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

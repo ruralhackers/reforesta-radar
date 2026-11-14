@@ -269,7 +269,7 @@ export const ESQUEMA_EXTRACCION: Record<string, unknown> = {
  * La página (texto principal, con los enlaces como "texto [url]") de una fundación o de un agregador de convocatorias del tercer sector.
  * Se pide solo lo que la página dice: plazo, importe y extracto copiados literalmente (el código comprueba que están en la página).
  */
-export function promptExtraccion(perfil: Perfil, nombre: string, tipo: 'fundacion' | 'agregador', urlPagina: string, texto: string): { sistema: string; mensaje: string } {
+export function promptExtraccion(perfil: Perfil, nombre: string, tipo: 'fundacion' | 'agregador' | 'premio', urlPagina: string, texto: string): { sistema: string; mensaje: string } {
   const sistema = [
     'Lees la página web de una fundación (o de un agregador de convocatorias del tercer sector) y extraes las convocatorias de ayudas, subvenciones,',
     'premios o programas de financiación que figuran en ella, para un radar de convocatorias de una organización sin ánimo de lucro.',
@@ -283,6 +283,7 @@ export function promptExtraccion(perfil: Perfil, nombre: string, tipo: 'fundacio
     'Reglas (obligatorias):',
     '- Solo convocatorias ABIERTAS, próximas a abrir o sin fecha de cierre a la vista. Ignora las marcadas como cerradas, resueltas, finalizadas o de ediciones pasadas,',
     '  salvo que la página diga que se reabren. Ignora noticias sin convocatoria, menús, avisos legales y programas internos de la fundación sin solicitud externa.',
+    '- Si la fuente es de premios, extrae cada premio o categoría abierta a candidaturas de organizaciones o proyectos (el importe es la dotación del premio).',
     '- Solo convocatorias concretas: no incluyas enlaces genéricos a la web de otra entidad, a un buscador o a un listado de convocatorias, ni la propia fundación como si fuera una convocatoria.',
     '- Incluye convocatorias aunque a primera vista no encajen con las líneas de la organización (la criba posterior decide); excluye solo las claramente',
     '  dirigidas a otro público (becas de estudios para personas, premios a individuos, ayudas a empresas).',
@@ -295,7 +296,7 @@ export function promptExtraccion(perfil: Perfil, nombre: string, tipo: 'fundacio
   // Código único derivado del propio texto: la página no puede escribir su propia marca de cierre sin conocer el hash de todo su contenido.
   const marca = createHash('sha256').update(texto).digest('hex').slice(0, 16);
   const mensaje = [
-    `Fuente: ${nombre} (${tipo === 'agregador' ? 'agregador de convocatorias' : 'fundación'})`,
+    `Fuente: ${nombre} (${tipo === 'agregador' ? 'agregador de convocatorias' : tipo === 'premio' ? 'convocatoria de premios' : 'fundación'})`,
     `Página: ${urlPagina}`,
     '',
     `<pagina-${marca}>`,

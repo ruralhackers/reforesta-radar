@@ -11,7 +11,7 @@ export function Fundaciones() {
   const [error, setError] = useState<string | null>(null);
   const [nombre, setNombre] = useState('');
   const [url, setUrl] = useState('');
-  const [tipo, setTipo] = useState<'fundacion' | 'agregador'>('fundacion');
+  const [tipo, setTipo] = useState<'fundacion' | 'agregador' | 'premio'>('fundacion');
   const [ocupado, setOcupado] = useState(false);
 
   const recargar = () => leerFundaciones().then(setLista, (e: Error) => setError(e.message));
@@ -33,7 +33,7 @@ export function Fundaciones() {
       <header className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Fundaciones vigiladas</h1>
         <p className="mt-1 text-sm text-tinta-suave">
-          Cada ejecución lee la página de convocatorias de estas fundaciones y agregadores. Si su texto ha cambiado, se buscan convocatorias nuevas;
+          Cada ejecución lee la página de convocatorias de estas fundaciones, agregadores y premios. Si su texto ha cambiado, se buscan convocatorias nuevas;
           si no, no se gasta nada. Lo que añadas o quites cuenta desde la siguiente ejecución del radar.
         </p>
       </header>
@@ -46,9 +46,10 @@ export function Fundaciones() {
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre (p. ej. Fundación X)" aria-label="Nombre" required className="rounded border border-linea-fuerte px-3 py-2 text-sm" />
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… (la página de convocatorias)" aria-label="URL" type="url" required className="rounded border border-linea-fuerte px-3 py-2 text-sm" />
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <select value={tipo} onChange={(e) => setTipo(e.target.value as 'fundacion' | 'agregador')} aria-label="Tipo" className="rounded border border-linea-fuerte px-3 py-2 text-sm">
+            <select value={tipo} onChange={(e) => setTipo(e.target.value as 'fundacion' | 'agregador' | 'premio')} aria-label="Tipo" className="rounded border border-linea-fuerte px-3 py-2 text-sm">
               <option value="fundacion">Fundación o empresa con convocatoria propia</option>
               <option value="agregador">Agregador de convocatorias</option>
+              <option value="premio">Premios (convocatoria de premios)</option>
             </select>
             <button type="submit" disabled={ocupado || !nombre.trim() || !url.trim()} className="rounded bg-marca px-4 py-2 text-sm font-medium text-white disabled:opacity-50 sm:ml-auto">Añadir</button>
           </div>
@@ -64,7 +65,7 @@ export function Fundaciones() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-semibold [overflow-wrap:anywhere]">
-                    {f.nombre} <span className="ml-1 rounded-full bg-fondo-suave px-2 py-0.5 align-middle text-[11px] font-medium text-tinta-suave">{f.tipo === 'agregador' ? 'Agregador' : 'Fundación'}</span>
+                    {f.nombre} <span className="ml-1 rounded-full bg-fondo-suave px-2 py-0.5 align-middle text-[11px] font-medium text-tinta-suave">{f.tipo === 'agregador' ? 'Agregador' : f.tipo === 'premio' ? 'Premio' : 'Fundación'}</span>
                   </p>
                   {f.url
                     ? <p className="mt-0.5 text-xs [overflow-wrap:anywhere]"><a href={f.url} target="_blank" rel="noreferrer" className="text-marca-fuerte hover:underline">{f.url}</a></p>

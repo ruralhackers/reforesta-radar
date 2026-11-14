@@ -31,6 +31,8 @@ funciones y tablas usan estas mismas palabras.
   la fuente ya no las devuelva.
 - **En juego**: sin descarte de reglas ni de ninguna fase (y, si tiene condición, aceptada por la criba). Solo lo que está en juego puntúa.
 - **Duplicada**: la misma convocatoria vista en otra fuente y en BDNS (mismo título): se queda la de BDNS.
+- **Premio**: convocatoria de una fuente vigilada de tipo `premio` (premios medioambientales). Chip «Premio» en tarjeta y ficha; su importe es la dotación del
+  premio y no cuenta cofinanciación en la puntuación.
 - **Retirada**: convocatoria de fundación que ya no aparece en su página en dos revisiones seguidas.
 - **Ficha**: la página de una convocatoria (`/convocatoria/:id`): datos de la fuente, criba, análisis con citas, plazo, puntuación,
   ganadores previos y enlaces.

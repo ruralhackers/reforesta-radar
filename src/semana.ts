@@ -33,6 +33,8 @@ export interface ResumenTarjeta {
   importe: string | null;
   lineas: string[];
   porQue: string | null;
+  /** 'premio' si la convocatoria sale de una fuente de premios; null en el resto. */
+  tipo: string | null;
 }
 
 const frasePunto = (t: string) => { const l = t.replace(/\s+/g, ' ').trim(); return l ? (/[.!?]$/.test(l) ? l : `${l}.`) : null; };
@@ -46,6 +48,7 @@ export function resumenTarjeta(db: DatabaseSync, id: string, tituloOficial: stri
     tituloCorto: tituloParaMostrar(a?.tituloCorto, tituloOficial),
     importe,
     lineas: a?.lineas.map((l) => l.linea) ?? [],
+    tipo: (db.prepare('SELECT tipo FROM convocatorias WHERE id = ?').get(id) as { tipo: string | null } | undefined)?.tipo ?? null,
     porQue: (motivo ? frasePunto(motivo) : null) ?? (a ? porQue(puntuacion) ?? null : null),
   };
 }

@@ -15,7 +15,7 @@ test('la semilla carga el perfil en una BD vacía y no pisa uno existente', () =
   assert.equal(perfil?.lineas.length, 3);
   const n = (tabla: string) => (db.prepare(`SELECT count(*) AS n FROM ${tabla}`).get() as { n: number }).n;
   assert.equal(n('organizaciones_parecidas'), 11);
-  assert.equal(n('fundaciones'), 14);
+  assert.equal(n('fundaciones'), 33);
 
   db.prepare("UPDATE perfil SET datos = json_set(datos, '$.importeMinimo', 1) WHERE id = 1").run();
   assert.equal(sembrarSiVacia(db, RUTA_SEMILLA, new Date()), false);

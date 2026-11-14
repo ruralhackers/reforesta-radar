@@ -417,6 +417,15 @@ desde una fundación y desde un agregador converge en un solo id. La huella solo
 Las fuentes cuya web bloquea a los clientes automáticos (p. ej. "la Caixa", HTTP 403) están en la semilla desactivadas con su nota. La extracción
 se registra como fase `extraccion_fundaciones` con su coste. Grabaciones de los tests: `npm run record:fundaciones`.
 
+**Tipos de fuente y premios.** Cada fuente vigilada es `fundacion`, `agregador` o `premio` (páginas de premios medioambientales). Lo extraído de una fuente
+`premio` se guarda con `convocatorias.tipo = 'premio'`: la tarjeta y la ficha muestran el chip «Premio», el análisis lo trata como premio (no como subvención) y
+la puntuación toma el importe como dotación del premio (sin el descuento de «solo consta el total») y no cuenta la cofinanciación en el esfuerzo (`esPremio` en
+`src/puntuacion.ts`). La Fundaciones page deja añadir premios con tipo «Premios».
+
+**Fuentes nuevas de la semilla en BD ya existentes.** Al arrancar, `sembrarSiVacia` llama a `sembrarFuentesFaltantes`: añade las fuentes de `seed/perfil.json` cuyo
+nombre aún no se ofreció a esa BD (tabla `fundaciones_sembradas`) y cuyo nombre o URL no existen. Nunca toca una fuente existente (URL, nota o activación editadas
+por el equipo) ni resucita las que el equipo quitó. Las inactivas de la semilla llevan en `notas` por qué (403, JavaScript, sin convocatoria, verificado el 2026-11-14).
+
 **Seguridad de las descargas (SSRF).** Toda URL que sale de datos (páginas de fundaciones, enlaces extraídos de ellas, documentos de BDNS/UE/fundaciones
 que lee el análisis) se descarga con `src/fetch-seguro.ts`: solo http(s), sin credenciales, DNS resuelto (todas las direcciones) y rechazo de loopback,
 redes privadas, enlace local, CGNAT, ULA, multicast y mapeadas; redirecciones a mano (máx. 5) validadas salto a salto; cuerpo leído por streaming con tope

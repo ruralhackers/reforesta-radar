@@ -60,6 +60,9 @@ export function esConsorcio(c: Convocatoria, cfg: Pick<ConfigPuntuacion, 'consor
   return c.fuente === 'eu_ft' && prefijos.some((x) => x.toUpperCase() === c.fuenteId.split('-')[0].toUpperCase());
 }
 
+/** true si es un premio (fuente vigilada de tipo "premio"): el importe es la dotación del premio y no hay cofinanciación. */
+export const esPremio = (c: Convocatoria): boolean => c.tipo === 'premio';
+
 /** Lo que se sabe de la convocatoria en el momento de puntuar. */
 export interface EntradaPuntuacion {
   convocatoria: Convocatoria;
@@ -165,12 +168,13 @@ function importe(e: EntradaPuntuacion, c: ConfigPuntuacion['importe']): Parcial 
     return { subpuntuacion: c.valorDesconocido, conocido: false, explicacion: `desconocido: ${a ? 'ni el importe por proyecto ni el total constan' : 'sin analizar'}` };
   }
   const minimo = e.importeMinimo ?? c.minimoSiPerfilNoTiene;
-  const que = maximo !== null ? `máximo por proyecto ${euros(maximo)}` : `solo consta el importe total (${euros(total!)})`;
+  const premio = esPremio(e.convocatoria);
+  const que = premio ? `premio de ${euros(cifra)}` : maximo !== null ? `máximo por proyecto ${euros(maximo)}` : `solo consta el importe total (${euros(total!)})`;
   if (cifra < minimo) return { subpuntuacion: 0, conocido: true, explicacion: `${que}, por debajo del mínimo que merece el esfuerzo (${euros(minimo)})` };
   const techo = Math.max(c.techo, minimo * 2);
   let s = 0.3 + 0.7 * limitar(Math.log(cifra / minimo) / Math.log(techo / minimo));
-  if (maximo === null) s *= c.pesoSoloTotal;
-  return { subpuntuacion: redondear(s), conocido: true, explicacion: maximo !== null ? que : `${que}; no dice cuánto se da por proyecto` };
+  if (maximo === null && !premio) s *= c.pesoSoloTotal;
+  return { subpuntuacion: redondear(s), conocido: true, explicacion: maximo !== null || premio ? que : `${que}; no dice cuánto se da por proyecto` };
 }
 
 function cierre(e: EntradaPuntuacion, c: ConfigPuntuacion['cierre']): Parcial {
@@ -194,11 +198,13 @@ function cierre(e: EntradaPuntuacion, c: ConfigPuntuacion['cierre']): Parcial {
 function esfuerzo(e: EntradaPuntuacion, c: ConfigPuntuacion['esfuerzo']): Parcial {
   const a = e.analisis;
   if (!a) return { subpuntuacion: c.valorDesconocido, conocido: false, explicacion: 'desconocido: sin analizar' };
-  const pct = parsearCofinanciacion(a.cofinanciacion.valor);
+  const premio = esPremio(e.convocatoria);
+  const pct = premio ? 0 : parsearCofinanciacion(a.cofinanciacion.valor);
   const n = a.requisitos.length;
   const partes: string[] = [];
   const subs: number[] = [];
-  if (pct === null) partes.push('cofinanciación desconocida');
+  if (premio) { subs.push(1); partes.push('premio: sin cofinanciación'); }
+  else if (pct === null) partes.push('cofinanciación desconocida');
   else {
     subs.push(limitar(1 - pct / c.cofinanciacionMaxima));
     partes.push(pct === 0 ? 'sin cofinanciación' : `cofinanciación del ${pct} %`);

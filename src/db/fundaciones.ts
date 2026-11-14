@@ -2,7 +2,8 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { urlPermitidaSintactica } from '../fetch-seguro.ts';
 
-export type TipoFundacion = 'fundacion' | 'agregador';
+export type TipoFundacion = 'fundacion' | 'agregador' | 'premio';
+export const TIPOS_FUENTE: readonly TipoFundacion[] = ['fundacion', 'agregador', 'premio'];
 
 export interface FuenteVigilada {
   id: number;
@@ -62,10 +63,10 @@ export function validarUrl(url: unknown): string {
 export function altaFuente(db: DatabaseSync, { nombre, url, tipo }: { nombre: unknown; url: unknown; tipo: unknown }): FuenteVigilada {
   const n = typeof nombre === 'string' ? nombre.trim() : '';
   if (!n) throw new ErrorFundacion('Falta el nombre', 400);
-  if (tipo !== 'fundacion' && tipo !== 'agregador') throw new ErrorFundacion('El tipo debe ser "fundacion" o "agregador"', 400);
+  if (!TIPOS_FUENTE.includes(tipo as TipoFundacion)) throw new ErrorFundacion('El tipo debe ser "fundacion", "agregador" o "premio"', 400);
   const u = validarUrl(url);
   if (db.prepare('SELECT 1 FROM fundaciones WHERE nombre = ? OR url = ?').get(n, u)) throw new ErrorFundacion('Ya existe una fuente con ese nombre o esa URL', 409);
-  const r = db.prepare("INSERT INTO fundaciones (nombre, url, tipo, activa, notas) VALUES (?, ?, ?, 1, 'Añadida desde la web')").run(n, u, tipo);
+  const r = db.prepare("INSERT INTO fundaciones (nombre, url, tipo, activa, notas) VALUES (?, ?, ?, 1, 'Añadida desde la web')").run(n, u, tipo as string);
   return aFuente(db.prepare('SELECT * FROM fundaciones WHERE id = ?').get(Number(r.lastInsertRowid)) as Record<string, unknown>);
 }
 

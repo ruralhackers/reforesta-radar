@@ -61,6 +61,7 @@ function Tarjeta({ c, semana, decision, alCambiar, puedeEditar }: { c: Convocato
         {c.plazo?.fechaCierre && c.plazo.diasHastaCierre !== null && (
           <span className={`rounded-full px-2.5 py-0.5 text-xs ${urgente ? 'bg-aviso-suave font-semibold text-aviso ring-1 ring-aviso-borde' : CHIP}`}><Cierre plazo={c.plazo} /></span>
         )}
+        {c.tarjeta.tipo === 'premio' && <span className="rounded-full bg-aviso-suave px-2.5 py-0.5 text-xs font-semibold text-aviso ring-1 ring-aviso-borde">Premio</span>}
         <span className={CHIP}>{c.tarjeta.importe ?? 'Importe por confirmar'}</span>
         {c.tarjeta.lineas.map((l) => <span key={l} className="rounded-full bg-marca-suave px-2.5 py-0.5 text-xs text-marca-fuerte">{l}</span>)}
       </div>

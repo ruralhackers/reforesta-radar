@@ -123,7 +123,9 @@ export function Ficha({ id }: { id: string }) {
         <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-tinta-suave">
           <span>Publicada el {fecha(ficha.fechaPublicacion)}</span>
           <OrigenFuente fuente={ficha.fuente} url={ficha.enlaces.find((e) => e.tipo === 'ficha')?.url} />
-          {ficha.tipo && <span>{ficha.tipo}</span>}
+          {ficha.tipo === 'premio'
+            ? <span className="rounded-full bg-aviso-suave px-2 py-0.5 text-[11px] font-semibold text-aviso ring-1 ring-aviso-borde">Premio</span>
+            : ficha.tipo && <span>{ficha.tipo}</span>}
         </p>
       </header>
 
