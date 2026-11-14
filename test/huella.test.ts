@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import type { DatabaseSync } from 'node:sqlite';
 import { agruparOrganizaciones, evaluarOrganizacion, evidenciaOrganizacion, FASE_HUELLA, type ConfigHuella, validarHuella, zonaDePerfil } from '../src/fases/huella.ts';
-import { leerEmpresas, registrarSenal } from '../src/db/empresas.ts';
+import { leerEmpresas, ocultarSinFormaJuridica, registrarSenal } from '../src/db/empresas.ts';
 import { ejecutarRadar } from '../src/engine.ts';
 import type { Llm, PeticionLlm } from '../src/llm/llm.ts';
 import { descargarFichero, leerListadoCompensacion, leerListadoHuella, textoFila, URL_COMPENSACION, URL_HUELLA } from '../src/sources/huella.ts';
@@ -451,7 +451,7 @@ describe('prioridad y orden de las empresas', () => {
   test('migración: recalcula la prioridad de lo ya guardado (DIA 3, compensación 2, solo zona y sector 1), acorta motivos largos y fuerza recorrer el registro de nuevo', async () => {
     const { abrirBd, migrar } = await import('../src/db/schema.ts');
     const db = abrirBd(':memory:');
-    db.exec('DROP INDEX empresas_por_prioridad; ALTER TABLE empresas DROP COLUMN prioridad; PRAGMA user_version = 14');
+    db.exec('DROP INDEX empresas_por_prioridad; ALTER TABLE empresas DROP COLUMN prioridad; ALTER TABLE empresas DROP COLUMN oculta; ALTER TABLE empresa_senales DROP COLUMN prioridad; PRAGMA user_version = 14');
     const largo = `Registro de huella de carbono (MITECO), 2024: Gran empresa de sector afín. ${'Datos repetidos del prompt. '.repeat(15)}`;
     const ins = (clave: string, origen: string, motivo: string, cita: string) => Number(db.prepare(
       `INSERT INTO empresas (clave, nombre, origen, motivo, cita, enlace, primera_vez_vista) VALUES (?, ?, ?, ?, ?, 'https://x', '2026-11-14T00:00:00Z')`).run(clave, clave, origen, motivo, cita).lastInsertRowid);
@@ -510,5 +510,79 @@ describe('descarga por trozos: coherencia entre trozos', () => {
     // Primer Content-Range honesto con un total bajo el tope, pero el servidor sigue mandando trozos (de más) más allá del total.
     await assert.rejects(descargarFichero(servidor(() => ({ total: 5000 })), URL_HUELLA, op), /cambió|tope|rango inesperada|tamaño/);
     await assert.rejects(descargarFichero(servidor(), URL_HUELLA, { ...op, maxBytes: 5000 }), /tope/);
+  });
+});
+
+describe('ronda 2: prioridad derivada de las señales, filas sin forma jurídica, grafías de comunidad', () => {
+  const perfil = leerSemilla(RUTA_SEMILLA).perfil;
+
+  test('N1: una fila heredada (relleno de la migración, prioridad 2) que Haiku degrada baja de verdad: queda oculta y fuera del correo; si no cumple zona y sector, también', async () => {
+    const { abrirBd, migrar } = await import('../src/db/schema.ts');
+    // BD con una pasada normal; luego se deja como si viniera de antes: señales y prioridad del relleno, y sin lo cribado con el prompt v2.
+    const db = bdSembrada();
+    await pasada(db, fetchHuella(), llmFalso([]));
+    assert.equal(leerEmpresas(db).filter((e) => /URBASER|DISEÑO TEXTIL/.test(e.nombre)).length, 2);
+    db.exec('DELETE FROM huella_cribadas; DELETE FROM huella_ficheros; DELETE FROM llm_cache'); // como tras cambiar el prompt: ni hash ni caché
+    const llm = llmFalso([], (p) => (/URBASER|DISEÑO TEXTIL/.test(p.mensaje) ? { financiador: false, motivo: 'Compensación testimonial.' } : undefined));
+    await pasada(db, fetchHuella({ version: 'v2' }), llm);
+    const por = (n: string) => leerEmpresas(db, { incluirBaja: true }).find((e) => e.nombre === n)!;
+    assert.equal(por('URBASER, S.A.').prioridad, 1, 'cumple zona y sector: baja confianza');
+    assert.match(por('URBASER, S.A.').motivo, /baja confianza/, 'el motivo visible ya no habla de compensación');
+    assert.equal(por('INDUSTRIA DE DISEÑO TEXTIL, S.A.').prioridad, 1, 'no cumple zona: también baja, no se queda en 2');
+    const visibles = leerEmpresas(db).map((e) => e.nombre);
+    assert.ok(!visibles.includes('URBASER, S.A.') && !visibles.includes('INDUSTRIA DE DISEÑO TEXTIL, S.A.'));
+    const s = seccionEmpresasNuevas({ db, hoy: '2026-11-16', urlPublica: 'x' });
+    assert.ok(!s[0].items.some((i) => /URBASER|DISEÑO/.test(i.titulo)));
+    void abrirBd; void migrar;
+  });
+
+  test('N1: una empresa con DIA no baja aunque el registro la degrade (la prioridad es la mayor de sus señales)', async () => {
+    const db = bdSembrada();
+    registrarSenal(db, { nombre: 'Urbaser, S.A.', cif: 'A79524054', origen: 'dia_boe', motivo: 'DIA', cita: 'c', provincia: 'Soria', senal: { boeId: 'BOE-A-1', titulo: 't', proyecto: null, provincia: null, medidas: [], enlace: 'https://www.boe.es/x', fechaPublicacion: '2026-11-01' } }, AHORA);
+    await pasada(db, fetchHuella(), llmFalso([], (p) => (/URBASER/.test(p.mensaje) ? { financiador: false, motivo: 'No.' } : undefined)));
+    const u = leerEmpresas(db).find((e) => e.cif === 'A79524054')!;
+    assert.equal(u.prioridad, 3);
+    assert.equal(u.senales.find((x) => x.tipo === 'huella_carbono')?.motivo.includes('baja confianza'), true);
+  });
+
+  test('N2: filas guardadas sin forma jurídica (de antes del filtro) quedan ocultas con motivo, sin borrarse, y vuelven si se les completa el CIF', async () => {
+    const db = bdSembrada();
+    const dia = (nombre: string, cif: string | null, id: string) => registrarSenal(db, { nombre, cif, origen: 'dia_boe', motivo: 'DIA', cita: 'c', provincia: 'Melilla', senal: { boeId: id, titulo: 't', proyecto: null, provincia: null, medidas: [], enlace: 'https://www.boe.es/x', fechaPublicacion: '2026-11-01' } }, AHORA);
+    const { empresaId } = dia('Melilla Geothermal Energy', null, 'BOE-A-M');
+    dia('Eolica Buena SL', null, 'BOE-A-B');
+    assert.equal(leerEmpresas(db).length, 2);
+    // Una pasada del motor (con registro) las limpia al empezar.
+    await pasada(db, fetchHuella(), llmFalso([]));
+    assert.deepEqual(leerEmpresas(db).map((e) => e.nombre).filter((n) => /Melilla|Eolica/.test(n)), ['Eolica Buena SL']);
+    assert.equal((db.prepare('SELECT oculta FROM empresas WHERE id = ?').get(empresaId) as { oculta: string }).oculta, 'sin forma jurídica');
+    assert.equal((db.prepare('SELECT COUNT(*) AS n FROM empresas WHERE id = ?').get(empresaId) as { n: number }).n, 1, 'no se borra');
+    assert.deepEqual(ocultarSinFormaJuridica(db), [], 'idempotente');
+    // Si luego llega con un CIF de entidad, vuelve.
+    dia('Melilla Geothermal Energy', 'B52000001', 'BOE-A-M2');
+    assert.ok(leerEmpresas(db).some((e) => e.id === empresaId));
+  });
+
+  test('N3: las grafías de comunidad del registro y del perfil casan', () => {
+    const z = (...c: string[]) => zonaDePerfil({ ...perfil, ambito: { ...perfil.ambito, comunidades: c } });
+    const casa = (perfilCcaa: string, registro: string) => assert.ok(z(perfilCcaa).includes(z(registro)[0]), `${perfilCcaa} / ${registro}`);
+    casa('ILLES BALEARS', 'Balears, Illes');
+    casa('COMUNIDAD DE MADRID', 'Madrid, Comunidad de');
+    casa('CASTILLA Y LEÓN', 'Castilla y León');
+    casa('CASTILLA-LA MANCHA', 'Castilla - La Mancha');
+    casa('COMUNIDAD VALENCIANA', 'Comunitat Valenciana');
+    casa('PAÍS VASCO', 'Euskadi');
+    casa('PRINCIPADO DE ASTURIAS', 'Asturias, Principado de');
+    casa('REGIÓN DE MURCIA', 'Murcia, Región de');
+    casa('COMUNIDAD FORAL DE NAVARRA', 'Navarra, Comunidad Foral de');
+    assert.notDeepEqual(z('GALICIA'), z('Asturias'));
+  });
+
+  test('N4: un perfil sin comunidades avisa y no genera baja confianza', async () => {
+    const db = bdSembrada();
+    const p = leerSemilla(RUTA_SEMILLA).perfil;
+    db.prepare('UPDATE perfil SET datos = ?').run(JSON.stringify({ ...p, ambito: { ...p.ambito, comunidades: [] } }));
+    const r = await pasada(db, fetchHuella(), llmFalso([]));
+    assert.match(r.huella!.fase.avisos.join(' '), /ámbito del perfil no tiene comunidades/);
+    assert.equal(r.huella!.bajaConfianza, 0);
   });
 });

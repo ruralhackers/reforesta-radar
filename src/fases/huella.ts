@@ -13,7 +13,7 @@
 //      el código compone el motivo con los datos del registro, la cita es el texto literal de la fila y la empresa se guarda con `registrarSenal`
 //      (se une a las que ya vienen de una DIA por CIF o nombre).
 import type { DatabaseSync } from 'node:sqlite';
-import { claveEmpresa, esEntidadJuridica, PRIORIDAD_REGISTRO_COMPENSA, PRIORIDAD_REGISTRO_ZONA, registrarSenal } from '../db/empresas.ts';
+import { claveEmpresa, esEntidadJuridica, PRIORIDAD_REGISTRO_COMPENSA, PRIORIDAD_REGISTRO_ZONA, bajarSenalRegistro, registrarSenal } from '../db/empresas.ts';
 import { type RegistroFase, registroFaseVacio } from '../db/repo.ts';
 import type { Llm } from '../llm/llm.ts';
 import { ESQUEMA_HUELLA, promptHuella } from '../llm/prompts.ts';
@@ -80,8 +80,10 @@ const SECTORES_EXCLUIDOS = new Set(['O', 'P', 'T', 'U']);
 const TAMANOS = new Set(['gran empresa', 'mediana']);
 
 const sinAcentos = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-const PALABRAS_VACIAS = new Set(['comunidad', 'de', 'del', 'la', 'el', 'region', 'principado', 'foral', 'autonoma']);
-const palabrasZona = (s: string) => sinAcentos(s).split(' ').filter((p) => p && !PALABRAS_VACIAS.has(p)).sort().join(' ');
+const PALABRAS_VACIAS = new Set(['comunidad', 'comunitat', 'de', 'del', 'la', 'el', 'y', 'i', 'region', 'principado', 'foral', 'autonoma', 'illes', 'islas', 'ciutat']);
+/** Grafías distintas de la misma comunidad entre el registro y el perfil ("Balears, Illes" / "ILLES BALEARS", "Euskadi" / "País Vasco"). */
+const ALIAS_ZONA: [RegExp, string][] = [[/\bbalears\b/, 'baleares'], [/\beuskadi\b/, 'pais vasco'], [/\bvalenciana\b/, 'valencia'], [/\bcatalunya\b/, 'cataluna'], [/\bgaliza\b/, 'galicia'], [/\bnafarroa\b/, 'navarra'], [/\bcanarias\b/, 'canarias']];
+const palabrasZona = (s: string) => ALIAS_ZONA.reduce((t, [re, por]) => t.replace(re, por), sinAcentos(s)).split(' ').filter((p) => p && !PALABRAS_VACIAS.has(p)).sort().join(' ');
 
 /** Comunidades autónomas de la zona de la organización, tal como las escribe el registro del MITECO ("Madrid, Comunidad de") y el perfil ("COMUNIDAD DE MADRID"): se comparan sin acentos ni palabras vacías. */
 export type Zona = string[];
@@ -246,6 +248,7 @@ export async function recogerEmpresasHuella(ctx: ContextoHuella, cfg: ConfigHuel
   const anioMax = filas.reduce((m, f) => Math.max(m, f.anio), 0);
 
   const zona = zonaDePerfil(ctx.perfil);
+  if (zona.length === 0) fase.avisos.push('El ámbito del perfil no tiene comunidades autónomas: no se guardará ninguna empresa de baja confianza (zona + sector) del registro de huella de carbono');
   const evaluadas = organizaciones
     .map((o) => ({ o, ev: evaluarOrganizacion(o, anioMax, cfg, zona) }))
     .filter((x) => x.ev.pasa)
@@ -293,6 +296,7 @@ export async function recogerEmpresasHuella(ctx: ContextoHuella, cfg: ConfigHuel
       if (!v.financiador) {
         // Degradada por el modelo: si además cumple zona y sector queda como baja confianza; si no, fuera.
         if (ev.cumpleB) guardarBaja(o);
+        else bajarSenalRegistro(db, `huella:${o.clave}`, motivoBajaConfianza(o));
         guardarCribada.run(h, o.clave, o.nombre, 'descartada', ahora.toISOString());
         r.descartadas++;
         continue;

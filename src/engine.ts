@@ -10,6 +10,7 @@ import { analizarConLlm, FASE_ANALISIS } from './fases/analisis.ts';
 import { cribarConLlm, FASE_CRIBA } from './fases/criba.ts';
 import { CONFIG_HUELLA_POR_DEFECTO, type ConfigHuella, recogerEmpresasHuella, type ResumenHuella } from './fases/huella.ts';
 import { CONFIG_EMPRESAS_POR_DEFECTO, type ConfigEmpresas, recogerEmpresasDia, type ResumenEmpresas } from './fases/empresas.ts';
+import { ocultarSinFormaJuridica } from './db/empresas.ts';
 import { CONFIG_GANADORES_POR_DEFECTO, type ConfigGanadores, recogerGanadores, type ResumenGanadores } from './fases/ganadores.ts';
 import { CONFIG_PARECIDAS_POR_DEFECTO, type ConfigParecidas, descubrirParecidas, type ResumenParecidas } from './fases/parecidas.ts';
 import { ejemplosDecisiones } from './db/decisiones.ts';
@@ -147,6 +148,11 @@ export async function ejecutarRadar(deps: DependenciasMotor, opciones: { diasAtr
       for (const e of ganadores.errores) log(`  ! ${e}`);
     };
     fases = [...fasesDeFuentes, ...(await fasesLlm(deps, ejecucionId, perfil, inicio, pedirGanadores))];
+    if (deps.empresas || deps.huella) {
+      // Filas guardadas antes del filtro de persona jurídica: se ocultan (con motivo), no se borran.
+      const ocultadas = ocultarSinFormaJuridica(db);
+      if (ocultadas.length) log(`empresas: ${ocultadas.length} ocultadas por no tener forma jurídica (${ocultadas.slice(0, 5).join(', ')}${ocultadas.length > 5 ? '…' : ''})`);
+    }
     if (deps.empresas) {
       const modelo = { ...CONFIG_LLM_POR_DEFECTO, ...deps.configLlm }.modeloCriba;
       const cfgE: ConfigEmpresas = { ...CONFIG_EMPRESAS_POR_DEFECTO, ...(typeof deps.empresas === 'object' ? deps.empresas : {}) };

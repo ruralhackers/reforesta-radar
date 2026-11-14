@@ -367,6 +367,15 @@ const MIGRACIONES: string[] = [
   -- Que la próxima ejecución recorra el registro entero con los criterios nuevos (la cola de la criba se rehace por hash).
   DELETE FROM huella_ficheros;
   `,
+  // 16: la prioridad de una empresa se deriva de sus señales (la de cada señal se guarda aparte) y las empresas sin forma jurídica pueden quedar ocultas
+  `
+  ALTER TABLE empresa_senales ADD COLUMN prioridad INTEGER NOT NULL DEFAULT 0;
+  UPDATE empresa_senales SET prioridad = CASE
+    WHEN tipo = 'dia_boe' THEN 3
+    WHEN EXISTS (SELECT 1 FROM empresas e WHERE e.id = empresa_senales.empresa_id AND (e.cita LIKE '%COMPENSACIÓN:%' OR e.cita LIKE '%SELLO: %COMPENSO%')) THEN 2
+    ELSE 1 END;
+  ALTER TABLE empresas ADD COLUMN oculta TEXT;   -- motivo por el que no se muestra (p. ej. 'sin forma jurídica'); NULL = visible
+  `,
 ];
 
 export function migrar(db: DatabaseSync): void {

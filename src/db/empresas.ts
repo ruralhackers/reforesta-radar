@@ -95,7 +95,7 @@ export interface NuevaSenal {
   motivo: string;
   cita: string;
   provincia: string | null;
-  /** Por defecto: DIA → 3, registro → 2. El registro solo por zona y sector es 1. Nunca baja la de una empresa que ya la tiene mayor. */
+  /** Por defecto: DIA → 3, registro → 2. El registro solo por zona y sector es 1. La de la empresa es la mayor de sus señales (una criba posterior puede bajar la de una señal del registro). */
   prioridad?: number;
   senal: Omit<SenalEmpresa, 'tipo' | 'vistaEn' | 'motivo'>;
 }
@@ -116,6 +116,7 @@ export function registrarSenal(db: DatabaseSync, n: NuevaSenal, ahora: Date): { 
       empresaId = Number(existente.id);
       // Si antes no constaba el CIF y ahora sí, se completa (salvo que ese CIF ya sea de otra fila: entonces no se toca).
       if (n.cif && !porCif && !existente.cif) db.prepare('UPDATE empresas SET cif = ?, actualizada_en = ? WHERE id = ?').run(n.cif, ahora.toISOString(), empresaId);
+      if (n.cif && !porCif && !existente.cif && CIF_ENTIDAD.test(n.cif)) db.prepare("UPDATE empresas SET oculta = NULL WHERE id = ? AND oculta = 'sin forma jurídica'").run(empresaId); // con el CIF consta la forma jurídica
     } else {
       nueva = true;
       empresaId = Number(db.prepare(`
@@ -123,13 +124,47 @@ export function registrarSenal(db: DatabaseSync, n: NuevaSenal, ahora: Date): { 
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(porClave && n.cif ? `${clave} ${n.cif.toLowerCase()}` : clave, n.nombre, n.cif, n.origen, n.motivo, n.cita, n.senal.enlace, n.provincia, prioridad, ahora.toISOString(), ahora.toISOString()).lastInsertRowid);
     }
-    db.prepare('UPDATE empresas SET prioridad = MAX(prioridad, ?) WHERE id = ?').run(prioridad, empresaId);
+    // Una señal que ya estaba se actualiza (prioridad y motivo): así una criba nueva puede subirla o bajarla; la de la empresa es la mayor de sus señales.
     db.prepare(`
-      INSERT OR IGNORE INTO empresa_senales (empresa_id, tipo, boe_id, titulo, proyecto, provincia, motivo, medidas, enlace, fecha_publicacion, vista_en)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(empresaId, n.origen, n.senal.boeId, n.senal.titulo, n.senal.proyecto, n.senal.provincia, n.motivo, JSON.stringify(n.senal.medidas), n.senal.enlace, n.senal.fechaPublicacion, ahora.toISOString());
+      INSERT INTO empresa_senales (empresa_id, tipo, boe_id, titulo, proyecto, provincia, motivo, medidas, enlace, fecha_publicacion, vista_en, prioridad)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT (empresa_id, boe_id) DO UPDATE SET prioridad = excluded.prioridad, motivo = excluded.motivo
+    `).run(empresaId, n.origen, n.senal.boeId, n.senal.titulo, n.senal.proyecto, n.senal.provincia, n.motivo, JSON.stringify(n.senal.medidas), n.senal.enlace, n.senal.fechaPublicacion, ahora.toISOString(), prioridad);
+    recalcularPrioridad(db, empresaId, n.motivo);
     return { empresaId, nueva };
   });
+}
+
+/** Prioridad de la empresa = la mayor de sus señales. Si baja de la visible y la empresa es del registro, su motivo pasa al de la señal vigente. */
+function recalcularPrioridad(db: DatabaseSync, empresaId: number, motivoVigente?: string): void {
+  const antes = (db.prepare('SELECT prioridad FROM empresas WHERE id = ?').get(empresaId) as { prioridad: number }).prioridad;
+  const { p } = db.prepare('SELECT COALESCE(MAX(prioridad), 0) AS p FROM empresa_senales WHERE empresa_id = ?').get(empresaId) as { p: number };
+  db.prepare('UPDATE empresas SET prioridad = ? WHERE id = ?').run(p, empresaId);
+  if (motivoVigente && p < antes && p < PRIORIDAD_MINIMA_VISIBLE) db.prepare(`UPDATE empresas SET motivo = ? WHERE id = ? AND origen = 'huella_carbono'`).run(motivoVigente, empresaId);
+}
+
+/** Baja a prioridad 1 la señal del registro con ese id (una criba posterior la degradó y ya no cumple ni zona y sector): la empresa sigue guardada pero oculta, salvo que tenga una DIA. */
+export function bajarSenalRegistro(db: DatabaseSync, boeId: string, motivo: string): void {
+  transaccion(db, () => {
+    for (const f of db.prepare(`SELECT empresa_id FROM empresa_senales WHERE boe_id = ? AND tipo = 'huella_carbono' AND prioridad > ?`).all(boeId, PRIORIDAD_REGISTRO_ZONA) as { empresa_id: number }[]) {
+      db.prepare('UPDATE empresa_senales SET prioridad = ?, motivo = ? WHERE empresa_id = ? AND boe_id = ?').run(PRIORIDAD_REGISTRO_ZONA, motivo, f.empresa_id, boeId);
+      recalcularPrioridad(db, Number(f.empresa_id), motivo);
+    }
+  });
+}
+
+/**
+ * Oculta (no borra) las empresas guardadas que no son una persona jurídica identificable (de antes del filtro `esEntidadJuridica`), con el motivo «sin forma jurídica»;
+ * y vuelve a mostrar las que antes se ocultaron por eso y ahora sí pasan (p. ej. se les completó el CIF). Devuelve los nombres ocultados.
+ */
+export function ocultarSinFormaJuridica(db: DatabaseSync): string[] {
+  const ocultadas: string[] = [];
+  for (const f of db.prepare('SELECT id, nombre, cif, oculta FROM empresas').all() as { id: number; nombre: string; cif: string | null; oculta: string | null }[]) {
+    const valida = esEntidadJuridica(f.nombre, f.cif);
+    if (!valida && !f.oculta) { db.prepare('UPDATE empresas SET oculta = ? WHERE id = ?').run('sin forma jurídica', f.id); ocultadas.push(f.nombre); }
+    else if (valida && f.oculta === 'sin forma jurídica') db.prepare('UPDATE empresas SET oculta = NULL WHERE id = ?').run(f.id);
+  }
+  return ocultadas;
 }
 
 function aSenal(f: Record<string, unknown>): SenalEmpresa {
@@ -145,7 +180,7 @@ function aSenal(f: Record<string, unknown>): SenalEmpresa {
  * privada). `estado` filtra. Cada una con sus señales (la más reciente primero).
  */
 export function leerEmpresas(db: DatabaseSync, opciones: { estado?: EstadoEmpresa | null; conNota?: boolean; incluirBaja?: boolean } = {}): Empresa[] {
-  const filas = db.prepare(`SELECT * FROM empresas WHERE (? IS NULL OR estado = ?) AND (? = 1 OR prioridad >= ?) ORDER BY prioridad DESC, primera_vez_vista DESC, id DESC`)
+  const filas = db.prepare(`SELECT * FROM empresas WHERE oculta IS NULL AND (? IS NULL OR estado = ?) AND (? = 1 OR prioridad >= ?) ORDER BY prioridad DESC, primera_vez_vista DESC, id DESC`)
     .all(opciones.estado ?? null, opciones.estado ?? null, opciones.incluirBaja ? 1 : 0, PRIORIDAD_MINIMA_VISIBLE) as Record<string, unknown>[];
   const senales = db.prepare('SELECT * FROM empresa_senales WHERE empresa_id = ? ORDER BY fecha_publicacion DESC, id DESC');
   return filas.map((f) => ({
@@ -159,7 +194,7 @@ export function leerEmpresas(db: DatabaseSync, opciones: { estado?: EstadoEmpres
 
 /** Cuántas empresas de baja confianza hay (las que `leerEmpresas` no devuelve por defecto). */
 export function contarEmpresasBaja(db: DatabaseSync, estado?: EstadoEmpresa | null): number {
-  return Number((db.prepare('SELECT COUNT(*) AS n FROM empresas WHERE prioridad < ? AND (? IS NULL OR estado = ?)').get(PRIORIDAD_MINIMA_VISIBLE, estado ?? null, estado ?? null) as { n: number }).n);
+  return Number((db.prepare('SELECT COUNT(*) AS n FROM empresas WHERE oculta IS NULL AND prioridad < ? AND (? IS NULL OR estado = ?)').get(PRIORIDAD_MINIMA_VISIBLE, estado ?? null, estado ?? null) as { n: number }).n);
 }
 
 /** Estado y/o nota del equipo. `nota` vacía la borra. Lanza ErrorEmpresa (400/404). */
