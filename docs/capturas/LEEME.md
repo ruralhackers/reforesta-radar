@@ -1,11 +1,15 @@
-# Capturas pendientes
+# Capturas
 
-No hay imágenes todavía (no se fabrican). Capturar de la instancia con datos reales, a 1440 px de ancho, en PNG, y enlazarlas desde el README:
+Generadas con `npm run build && npm run capturas` (`scripts/capturas.ts`): arranca el servidor en el puerto 8119 contra una copia de `data/radar.sqlite`
+(la original no se toca), captura con Chromium de Playwright y lo para. Dos tamaños por pantalla: `-escritorio` (1280×900) y `-movil` (390×844), página completa.
 
-| Fichero | Qué capturar |
+| Fichero (+ `-escritorio.png` / `-movil.png`) | Qué es |
 |---|---|
-| `esta-semana.png` | "Esta semana" con las tres secciones (cierran pronto, nuevas, abiertas) y la lista "Las ganan organizaciones como vosotros" |
-| `ficha.png` | Ficha de la convocatoria anual de la CAM: puntuación con su desglose ("Por qué está donde está"), citas literales y el bloque de ganadores previos ("Reforesta ganó la edición 2025 con 29.378,15 €"); verificar el texto al capturar |
-| `empresas.png` | Página Empresas con una DIA (p. ej. Red Eléctrica de España o BRUC Las Quinientas) y sus medidas con cita |
-| `como-sabemos.png` | Página `/como-sabemos` con las dos pruebas y la sección de límites |
-| `correo.png` | El correo del lunes (vista previa: `npm run digest -- --vista-previa`) |
+| `esta-semana` | «Esta semana»: frase de resumen, tarjetas de lo que pasa el corte, «El radar vio otras N con menos encaje» y consorcio UE plegados |
+| `ficha-cerrada` | Ficha de la convocatoria anual de la CAM (`bdns:904719`): panel de datos con su cita, «Reforesta ganó…», «Cerrada el …» |
+| `ficha-abierta` | Ficha de la primera convocatoria abierta y analizada de «Esta semana» |
+| `empresas` | Tabla de empresas con una fila desplegada (cita, enlace y notas) |
+| `perfil` | Perfil, con el umbral del corte |
+| `como-sabemos` | Las pruebas y la sección de límites |
+
+El correo del lunes (`correo.png`) sigue pendiente: `npm run digest -- --vista-previa`. No se fabrican imágenes: se capturan de datos reales.

@@ -24,7 +24,8 @@
     "record:fundaciones": "node scripts/record-fundaciones.ts",
     "record:boe": "node scripts/record-boe.ts",
     "record:huella": "node scripts/record-huella.ts",
-    "backtest": "node src/cli/backtest.ts"
+    "backtest": "node src/cli/backtest.ts",
+    "capturas": "node scripts/capturas.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
