@@ -6,8 +6,8 @@ funciones y tablas usan estas mismas palabras.
 ## Convocatorias
 
 - **Convocatoria**: una ayuda, subvención o premio al que la organización podría presentarse. Id con prefijo de su fuente:
-  `bdns:<número>`, `ft:<topic>` (UE), `fund:<host>:<hash>` (fundación). Tabla `convocatorias`.
-- **Fuente**: de dónde sale una convocatoria: BDNS (subvenciones públicas españolas), EU Funding & Tenders (`eu_ft`), fundaciones
+  `bdns:<número>`, `ft:<topic>` (UE), `cascada:<id>` (UE en cascada), `fund:<host>:<hash>` (fundación). Tabla `convocatorias`.
+- **Fuente**: de dónde sale una convocatoria: BDNS (subvenciones públicas españolas), EU Funding & Tenders (`eu_ft`), convocatorias en cascada de la UE (`eu_cascada`), fundaciones
   vigiladas (`fundacion`). Cada una implementa `Fuente` (`src/sources/`).
 - **BDNS**: Base de Datos Nacional de Subvenciones. Publica convocatorias y, desde 2022, sus **concesiones** (quién ganó y cuánto).
 - **ESFL**: entidad sin fines (ánimo) de lucro: asociación, fundación, ONG. "Admite ESFL" = puede ser beneficiaria.
@@ -20,6 +20,8 @@ funciones y tablas usan estas mismas palabras.
   Segovia y Ávila) entran solo si la criba confirma que admiten proyectos en esas provincias.
 - **Consorcio**: convocatoria de la UE (Horizon Europe) a la que solo se va como socia de un consorcio; sección aparte en "Esta semana",
   con el esfuerzo penalizado (`consorcio` en `seed/puntuacion.json`).
+- **Cascada (FSTP)**: convocatoria que abre un proyecto financiado por la UE (Horizon, LIFE, Digital Europe…) para dar subvenciones pequeñas a terceros (*financial support to third parties*).
+  Una entidad sola se presenta, sin consorcio: va en el ranking principal con el chip «UE · en cascada». Fuente `eu_cascada`, id `cascada:<id>`; el territorio se comprueba como en las fundaciones.
 - **Criba**: primer filtro con LLM (Haiku) sobre los textos que ya trae la fuente: "puede encajar" o "descartar" con motivo. Fase `criba_llm`.
 - **Análisis**: lectura a fondo con LLM (Sonnet) de la ficha, extractos, bases y PDF: elegibilidad ESFL, importes, plazo, cofinanciación,
   requisitos, líneas con las que encaja e idea de proyecto, cada dato con su **cita** literal. Fase `analisis`.

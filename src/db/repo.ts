@@ -203,7 +203,7 @@ export function reaplicarReglas(
     const filas = db.prepare('SELECT * FROM convocatorias').all() as Record<string, unknown>[];
     const actualizar = db.prepare('UPDATE convocatorias SET descarte_regla = ?, descarte_motivo = ?, condicion = ? WHERE id = ?');
     for (const f of filas) {
-      if (f.descarte_regla === 'tema') continue; // lo descarta la fuente (eu_ft), no estas reglas
+      if (f.descarte_regla === 'tema' || f.descarte_regla === 'pais') continue; // lo descarta la fuente (eu_ft, eu_cascada), no estas reglas
       const c = filaAConvocatoria(f);
       const d = regla(c, perfil);
       const cond = d ? null : condicion(c, perfil);
@@ -233,7 +233,7 @@ export function leerConvocatoria(db: DatabaseSync, id: string): ConvocatoriaGuar
  * Fuentes cuyas fichas son ofertas vigentes sin una fecha de publicación que sirva para la ventana de pendientes (un topic de la UE
  * abrió hace meses y sigue abierto): están pendientes de criba y análisis mientras la fuente las siga devolviendo.
  */
-const FUENTES_VIGENTES = ['eu_ft'];
+const FUENTES_VIGENTES = ['eu_ft', 'eu_cascada'];
 
 /** SQL: el veredicto `f` está marcado como obsoleto (hecho con otro perfil; ver src/perfil.ts). */
 const OBSOLETA = `IFNULL(json_extract(f.datos, '$.obsoleta'), 0) = 1`;

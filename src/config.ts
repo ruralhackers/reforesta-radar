@@ -75,6 +75,11 @@ export function leerConfig(env: Entorno) {
       pausaMs: num('RADAR_PAUSA_FT_MS', 500),
       maxPeticiones: num('RADAR_MAX_PETICIONES_FT', 8),
     },
+    /** Fuente de convocatorias en cascada de la UE (FSTP): pausa entre páginas y tope de peticiones por ejecución (50 resultados por página). */
+    euCascada: {
+      pausaMs: num('RADAR_PAUSA_CASCADA_MS', 500),
+      maxPeticiones: num('RADAR_MAX_PETICIONES_CASCADA', 4),
+    },
     /** Fundaciones vigiladas: pausa entre páginas, tiempo máximo y tamaño máximo de cada una, tope de fuentes por ejecución y de texto que se pasa al LLM. */
     fundaciones: {
       pausaMs: num('RADAR_PAUSA_FUNDACIONES_MS', 1000),

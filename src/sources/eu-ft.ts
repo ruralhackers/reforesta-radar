@@ -2,8 +2,8 @@
 //
 // Petición (verificada en vivo): POST https://api.tech.ec.europa.eu/search-api/prod/rest/search?apiKey=SEDIA&text=<términos>&pageSize=50&pageNumber=N
 // con un cuerpo MULTIPART con una parte `query` (application/json). Un cuerpo JSON normal se ignora en silencio (devuelve todo el índice).
-//   · type = 1: topics (las convocatorias de subvención del portal). 2 = Prospect (acción exterior) y 8 = convocatorias en cascada (FSTP)
-//     no se piden: sus ids no son estables o no son subvenciones para el perfil.
+//   · type = 1: topics (las convocatorias de subvención del portal). 2 = Prospect (acción exterior) no se piden. 8 = convocatorias en cascada (FSTP):
+//     las trae la fuente `eu_cascada` (src/sources/eu-cascada.ts).
 //   · status = 31094501 (forthcoming, "próxima") y 31094502 (open, "abierta"); language = en (el índice trae una copia por idioma).
 //   · range sobre deadlineDate >= hoy: el índice tiene fichas antiguas del portal (p. ej. LIFE 2023) marcadas aún como abiertas.
 //   · text: términos de la lista TERMINOS unidos con OR; la API es de texto libre, así que además se filtra en código (ver `esRelevante`).
@@ -17,16 +17,16 @@ import type { ContextoFuente, DocumentoFuente, Enlace, Fuente, ResultadoFuente }
 
 export const SEDIA_API = 'https://api.tech.ec.europa.eu/search-api/prod/rest/search';
 export const PORTAL_TOPIC = 'https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/';
-const ESTADO_PROXIMA = '31094501';
-const ESTADO_ABIERTA = '31094502';
-const TAM_PAGINA = 50;
-const TIMEOUT_MS = 60_000;
+export const ESTADO_PROXIMA = '31094501';
+export const ESTADO_ABIERTA = '31094502';
+export const TAM_PAGINA = 50;
+export const TIMEOUT_MS = 60_000;
 
 /** Términos de la búsqueda de texto libre (en inglés, como el portal). */
 export const TERMINOS = ['biodiversity', 'restoration', 'reforestation', 'forest', 'forests', 'ecosystem', 'ecosystems', 'nature', 'adaptation', 'LIFE'];
 
 /** Programas por el prefijo del identificador del topic. */
-const PROGRAMAS: Record<string, string> = {
+export const PROGRAMAS: Record<string, string> = {
   HORIZON: 'Horizon Europe', LIFE: 'LIFE', ERASMUS: 'Erasmus+', CERV: 'CERV (Ciudadanía, Igualdad, Derechos y Valores)', CREA: 'Europa Creativa',
   EU4H: 'EU4Health', CEF: 'Mecanismo Conectar Europa', DIGITAL: 'Europa Digital', JUST: 'Justicia', EMFAF: 'FEMPA', ESF: 'FSE+', ISF: 'ISF',
 };
@@ -35,7 +35,7 @@ const PROGRAMAS: Record<string, string> = {
  * Palabras que hacen relevante un topic para restauración, biodiversidad, naturaleza, bosque, adaptación y educación ambiental.
  * Deliberadamente sin "ecosystem" ni "nature" sueltos: casi todo topic digital habla de "innovation ecosystems" y "the nature of…".
  */
-const RELEVANTE = /biodiversit|restor|rewild|re-?forest|afforest|\bforest|woodland|agroforest|wildfire|nature[- ](?:positive|restoration|based|conservation|protection)|urban nature|nature and biodiversity|natura 2000|habitat|wildlife|\bspecies\b|invasive alien|climate adaptation|climate resilien|environmental education|environmental awareness|citizen science/i;
+export const RELEVANTE = /biodiversit|restor|rewild|re-?forest|afforest|\bforest|woodland|agroforest|wildfire|nature[- ](?:positive|restoration|based|conservation|protection)|urban nature|nature and biodiversity|natura 2000|habitat|wildlife|\bspecies\b|invasive alien|climate adaptation|climate resilien|environmental education|environmental awareness|citizen science/i;
 
 export interface Topic {
   identifier: string;
@@ -136,7 +136,7 @@ function aConvocatoria(t: Topic, ahora: Date): Convocatoria {
   };
 }
 
-const dormirReal = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+export const dormirReal = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 async function pagina(f: typeof fetch, texto: string, numero: number, hoy: string): Promise<RespuestaSedia> {
   const consulta = {

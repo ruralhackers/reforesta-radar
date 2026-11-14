@@ -65,12 +65,15 @@ export function esConsultaDeGanadores(url: string): boolean {
  * para que los tests que no tratan de ellas no dependan de las grabaciones de concesiones; con `concesiones: true` se sirven
  * las grabadas en DIR_CONCESIONES (y una sin grabar falla).
  */
-export function fetchGrabado({ concesiones = false, euFt = false }: { concesiones?: boolean; euFt?: boolean } = {}): typeof fetch {
+export function fetchGrabado({ concesiones = false, euFt = false, euCascada = false }: { concesiones?: boolean; euFt?: boolean; euCascada?: boolean } = {}): typeof fetch {
   return (async (entrada: string | URL | Request, init?: RequestInit) => {
     const url = entrada instanceof Request ? entrada.url : String(entrada);
     if (esSedia(url)) {
       // EU Funding & Tenders: sin `euFt`, una página vacía (los tests de BDNS no dependen de esta fuente).
-      if (!euFt) return new Response(JSON.stringify({ totalResults: 0, results: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      // Las convocatorias en cascada (type 8) las sirve `euCascada`; el resto de la API SEDIA, `euFt`.
+      const parte = init?.body instanceof FormData ? init.body.get('query') : null;
+      const esCascada = parte && typeof parte !== 'string' ? JSON.parse(await parte.text()).bool?.must?.some((m: { terms?: { type?: string[] } }) => m.terms?.type?.includes('8')) : false;
+      if (esCascada ? !euCascada : !euFt) return new Response(JSON.stringify({ totalResults: 0, results: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       const f = join(DIR_EU_FT, await claveSedia(url, init));
       if (!existsSync(f)) throw new Error(`Sin grabación de EU F&T para ${url} (${f})`);
       return new Response(readFileSync(f), { status: 200, headers: { 'Content-Type': 'application/json' } });

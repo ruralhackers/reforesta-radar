@@ -403,6 +403,27 @@ Cortesía con el servidor: pausa entre páginas (`RADAR_PAUSA_FT_MS`) y tope de 
 registro de la ejecución y el resto de fuentes sigue. Duplicados: si una convocatoria de otra fuente tiene el mismo título normalizado (≥ 4 palabras)
 que una de BDNS, se conserva la de BDNS y la otra se marca `duplicada`. Grabaciones de los tests: `npm run record:eu-ft`.
 
+### Fuente UE en cascada (FSTP)
+
+Proyectos financiados por la UE (Horizon Europe, LIFE, Digital Europe, CERV…) abren sus propias convocatorias para dar subvenciones a terceros
+(ONG, pymes, ayuntamientos). Se piden por la misma API SEDIA que `eu_ft`, con `type=8` en la parte `query` (las «competitive calls» del portal,
+pestaña «Calls for proposals from EU-funded projects»; `status` abierta o próxima, `language=en`, `deadlineDate >= hoy`, `text=***`). Cada resultado
+trae `callccm2Id` (id de la convocatoria), `ccm2Id` (página del proyecto, es la URL del portal), `callTitle`, `projectName`/`projectAcronym`, `identifier`
+(topic de la UE que financia al proyecto: NO es único, lo comparten decenas de convocatorias), `budget` (total de la convocatoria), `deadlineDate`
+(varios cortes) y los textos `description`, `beneficiaryAdministration` (quién puede) y `furtherInformation` (importes). No hay campo de países ni importe por
+tercero: el análisis extrae el importe con cita y los países se deducen del texto. El índice repite resultados entre páginas: se deduplica.
+
+Ids `cascada:<callccm2Id>` (fuente `eu_cascada`, órgano «UE · acrónimo del proyecto · programa»). Pre-filtro en código: temas del perfil (los de `eu_ft` más
+agroecología y soluciones basadas en la naturaleza; en el cuerpo, 3 menciones) → si no, descartada con regla `tema`; y países (`paisesRestringidos`): si el título,
+la convocatoria o el proyecto nombran un país («Slovenian seas») o la condición «establecido/registrado en…» nombra países sin España ni «Estados miembros»/UE →
+regla `pais`. Ambas reglas las pone la fuente y `reaplicarReglas` no las toca. Las que pasan llevan SIEMPRE la condición de ámbito del perfil (como las
+fundaciones: la criba Haiku descarta las limitadas a otra región), con un criterio propio en la criba: tema central en las líneas, receptora posible una ONG
+(no solo pymes, universidades o estudiantes) y sin consorcio. Textos en inglés, respuesta en castellano con citas literales en inglés.
+
+Van en el ranking PRINCIPAL (`esConsorcio` solo mira `eu_ft`), con el chip «UE · en cascada» y la frase «Convocatoria de un proyecto europeo para terceros: no hace
+falta consorcio» en tarjeta y ficha. Cortesía: `RADAR_PAUSA_CASCADA_MS` (500) y `RADAR_MAX_PETICIONES_CASCADA` (4); un fallo de la fuente queda en el registro y no
+afecta a las demás. Grabaciones de los tests: `npm run record:eu-cascada` (en `test/fixtures/eu-ft`).
+
 ### Fundaciones privadas vigiladas
 
 Reforesta recibe la mayor parte de sus ingresos de fundaciones y programas de RSC, así que se vigilan igual que las convocatorias públicas. La lista (tabla

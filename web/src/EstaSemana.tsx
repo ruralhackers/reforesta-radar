@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { type ConvocatoriaSemana, type SerieProxima, type DecisionEquipo, type Semana, leerDecisiones, leerSemana, rutaFicha } from './api.ts';
 import { BotonesDecision } from './Decision.tsx';
+import { TEXTO_CASCADA } from './Origen.tsx';
 import { Cierre } from './Plazo.tsx';
 import { Nota } from './Puntuacion.tsx';
 import { useSesion } from './Sesion.tsx';
@@ -61,10 +62,12 @@ function Tarjeta({ c, semana, decision, alCambiar, puedeEditar }: { c: Convocato
         {c.plazo?.fechaCierre && c.plazo.diasHastaCierre !== null && (
           <span className={`rounded-full px-2.5 py-0.5 text-xs ${urgente ? 'bg-aviso-suave font-semibold text-aviso ring-1 ring-aviso-borde' : CHIP}`}><Cierre plazo={c.plazo} /></span>
         )}
+        {c.fuente === 'eu_cascada' && <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-800 ring-1 ring-blue-200">UE · en cascada</span>}
         {c.tarjeta.tipo === 'premio' && <span className="rounded-full bg-aviso-suave px-2.5 py-0.5 text-xs font-semibold text-aviso ring-1 ring-aviso-borde">Premio</span>}
         <span className={CHIP}>{c.tarjeta.importe ?? 'Importe por confirmar'}</span>
         {c.tarjeta.lineas.map((l) => <span key={l} className="rounded-full bg-marca-suave px-2.5 py-0.5 text-xs text-marca-fuerte">{l}</span>)}
       </div>
+      {c.fuente === 'eu_cascada' && <p className="mt-3 text-sm text-tinta-suave">{TEXTO_CASCADA}.</p>}
       {c.tarjeta.porQue && <p className="mt-3 text-sm text-tinta">{c.tarjeta.porQue}</p>}
       <Parecida c={c} />
       {puedeEditar

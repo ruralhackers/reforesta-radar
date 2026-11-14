@@ -94,7 +94,7 @@ export function recortarTextos(textos: TextoParaLlm[], max: number): { textos: T
  * Solo se añade para esas convocatorias, así el prompt de las demás (y su caché) no cambia.
  */
 function notaIdioma(c: Convocatoria, citas: boolean): string[] {
-  if (c.fuente !== 'eu_ft') return [];
+  if (c.fuente !== 'eu_ft' && c.fuente !== 'eu_cascada') return [];
   return [
     '- Los documentos de esta convocatoria de la UE están en inglés. Responde en castellano'
     + (citas ? ' salvo las citas, que se copian literalmente en inglés tal como aparecen (no las traduzcas).' : '.'),
@@ -120,6 +120,24 @@ function criterioUe(c: Convocatoria, p: Perfil): string[] {
     '  Si no puedes nombrar la línea de trabajo y el papel de la organización, descarta. El motivo, con este formato: "Línea: <nombre>; papel: <coordinadora o socia de consorcio>; <por qué>".',
     '  Descarta si el tema central es otro (y la línea solo aparece como un ejemplo, un beneficio o un contexto), si es investigación puramente científica o',
     '  tecnológica sin acción que una ONG lidere o integre, o si es una acción de gestión del programa.',
+  ];
+}
+
+/**
+ * Convocatorias en cascada de la UE (fuente eu_cascada): las abre un proyecto europeo para dar subvenciones pequeñas a terceros; una entidad
+ * sola puede presentarse (no hay consorcio). El criterio es de tema y de que la entidad pueda ser tercera beneficiaria.
+ */
+function criterioCascada(c: Convocatoria, p: Perfil): string[] {
+  if (c.fuente !== 'eu_cascada') return [];
+  return [
+    '- CONVOCATORIAS EN CASCADA DE LA UE (este criterio prevalece sobre "ante la duda"): son convocatorias de un proyecto europeo para dar subvenciones a terceros.',
+    '  Una entidad se presenta sola, sin consorcio. Las líneas de trabajo de la organización son:',
+    ...p.lineas.map((l) => `  · ${l.nombre}: ${l.descripcion}`),
+    '  "puede_encajar" solo si se cumplen las tres cosas:',
+    '  (1) el tema CENTRAL de la convocatoria (el de su título) es una de esas líneas, no un beneficio colateral ni un contexto;',
+    '  (2) una asociación u ONG puede ser receptora: no se limita a pymes, startups, universidades, estudiantes, personas físicas, empresas de un sector u otra figura que excluya a una ONG;',
+    '  (3) no se limita a un país o región fuera de los territorios del proyecto (España y las abiertas a toda la UE valen).',
+    '  El motivo, con este formato: "Línea: <nombre>; <quién puede pedirla y por qué encaja>".',
   ];
 }
 
@@ -174,6 +192,7 @@ export function promptCriba(perfil: Perfil, c: Convocatoria, condicion: string |
     '- El motivo, en castellano, en una frase concreta (qué dice la convocatoria que te lleva a decidir).',
     ...notaIdioma(c, false),
     ...criterioUe(c, perfil),
+    ...criterioCascada(c, perfil),
     ...bloqueEjemplos(ejemplos),
   ].join('\n');
   const mensaje = [

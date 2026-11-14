@@ -3,7 +3,7 @@ import { type CampoCitado, type DecisionEquipo, type Ficha as TFicha, type NotaE
 import { BotonesDecision, Notas } from './Decision.tsx';
 import { SeccionGanadores } from './Ganadores.tsx';
 import { SeccionSerie } from './Serie.tsx';
-import { OrigenFuente, etiquetaFuente } from './Origen.tsx';
+import { OrigenFuente, TEXTO_CASCADA, etiquetaFuente } from './Origen.tsx';
 import { SeccionPlazo, textoCierre } from './Plazo.tsx';
 import { SeccionPuntuacion } from './Puntuacion.tsx';
 import { useSesion } from './Sesion.tsx';
@@ -127,6 +127,7 @@ export function Ficha({ id }: { id: string }) {
             ? <span className="rounded-full bg-aviso-suave px-2 py-0.5 text-[11px] font-semibold text-aviso ring-1 ring-aviso-borde">Premio</span>
             : ficha.tipo && <span>{ficha.tipo}</span>}
         </p>
+        {ficha.fuente === 'eu_cascada' && <p className="mt-1.5 text-sm text-tinta-suave">{TEXTO_CASCADA}.</p>}
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
