@@ -90,7 +90,15 @@ npm run build            # compila la web (dist/web)
 npm start                # web + API en http://127.0.0.1:8116
 npm test                 # node --test (respuestas reales grabadas de BDNS, UE, BOE, fundaciones y MITECO)
 npm run digest -- --vista-previa   # escribe data/digest-preview.html sin enviar nada
+npm run cargar -- 904719           # mete convocatorias concretas de BDNS por su número (ver abajo)
 ```
+
+**Cargar una convocatoria concreta.** `npm run cargar -- <numeroConvocatoria> [...]` pide a BDNS el detalle de esas convocatorias (aunque sean
+antiguas o ya estén cerradas) y las pasa por el camino normal: reglas → criba (Haiku) → ganadores previos de su serie → análisis (Sonnet, con
+`RADAR_MAX_ANALISIS` y `RADAR_PRESUPUESTO_USD`) → plazo → puntuación. Así tienen ficha en `/convocatoria/bdns:<número>`, con quién ganó cada
+edición y si la ganó Reforesta. Solo procesa esas (lo pendiente de otras fuentes queda para la pasada diaria). Útil para revisar una convocatoria
+que alguien ha visto fuera del radar, o para preparar una demo: `RADAR_MAX_ANALISIS=0 npm run cargar -- 904719` cuesta unos céntimos (solo la criba)
+y deja la ficha con las ediciones 2022–2025 y sus ganadores. En Docker: `docker compose run --rm radar npm run cargar -- 904719`.
 
 Con Docker:
 
@@ -106,14 +114,18 @@ la web. `npm run record:*` regraba los datos de prueba (BDNS, concesiones, parec
 ## Despliegue
 
 Servidor propio con Docker, una carpeta con `compose.yaml` y `.env`, la web solo en `127.0.0.1` y expuesta por un túnel de Cloudflare
-(o un nginx con TLS); dos cron (radar diario 07:00, resumen los lunes 08:00, hora de Madrid). Paso a paso, con los comandos exactos,
+(o un nginx con TLS); cron (radar diario 07:00, copia de la BD 06:45, resumen los lunes 08:00 con reintento los martes, hora de Madrid). Paso a paso, con los comandos exactos,
 en [`deploy/PASOS.md`](deploy/PASOS.md) (`deploy/desplegar.sh`, `deploy/instalar-cron.sh`, `deploy/crontab.txt`). Antes de nada,
 rellena el `.env` a partir de [`deploy/.env.produccion.example`](deploy/.env.produccion.example). Los datos son un único fichero SQLite
-(`data/radar.sqlite`, bind mount): copiarlo es la copia de seguridad.
+(`data/radar.sqlite`, bind mount, en modo WAL). La copia de seguridad es la que el cron hace cada día con `VACUUM INTO` en
+`data/backup/radar-N.sqlite` (una por día de la semana): no copies `radar.sqlite` en caliente, porque lo último puede estar aún en `-wal`.
+Cómo restaurar, en `deploy/PASOS.md`.
 
 ## Variables de entorno
 
-Solo hay una obligatoria. Todas las demás tienen valor por defecto (en `src/config.ts`); `.env.example` las lista comentadas.
+Solo hay una obligatoria. Todas las demás tienen valor por defecto (en `src/config.ts`); `.env.example` las lista comentadas. Los valores
+numéricos se comprueban al arrancar: vacío = valor por defecto; un valor no numérico, negativo o fuera de rango para el proceso con un mensaje
+claro (código 1), en vez de quitar un tope sin avisar.
 
 | Variable | Obligatoria | Por defecto | Para qué |
 |---|---|---|---|
@@ -121,7 +133,7 @@ Solo hay una obligatoria. Todas las demás tienen valor por defecto (en `src/con
 | `RESEND_API_KEY` | solo para el correo | — | Envío del resumen semanal |
 | `RADAR_DIGEST_DESTINATARIOS` | solo para el correo | vacío = no se envía | Destinatarios, separados por comas |
 | `RADAR_DIGEST_REMITENTE` | no | `Radar Reforesta <no-reply@out.ruralhackers.com>` (cámbialo: debe ser un dominio verificado en Resend) | Remitente |
-| `RADAR_URL_PUBLICA` | recomendada | — | URL pública, para los enlaces del correo |
+| `RADAR_URL_PUBLICA` | **sí, para enviar el correo** | ninguno: sin ella `npm run digest` no envía (error claro) y la vista previa usa enlaces relativos | URL pública de **tu** instancia (p. ej. `https://radar.tu-dominio.org`), para los enlaces del correo |
 | `TEAM_PASSWORD` | no | vacío = demo pública | Activa el modo privado (ver abajo) |
 | `SESSION_SECRET` | recomendada con `TEAM_PASSWORD` | — | Secreto aleatorio (`openssl rand -hex 32`) que firma la cookie |
 | `RADAR_COOKIE_SECURE` | no | según https / `X-Forwarded-Proto` | `1` tras el túnel (la app ve http local) |
@@ -132,7 +144,10 @@ Solo hay una obligatoria. Todas las demás tienen valor por defecto (en `src/con
 | `SEED_FILE`, `FESTIVOS_FILE`, `PUNTUACION_FILE` | no | `seed/perfil.json`, `seed/festivos.json`, `seed/puntuacion.json` | Semillas (ver "Adaptarlo a otra ONG") |
 | `LOOKBACK_DAYS` | no | `7` | Días hacia atrás que revisa cada pasada |
 | `RADAR_MODELO_CRIBA`, `RADAR_MODELO_ANALISIS` | no | `claude-haiku-5-5`, `claude-sonnet-5-5` | Modelos |
-| **`RADAR_MAX_ANALISIS`** | no | `20` (la producción de ejemplo pone `60`) | **Tope de análisis (Sonnet) por pasada; el principal control de coste** |
+| **`RADAR_PRESUPUESTO_USD`** | no | `1.00` | **Techo de gasto de LLM por ejecución, común a todas las fases** (criba, análisis, fundaciones, DIA, huella); cuentan también las llamadas que fallan tras cobrarse. Al llegar, lo que falta queda para la siguiente |
+| **`RADAR_MAX_ANALISIS`** | no | `20` (igual en la producción de ejemplo) | **Tope de análisis (Sonnet) por pasada** |
+| `RADAR_MAX_CARACTERES_ANALISIS` | no | `300000` | Caracteres de documentos que entran como máximo en un análisis (el resto se recorta con una nota) |
+| `RADAR_MAX_INTENTOS_LLM` | no | `3` | Intentos fallidos del LLM (respuesta cortada, rechazo, JSON no válido) tras los que una convocatoria deja de reintentarse |
 | `RADAR_DIAS_PENDIENTES` | no | `30` | Días en que se reintentan criba y análisis pendientes |
 | `RADAR_EJEMPLOS_DECISIONES` | no | `20` | Decisiones del equipo que van como ejemplos a los prompts |
 | `RADAR_DIAS_CACHE_GANADORES`, `RADAR_MAX_PETICIONES_GANADORES`, `RADAR_PAUSA_BDNS_MS` | no | `7`, `200`, `250` | Concesiones de BDNS: caché, tope de peticiones y pausa |
@@ -145,10 +160,21 @@ Solo hay una obligatoria. Todas las demás tienen valor por defecto (en `src/con
 
 ## Modo privado
 
-Sin `TEAM_PASSWORD` todo es público y editable: es el modo demo. Con ella, convocatorias, "Esta semana", empresas y "Cómo sabemos"
-siguen públicas, pero decisiones, notas, perfil, organizaciones parecidas, fundaciones y estado de empresas piden contraseña (cookie
-firmada de 180 días; cambiar la contraseña la invalida). Las respuestas públicas nunca incluyen decisiones ni notas. Pon también
-`SESSION_SECRET` y, tras el túnel, `RADAR_COOKIE_SECURE=1`. Detalle (fuerza bruta, CSRF) en [Modo privado (`TEAM_PASSWORD`)](#modo-privado-team_password).
+Sin `TEAM_PASSWORD` todo es público y editable: es el modo demo. Con ella (cookie firmada de 180 días; cambiar la contraseña la invalida):
+
+- **Se ve sin entrar** (solo lectura): "Esta semana", fichas de convocatorias, descartes del motor, ejecuciones, "Cómo sabemos", el perfil,
+  la lista de organizaciones parecidas, la lista de fundaciones vigiladas y las empresas (sin su estado ni la nota del equipo).
+- **Pide contraseña**: todo lo que escribe (decisiones, notas, editar el perfil, activar/añadir/quitar parecidas y fundaciones, estado y nota
+  de empresas) y todo lo que el equipo lee de su propio trabajo (`/api/equipo/*`: decisiones, "Nos interesa", notas, empresas con estado y nota,
+  y el filtro por estado de empresas).
+
+Las respuestas públicas nunca incluyen decisiones, notas ni el estado de las empresas; lo descartado por el equipo se oculta de "Esta semana"
+para todos. Pon también `SESSION_SECRET` y, tras el túnel, `RADAR_COOKIE_SECURE=1`. Detalle (fuerza bruta, CSRF) en
+[Modo privado (`TEAM_PASSWORD`)](#modo-privado-team_password).
+
+**Demo abierta y gasto.** En modo demo cualquiera puede editar el perfil o añadir fundaciones, y eso hace que la siguiente pasada vuelva a cribar
+o analizar. El gasto lo acota igualmente `RADAR_PRESUPUESTO_USD` (por defecto 1 USD por ejecución, una al día): un cambio de perfil solo rehace
+los veredictos de los últimos 30 días y nunca borra los anteriores.
 
 **Alternativa: Cloudflare Access.** Si la web va tras Cloudflare Tunnel, puedes dejar `TEAM_PASSWORD` vacío y proteger todo el
 hostname con una aplicación de Cloudflare Access (Zero Trust > Access > Applications, política por correo o dominio de la
@@ -167,7 +193,7 @@ quiere, Resend (el plan gratuito sobra para un correo semanal). Cifras de **ejec
 
 | Pieza | Coste medido |
 |---|---|
-| Criba (Haiku) de una pasada completa con BDNS + UE: 148 convocatorias | ≈ 0,05–0,07 USD (toda la pasada, 0,082 USD) |
+| Criba (Haiku) de una pasada completa con BDNS + UE: 148 convocatorias | 0,075 USD (la pasada entera, con la extracción de fundaciones, 0,082 USD) |
 | Análisis con citas (Sonnet) | ≈ 0,15 USD cada uno (0,145 USD de media; las bases largas lo suben) |
 | Empresas, DIA del BOE (60 días, 18 resoluciones leídas) | 0,063 USD la primera vez |
 | Empresas, huella de carbono (79 llamadas) | 0,018 USD |
@@ -178,11 +204,14 @@ Todo se cachea (respuestas del LLM por contenido, huella de las páginas, resolu
 análisis, unos 10–40 al mes (lo que pasa la criba y es nuevo) = **1,5–6 USD/mes**. Total en régimen: **unos 3–10 USD al mes**.
 La primera pasada sobre una BD vacía es mayor (hasta 20–60 análisis pendientes = 3–9 USD, repartidos en varias pasadas por el tope).
 
-**Cómo acotarlo:** `RADAR_MAX_ANALISIS` es el techo duro (cada pasada analiza como mucho esas convocatorias y deja el resto para la
-siguiente): con 20 y ejecución diaria, el máximo teórico es 20 × 0,15 × 30 ≈ 90 USD/mes, que solo se alcanzaría si cada día hubiera 20
-convocatorias nuevas que superasen la criba. Para un tope más estricto, bájalo (p. ej. 5 → máximo ≈ 22 USD/mes) o ejecuta el radar menos
-veces. `RADAR_MAX_DIA_BOE` y `RADAR_MAX_HUELLA` limitan las lecturas de empresas, y `/api/ejecuciones` muestra el coste real de cada
-pasada por fase.
+**Cómo acotarlo (peor caso):** el techo duro es **`RADAR_PRESUPUESTO_USD`** (1 USD por defecto), que comparten todas las fases con LLM de
+una ejecución y que cuenta también las llamadas que fallan después de cobrarse (respuesta cortada, rechazo, JSON no válido). Con una ejecución
+diaria, **el peor caso es 1 × 30 ≈ 30 USD/mes** (algo más si las últimas llamadas en vuelo terminan tras alcanzarlo: como mucho unas pocas
+llamadas por fase). Además: `RADAR_MAX_ANALISIS` (20) limita cuántos análisis de Sonnet hace una pasada; cada análisis lleva como mucho
+`RADAR_MAX_CARACTERES_ANALISIS` (300.000) caracteres de documentos, unos 0,2–0,3 USD en el peor caso; y una convocatoria que hace fallar al LLM
+se reintenta como mucho `RADAR_MAX_INTENTOS_LLM` (3) veces en total. Para un tope más estricto, baja el presupuesto (p. ej. 0,30 → máximo
+≈ 9 USD/mes) o ejecuta el radar menos veces. `RADAR_MAX_DIA_BOE` y `RADAR_MAX_HUELLA` limitan las lecturas de empresas, y `/api/ejecuciones`
+muestra el coste real de cada pasada por fase.
 
 ## Adaptarlo a otra ONG
 
@@ -190,6 +219,9 @@ Todo lo específico de Reforesta está en `seed/`, no en el código:
 
 - `seed/perfil.json`: perfil (nombre, NIF, líneas, ámbito, importe mínimo…), `fundaciones` vigiladas y `organizacionesParecidas` (NIF de entidades que ganan lo mismo que vosotros; se pueden añadir también desde la web). Se carga si la
   BD no tiene perfil (`npm run seed`); después se edita en la página Perfil.
+  Al cambiar líneas o ámbito, los veredictos de criba y análisis hechos con el perfil anterior se marcan como obsoletos (no se borran): la
+  siguiente pasada rehace solo los de los últimos `RADAR_DIAS_PENDIENTES` días; los más antiguos conservan el veredicto que tenían. El orden
+  de las líneas no cuenta.
 - `seed/puntuacion.json`: pesos y umbrales de la puntuación (el campo `_` lo documenta).
 - `seed/festivos.json`: festivos nacionales y autonómicos para contar días hábiles (añade el año o la región que falte).
 - `seed/backtest.json`: se regenera con `npm run backtest`. Las convocatorias conocidas del conjunto (a) están en `src/backtest/conjuntos.ts`:
@@ -276,10 +308,12 @@ Es una suma ponderada de cinco factores, cada uno con una subpuntuación 0–1 y
 | importe | máximo por proyecto (o, si solo consta, el total, que vale menos) frente al mínimo del perfil, en escala logarítmica |
 | cierre | días que faltan según el plazo (poco tiempo penaliza; muy lejano, algo menos) |
 | esfuerzo | % de cofinanciación y número de requisitos con cita |
-| probabilidad | enchufable (`ProveedorProbabilidad`): hoy sin datos (valor neutro, "desconocida"); el ticket de ganadoras e historial propio lo rellena |
+| probabilidad | ediciones anteriores de la misma serie ganadas por Reforesta y organizaciones parecidas entre sus ganadores (`src/ganadores.ts`, `crearProbabilidad`); sin ningún dato, valor neutro y "desconocida". Es enchufable (`ProveedorProbabilidad`) |
 
 Un dato que falta **no cuenta como bueno**: el factor vale su `valorDesconocido` y la explicación dice "desconocido".
-Quedan fuera del ranking (con el motivo guardado) las que no admiten entidades sin ánimo de lucro y las ya cerradas.
+Quedan fuera del ranking (con el motivo guardado) las que no admiten entidades sin ánimo de lucro, las ya cerradas y las de plazo desconocido
+vistas por primera vez hace más de `diasMaximosSinPlazo` días (60, en `seed/puntuacion.json`): si en dos meses nadie ha podido fijar el plazo,
+lo más probable es que ya esté cerrada. Las convocatorias de fundación que dejan de aparecer en su página en dos revisiones seguidas se retiran.
 
 **Pesos y umbrales: `seed/puntuacion.json`** (`PUNTUACION_FILE` cambia la ruta; documentado dentro, campo `_`). Los pesos son relativos
 (no tienen que sumar 100). Al cambiarlos, la siguiente pasada del radar recalcula todo.
@@ -323,16 +357,22 @@ Ajuste en la web (`/parecidas`) y API: `GET /api/parecidas` (nombre, NIF, origen
 
 ### Decisiones del equipo y aprendizaje
 
-En la ficha y en cada fila de "Esta semana": "Nos interesa" o "Descartar" con un motivo de un clic ("Otro" con texto libre), y notas con fecha y autor opcional en la ficha. `/nos-interesa` lista lo marcado por plazo (el más próximo primero, plazo desconocido al final). Todo es reversible. Se guarda en las tablas `decisiones` y `notas`, que ninguna ejecución toca. Lo descartado deja de salir en "Esta semana" (también en la lista de parecidas) y no se criba ni analiza si aún no tenía veredicto.
+En la ficha y en cada fila de "Esta semana": "Nos interesa" o "Descartar" con un motivo de un clic ("Otro" con texto libre), y notas con fecha y autor opcional en la ficha. `/nos-interesa` lista lo marcado por plazo: primero las abiertas (la que cierra antes, primero), luego las de plazo desconocido y al final las ya cerradas. Todo es reversible. Se guarda en las tablas `decisiones` y `notas`, que ninguna ejecución toca. Lo descartado deja de salir en "Esta semana" (también en la lista de parecidas) y no se criba ni analiza si aún no tenía veredicto.
 
 Aprendizaje: las últimas `RADAR_EJEMPLOS_DECISIONES` (20) decisiones, con título, órgano y resumen corto, van como ejemplos al final del texto de sistema de la criba y el análisis de las convocatorias NUEVAS. Los veredictos ya guardados no se rehacen al decidir. Añadir una decisión cambia el texto de sistema y por tanto la clave de `llm_cache` (esperado: solo lo aún sin veredicto paga una llamada nueva).
 
 ### Modo privado (`TEAM_PASSWORD`)
 
-Sin `TEAM_PASSWORD` (ausente o vacía) todo es público y editable (demo). Con ella: convocatorias, "Esta semana", empresas y "Cómo sabemos" siguen
-públicas, pero decisiones, notas, perfil (escritura), organizaciones parecidas (escritura) y lo que añadan las tareas de fuentes vigiladas y estado de
-empresas piden contraseña (401 sin sesión). Las respuestas públicas nunca incluyen decisiones ni notas; lo descartado por el equipo sigue
-ocultándose de `/api/semana` para todos.
+Sin `TEAM_PASSWORD` (ausente o vacía) todo es público y editable (demo). Con ella, exactamente:
+
+- Públicos (GET sin sesión): `/api/semana`, `/api/convocatorias/:id`, `/api/descartes`, `/api/ejecuciones`, `/api/backtest`, `/api/perfil`,
+  `/api/parecidas`, `/api/fundaciones` y `/api/empresas` (sin `estado` ni nota; `?estado=` da 401).
+- Privados (401 sin sesión): lecturas `/api/equipo/*` (motivos, decisiones, nos-interesa, decisión y notas de una convocatoria, empresas con estado
+  y nota); escrituras `PUT/DELETE /api/decisiones/:id`, notas, `PUT /api/perfil`, `POST/PATCH/DELETE /api/fundaciones`, `PATCH/POST/DELETE
+  /api/parecidas` y `PATCH /api/empresas/:id`.
+
+Las respuestas públicas nunca incluyen decisiones, notas ni el estado de las empresas; lo descartado por el equipo sigue ocultándose de
+`/api/semana` para todos. Todo cuerpo de más de 64 KB se rechaza (413).
 
 - `POST /api/sesion {password}` compara en tiempo constante y da una cookie `radar_equipo` firmada (HMAC), HttpOnly, SameSite=Lax, de 180 días
   (Secure si la petición es https / `X-Forwarded-Proto: https`, o forzado con `RADAR_COOKIE_SECURE`). `DELETE /api/sesion` sale; `GET /api/sesion`
@@ -349,7 +389,7 @@ ocultándose de `/api/semana` para todos.
 
 ### Correo del lunes
 
-`npm run digest` envía por Resend (HTTP directo, sin dependencias) el resumen semanal: destacadas con su porqué, las que cierran pronto y las que ganan organizaciones parecidas, con enlace a cada ficha. Variables: `RESEND_API_KEY`, `RADAR_DIGEST_DESTINATARIOS` (separados por comas; vacío = no se envía nada), `RADAR_DIGEST_REMITENTE`, `RADAR_URL_PUBLICA`. Una vez por semana ISO (`--forzar` para repetir); cada envío queda en la tabla `envios_resumen`. `npm run digest -- --vista-previa` escribe `data/digest-preview.html` sin enviar.
+`npm run digest` envía por Resend (HTTP directo, sin dependencias) el resumen semanal: destacadas con su porqué, las que cierran pronto y las que ganan organizaciones parecidas, con enlace a cada ficha. Variables: `RESEND_API_KEY`, `RADAR_DIGEST_DESTINATARIOS` (separados por comas; vacío = no se envía nada), `RADAR_DIGEST_REMITENTE`, `RADAR_URL_PUBLICA` (sin valor por defecto: obligatoria para enviar; la vista previa sin ella usa enlaces relativos). El cron lo intenta los lunes y lo reintenta los martes (si ya salió, no repite). Una vez por semana ISO (`--forzar` para repetir); cada envío queda en la tabla `envios_resumen`. `npm run digest -- --vista-previa` escribe `data/digest-preview.html` sin enviar.
 
 ### Fuente EU Funding & Tenders
 

@@ -15,4 +15,4 @@ Las cinco etiquetas por defecto (needs-triage, needs-info, ready-for-agent, read
 
 ### Domain docs
 
-Single-context: `GLOSSARY.md` + `docs/adr/` en la raíz. See `docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` en la raíz (vocabulario del dominio). Sin `docs/adr/` por ahora: las decisiones están en el diseño (`docs/superpowers/specs/`) y en el README. See `docs/agents/domain.md`.

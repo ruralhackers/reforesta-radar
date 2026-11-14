@@ -52,7 +52,8 @@ export function Perfil() {
         <h1 className="text-2xl font-bold sm:text-3xl">Perfil</h1>
         <p className="mt-1 text-sm text-stone-600">
           Lo que el radar sabe de la organización. Los cambios cuentan desde la siguiente ejecución: si cambias las líneas o el ámbito, se vuelve a
-          cribar lo ya visto; el importe mínimo se aplica enseguida a la puntuación.
+          cribar (y, si cambian las líneas, a analizar) lo visto en los últimos 30 días; lo anterior conserva su veredicto. El orden de las líneas
+          no cuenta. El importe mínimo se aplica enseguida a la puntuación.
         </p>
       </header>
 
